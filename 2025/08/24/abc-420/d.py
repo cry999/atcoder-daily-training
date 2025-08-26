@@ -6,50 +6,72 @@ for _ in range(H):
     grid.append(list(input().strip()))
 
 
-start_row, start_col = None, None
-goal_row, goal_col = None, None
+sx, sy = None, None
+gx, gy = None, None
 
 for i in range(H):
     for j in range(W):
         if grid[i][j] == 'S':
-            start_row, start_col = i, j
+            sx, sy = i, j
         elif grid[i][j] == 'G':
-            goal_row, goal_col = i, j
+            gx, gy = i, j
 
-queue = deque([(start_row, start_col, 0, 0)])
-visited = set()
-visited.add((start_row, start_col, 0))
+queue = deque()
+queue.append((sx, sy, 0))
 
+# dp[door_state][x][y] = minimum steps to reach (x, y) with door_state
+dp = [
+    [[float('inf')] * W for _ in range(H)]
+    for _ in range(2)
+]
+dp[0][sx][sy] = 0
+
+# 下、右、上、左
 directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
 
+
+def can_move(x, y, door_state):
+    if not (0 <= x < H and 0 <= y < W):
+        return False
+
+    cell = grid[x][y]
+    if cell == '#':
+        return False
+    if cell == 'x' and door_state == 0:
+        return False
+    if cell == 'o' and door_state == 1:
+        return False
+    return True
+
+
 while queue:
-    row, col, door_state, steps = queue.popleft()
+    x, y, door = queue.popleft()
 
-    if row == goal_row and col == goal_col:
-        print(steps)
-        exit()
+    # print('now at (', x, y, ')', '[ switch:', door, ' ]')
+    # print(' dp:', dp)
 
-    for dr, dc in directions:
-        new_row, new_col = row + dr, col + dc
+    for dx, dy in directions:
+        nx, ny = x + dx, y + dy
 
-        if 0 <= new_row < H and 0 <= new_col < W:
-            cell = grid[new_row][new_col]
+        # print(' -> try to (', nx, ny, ')')
 
-            if cell == '#':
-                continue
+        if not can_move(nx, ny, door):
+            # print('    cannot move')
+            continue
 
-            new_door_state = door_state
+        n_door = 1 - door if grid[nx][ny] == '?' else door
+        # print('    can move, next switch:', n_door)
 
-            if cell == 'x' and door_state == 0:
-                continue
-            elif cell == 'o' and door_state == 1:
-                continue
-            elif cell == '?':
-                new_door_state = 1 - door_state
+        if dp[n_door][nx][ny] <= dp[door][x][y] + 1:
+            continue
 
-            state = (new_row, new_col, new_door_state)
-            if state not in visited:
-                visited.add(state)
-                queue.append((new_row, new_col, new_door_state, steps + 1))
+        # print('    move to (', nx, ny, ')')
+        queue.append((nx, ny, n_door))
+        dp[n_door][nx][ny] = dp[door][x][y] + 1
 
-print(-1)
+# print(dp)
+ans = min(dp[0][gx][gy], dp[1][gx][gy])
+if ans != float('inf'):
+    print(ans)
+else:
+    print(-1)
