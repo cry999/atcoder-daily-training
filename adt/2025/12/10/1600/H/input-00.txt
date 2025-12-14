@@ -1,0 +1,28 @@
+4
+0 1 0 2
+0 0 0 3
+4 0 2 0
+6 0 8 0
+1 0 1 1
+-1 0 1 1
+-8 9 2 6
+-10 -10 17 20
+
+        if DT <= DA:
+            Sx1, Sy1, Gx1, Gy1 = ASx, ASy, AGx, AGy
+            Gx2, Gy2 = TGx, TGy
+        else:
+            Sx1, Sy1, Gx1, Gy1 = TSx, TSy, TGx, TGy
+            Gx2, Gy2 = AGx, AGy
+        # T が先にゴールするパターン
+        min_t = min(DT, DA)
+        max_t = max(DT, DA)
+
+        aa = 1
+
+        bb = 0
+        bb += 2*(Gx1-Sx1)*(Sx1-Gx2)
+        bb += 2*(Gy1-Sy1)*(Sy1-Gy2)
+        bb /= DA
+
+        cc = (Sx1-Gx2)**2 + (Sy1-Gy2)**2
