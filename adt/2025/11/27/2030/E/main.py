@@ -1,16 +1,13 @@
-import collections
-
 N = int(input())
-S = input()
+s = input()
 
-# b_pos[i] = i 番目の 'B' の位置
-b_pos = [-1] * N
-p = 0
-for i, s in enumerate(S):
-    if s == 'B':
-        b_pos[p] = i
-        p += 1
+num_a = 0
+move_to_odd = 0
+move_to_even = 0
+for i, c in enumerate(s):
+    if c == 'A':
+        move_to_odd += abs(2*num_a - i)
+        move_to_even += abs(2*num_a+1 - i)
+        num_a += 1
 
-# op_a: 'A' でスタートするように操作した場合の操作回数
-# op_b: 'B' でスタートするように操作した場合の操作回数
-op_a, op_b = 0, 0
+print(min(move_to_odd, move_to_even))
