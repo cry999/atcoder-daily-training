@@ -24,23 +24,3 @@ for k in range(1, K + 1):
                     dp[d][k][v] %= MOD
 
 print(dp[0][K][S])
-# print(dp)
-# # 愚直解法 TLE
-# ans = 0
-# # (S からの距離, x の利用回数, 現在地)
-# queue = [(0, 0, S)]
-# while queue:
-#     d, x_cnt, u = queue.pop()
-#     if d > K:
-#         continue
-#     if d == K:
-#         if u == T and x_cnt % 2 == 0:
-#             ans += 1
-#         else:
-#             continue
-#     for v in graph[u]:
-#         if v != T and d + 1 == K:
-#             continue
-#         queue.append((d + 1, x_cnt + (v == X), v))
-#
-# print(ans)
