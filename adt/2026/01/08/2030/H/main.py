@@ -1,5 +1,4 @@
 from typing import Callable
-from atcoder.string import suffix_array
 
 T = int(input())
 
