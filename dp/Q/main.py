@@ -1,38 +1,40 @@
-from typing import Callable, Iterable
+import sys
 
-Func = Callable[[Iterable[int]], int]
+sys.setrecursionlimit(10**7)
 
 
 class SegmentTree:
-    def __init__(self, n: int, func: Func = max, init: int = 0):
-        self._size = 1
-        while self._size < n:
-            self._size <<= 1
-        self._func = func
-        self._init = init
-        self._data = [init] * (2 * self._size)
+    def __init__(self, n: int, init: int = 0):
+        self.n = 1
+        while self.n < n:
+            self.n <<= 1
+        self.data = [init] * (2 * self.n)
+        self.init = init
 
-    def update(self, i: int, v: int):
-        i += self._size
-        self._data[i] = v
+    def update(self, pos: int, v: int):
+        pos = pos + self.n - 1
+        self.data[pos] = v
 
-        while i > 1:
-            i >>= 1
-            self._data[i] = self._func(self._data[i * 2], self._data[i * 2 + 1])
+        while pos >= 2:
+            pos >>= 1
+            self.data[pos] = max(self.data[2 * pos], self.data[2 * pos + 1])
 
-    def query(self, left: int, right: int) -> int:
-        return self._query((left, right), (0, self._size), 1)
+    def query(self, l: int, r: int) -> int:
+        """[l, r) の最大値を返す"""
+        return self._query(l, r, 1, self.n + 1, 1)
 
-    def _query(self, target: tuple[int], search: tuple[int], idx: int) -> int:
-        tl, tr, sl, sr = *target, *search
-        if tr <= sl or sr <= tl:
-            return self._init
-        if tl <= sl and sr <= tr:
-            return self._data[idx]
-        sm = (sl + sr) // 2
-        return self._func(
-            self._query((tl, tr), (sl, sm), 2 * idx),
-            self._query((tl, tr), (sm, sr), 2 * idx + 1),
+    def _query(self, l: int, r: int, a: int, b: int, u: int) -> int:
+        """[a, b) の範囲に対応するセル u が [l, r) を含むならその値を返す。
+        含まないなら、二部探索的に探索して対応する値を探す。"""
+        if l <= a and b <= r:
+            return self.data[u]
+        if b <= l or r <= a:  # 交わらない
+            return self.init
+
+        m = (a + b) // 2
+        return max(
+            self._query(l, r, a, m, 2 * u),
+            self._query(l, r, m, b, 2 * u + 1),
         )
 
 
@@ -40,12 +42,10 @@ N = int(input())
 (*h,) = map(int, input().split())
 (*a,) = map(int, input().split())
 
-st = SegmentTree(N + 1)
+t = SegmentTree(N, init=0)
 
 for hi, ai in zip(h, a):
-    # hi 未満の単調増加列の最大価値を取得
-    v = st.query(0, hi)
-    # それに ai を加えたものが hi で終わる最大価値
-    st.update(hi, ai + v)
+    v = t.query(1, hi) + ai
+    t.update(hi, v)
 
-print(st.query(0, N + 1))
+print(t.query(1, N + 1))
