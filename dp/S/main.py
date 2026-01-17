@@ -1,36 +1,45 @@
-MOD = 10**9 + 7
+from atcoder.modint import Modint, ModContext
 
-
-K = input()
+K = int(input())
 D = int(input())
 
-k_digits = [int(c) for c in K]
+MOD = 10**9 + 7
 
-n = len(k_digits)
-# dp[i][d] = i+1 桁で各桁の数字の総和を D で割ったあまりが d の数の個数
-dp = [[0] * D for _ in range(n)]
-for k in range(10):
-    dp[0][k % D] += 1
-for i in range(n - 1):
-    for d in range(D):
-        for x in range(10):
-            # i+1 桁の各桁の総和を D で割ったあまりが d の数字の最上位に
-            # x を追加する。
-            dp[i + 1][(d + x) % D] += dp[i][d]
-            dp[i + 1][(d + x) % D] %= MOD
+digit_length = len(str(K))
 
+with ModContext(MOD):
+    # dp[k][d] := 10^(k+1) 未満の数字で桁の総和を D で割ったあまりが d である数字の個数
+    dp = [[Modint(0) for _ in range(D)] for _ in range(digit_length + 1)]
+    for d in range(10):
+        dp[0][d % D] += Modint(1)
 
-offset = 0
-ans = 0
-for i in range(n - 1):
-    kd = k_digits[i]
-    for x in range(kd):
-        ans += dp[n - i - 2][(D - x - offset) % D]
-        ans %= MOD
-    offset = (offset + kd) % D
+    for k in range(digit_length):
+        for d in range(D):
+            for n in range(10):
+                # 先頭に n を追加する
+                dp[k + 1][d % D] += dp[k][(d - n) % D]
 
-for x in range(k_digits[-1] + 1):
-    ans += (offset + x) % D == 0
-    ans %= MOD
+    # 先頭の桁から計算していく
+    k = digit_length - 1
+    offset = 0
+    ans = Modint(0)
+    while k >= 0:
+        # k 桁目の数字を求める。
+        kth_digit = (K // (10**k)) % 10
+        old = ans
 
-print((ans - 1) % MOD)
+        if k == 0:
+            for d in range(kth_digit):
+                ans += (d + offset) % D == 0
+        else:
+            for d in range(kth_digit):
+                ans += dp[k - 1][(D - offset - d) % D]
+
+        offset += kth_digit
+        offset %= D
+        k -= 1
+
+    ans -= 1  # 0 を引く
+    if offset % D == 0:
+        ans += 1
+    print(ans.val())
