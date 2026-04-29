@@ -1,11 +1,10 @@
 import math
-import sys
-
-sys.setrecursionlimit(10**7)
+import functools
 
 N = int(input())
 
 
+@functools.cache
 def is_palindrome(s: str) -> bool:
     for i in range(len(s) // 2):
         if s[i] != s[len(s) - i - 1]:
@@ -13,6 +12,7 @@ def is_palindrome(s: str) -> bool:
     return True
 
 
+@functools.cache
 def rev(n: int) -> int:
     r = 0
     while n:
@@ -22,6 +22,7 @@ def rev(n: int) -> int:
     return r
 
 
+@functools.cache
 def f(n: int):
     if n == 0:
         return ""
