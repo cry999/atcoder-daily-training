@@ -57,12 +57,12 @@ for t in range(N):
 
     for i in range(D1):
         for j in range(D1):
-            if i + 1 <= D and j + s + 1 <= D:
-                nxt[(i + 1) * D1 + (j + s + 1)] += dp3[i * D1 + j]
-                nxt[(i + 1) * D1 + (j + s + 1)] %= MOD
-            if i + s + 1 <= D and j + 1 <= D:
-                nxt[(i + s + 1) * D1 + (j + 1)] += dp3[i * D1 + j]
-                nxt[(i + s + 1) * D1 + (j + 1)] %= MOD
+            if i >= 1 and j >= s + 1:
+                nxt[i * D1 + j] += dp3[(i - 1) * D1 + (j - s - 1)]
+                nxt[i * D1 + j] %= MOD
+            if i >= s + 1 and j >= 1:
+                nxt[i * D1 + j] += dp3[(i - s - 1) * D1 + (j - 1)]
+                nxt[i * D1 + j] %= MOD
 
     dp = nxt
 
