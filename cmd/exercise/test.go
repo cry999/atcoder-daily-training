@@ -29,7 +29,9 @@ func cmdTest(args []string) (int, error) {
 	var debug bool
 	flags.BoolVar(&debug, "d", false, "Run with DEBUG=1 and filter [DEBUG]-prefixed lines from comparison")
 	flags.BoolVar(&debug, "debug", false, "Run with DEBUG=1 and filter [DEBUG]-prefixed lines from comparison")
-	caseFlag := flags.String("case", "", `Run only the specified case(s); comma-separated (e.g. "01" or "1,3")`)
+	var caseStr string
+	flags.StringVar(&caseStr, "case", "", `Run only the specified case(s); comma-separated (e.g. "01" or "1,3")`)
+	flags.StringVar(&caseStr, "c", "", `Run only the specified case(s); comma-separated (e.g. "01" or "1,3")`)
 	flags.SetOutput(os.Stderr)
 
 	if err := flags.Parse(args[1:]); err != nil {
@@ -45,8 +47,8 @@ func cmdTest(args []string) (int, error) {
 	}
 
 	var cases []string
-	if *caseFlag != "" {
-		for _, p := range strings.Split(*caseFlag, ",") {
+	if caseStr != "" {
+		for _, p := range strings.Split(caseStr, ",") {
 			if p = strings.TrimSpace(p); p != "" {
 				cases = append(cases, p)
 			}
