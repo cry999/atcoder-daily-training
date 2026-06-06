@@ -29,6 +29,12 @@ func main() {
 			fmt.Fprintln(os.Stderr, "exercise run:", err)
 		}
 		os.Exit(code)
+	case "commit":
+		code, err := cmdCommit(os.Args[2:])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "exercise commit:", err)
+		}
+		os.Exit(code)
 	default:
 		usage()
 		os.Exit(2)
@@ -38,6 +44,7 @@ func main() {
 func usage() {
 	fmt.Fprintln(os.Stderr, `Usage:
   exercise new
-  exercise test <contest> --task <task> [-v] [-d] [-c <N[,M,...]>] [--refresh] [--timeout <dur>]
-  exercise run  <contest> --task <task> [-v] [-d] [--stdin <path>|-] [--timeout <dur>]`)
+  exercise test   <contest> --task <task> [-v] [-d] [-c <N[,M,...]>] [--refresh] [--timeout <dur>]
+  exercise run    <contest> --task <task> [-v] [-d] [--stdin <path>|-] [--timeout <dur>]
+  exercise commit`)
 }

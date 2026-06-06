@@ -113,3 +113,4 @@ printf "3\nok\nok\nok\n" | exercise run abc999 --task a --stdin -
 - 利用 (test): [exercise-test-usage.md](./exercise-test-usage.md)
 - アーキテクチャ: [exercise-test-architecture.md](./exercise-test-architecture.md)
 - テスト戦略: [exercise-test-testing.md](./exercise-test-testing.md)
+- コミット: [exercise-commit-usage.md](./exercise-commit-usage.md)
