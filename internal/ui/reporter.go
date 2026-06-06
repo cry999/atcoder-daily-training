@@ -102,16 +102,31 @@ func printDiff(expected, got string) {
 	}
 }
 
+const (
+	stderrFullDisplayLines = 50
+	stderrHeadLines        = 10
+	stderrTailLines        = 10
+)
+
 func printStderr(stderrOut string) {
 	stderrOut = strings.TrimRight(stderrOut, "\n")
 	if stderrOut == "" {
 		return
 	}
-	if len(stderrOut) > 1000 {
-		stderrOut = stderrOut[:1000] + "... (truncated)"
-	}
+	lines := strings.Split(stderrOut, "\n")
 	fmt.Println("       " + sectionLabel.Render("stderr:"))
-	for _, line := range strings.Split(stderrOut, "\n") {
+	if len(lines) <= stderrFullDisplayLines {
+		for _, line := range lines {
+			fmt.Println("         " + line)
+		}
+		return
+	}
+	for _, line := range lines[:stderrHeadLines] {
+		fmt.Println("         " + line)
+	}
+	elided := len(lines) - stderrHeadLines - stderrTailLines
+	fmt.Println("         " + sectionLabel.Render(fmt.Sprintf("... (%d more lines elided)", elided)))
+	for _, line := range lines[len(lines)-stderrTailLines:] {
 		fmt.Println("         " + line)
 	}
 }
