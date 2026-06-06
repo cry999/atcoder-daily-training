@@ -29,6 +29,7 @@ Use this skill after edits to any of:
 - `internal/runner/` — process execution.
 - `internal/testexec/` — `test` orchestration, judge, meta cache, AtCoder fetch.
 - `internal/runexec/` — `run` orchestration (ad-hoc stdin).
+- `internal/cachepath/` — XDG cache location resolution.
 - `internal/ui/` — reporter implementation, styles.
 
 Use it also when the user asks to verify the tool / check for regressions.

@@ -1,8 +1,8 @@
-# Test fixtures for `exercise test`
+# Test fixtures for `exercise test` / `exercise run`
 
-`exercise test` コマンド自身の挙動をスモークテストするための fixture 一式と、それを走らせるスクリプト。
+ツール自身の挙動をスモークテストするための fixture 一式と、それを走らせるスクリプト。
 
-ツール本体には「テスト用パス上書き」のような専用機能は持たせていない。代わりに `run.sh` が一時ディレクトリ内に当日の `exercise/YYYY/MM/DD/` 構造を作り、そこに fixtures を複製してから `cd` 経由でツールを呼び出す (= 普段のユースケースと同じ呼び出し方になる)。
+ツール本体は **解答 (`exercise/YYYY/MM/DD/<task>.py`)** と **キャッシュ (`$XDG_CACHE_HOME/atcoder-tools/<contest>/<task>/`)** を別の場所に保存する設計のため、`run.sh` は両者を 2 つの一時ディレクトリに振り分け、後者を `XDG_CACHE_HOME` 経由でツールに渡す。
 
 ## 実行
 
@@ -22,23 +22,36 @@
 | `fixture_tle` | `5` | `10` | `time.sleep(2)`、`time_limit=200ms` のため TLE、exit 1 |
 | `fixture_debug` (`-d` 無し) | `5` | `10` | `[DEBUG]` 行で汚染 → FAIL、exit 1 |
 | `fixture_debug` (`-d` 付き) | `5` | `10` | `[DEBUG]` がフィルタされ PASS、exit 0 |
-| `fixture_multi` | `1`/`2`/`3` | `2`/`4`/`6` | 3 ケース持ちで `--case` フィルタの動作確認用 (`fixture_pass` と同じ N\*2 ロジック)。指定無しなら 3 ケース全 PASS、`--case 02` で 1 ケース、`--case 99` で「該当無し」エラー exit 1 |
+| `fixture_multi` | `1`/`2`/`3` | `2`/`4`/`6` | 3 ケース持ちで `--case` フィルタの動作確認用 |
+| `fixture_interactive` | 任意 | 任意 | 簡易インタラクティブ (query/response loop) — `run --stdin -` 用 |
 
 ## ディレクトリ構造
 
-各 fixture は `exercise/YYYY/MM/DD/<task>.py` + `exercise/YYYY/MM/DD/<task>/{meta.toml,tests/NN.in NN.out}` という規約 (要件定義書参照) に従う。
+解答ファイルとキャッシュは別軸に分かれる:
 
 ```
 fixtures/
   README.md
   run.sh
-  fixture_pass.py
-  fixture_pass/
-    meta.toml
-    tests/
-      01.in
-      01.out
+  fixture_pass.py            # 解答 (.py)
   fixture_fail.py
-  fixture_fail/
-    ...
+  ...
+  cache/                     # XDG_CACHE_HOME に丸ごとマウントされる前提のレイアウト
+    atcoder-tools/
+      fixture/               # contest 名 = "fixture"
+        fixture_pass/
+          meta.toml
+          tests/
+            01.in
+            01.out
+        fixture_fail/
+        ...
 ```
+
+スクリプトは:
+
+1. `fixtures/*.py` を `$STAGE/exercise/YYYY/MM/DD/` に複製する
+2. `fixtures/cache/` の中身を `$CACHE_HOME` に複製し `XDG_CACHE_HOME=$CACHE_HOME` を export する
+3. `$STAGE` に `cd` してからツールを呼び出す
+
+これでツールは「解答は当日 dir、キャッシュは XDG」という通常運用と同じ経路でファイルを参照する。

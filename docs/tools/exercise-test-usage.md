@@ -29,21 +29,24 @@ go run ./cmd/exercise new
 go run ./cmd/exercise test abc325 --task abc325_d
 ```
 
-初回実行時に AtCoder の問題ページからサンプル入出力と Time Limit を取得し、以下に保存する。
+初回実行時に AtCoder の問題ページからサンプル入出力と Time Limit を取得し、以下のように **解答 (per-day) とキャッシュ (XDG)** に分けて保存する。
 
 ```
+# 解答 (git 管理)
 exercise/YYYY/MM/DD/
   abc325_d.py
-  abc325_d/
-    meta.toml
-    tests/
-      01.in
-      01.out
-      02.in
-      02.out
+
+# キャッシュ (XDG_CACHE_HOME 配下、git 管理しない)
+~/.cache/atcoder-tools/abc325/abc325_d/
+  meta.toml
+  tests/
+    01.in
+    01.out
+    02.in
+    02.out
 ```
 
-2 回目以降は保存済みのテストを使うため、ネットワークアクセスは発生しない。
+`XDG_CACHE_HOME` が設定されていればそちらが優先される。2 回目以降は保存済みのキャッシュを使うためネットワークアクセスは発生しない。**別の clone (自宅 / 職場 等) からアクセスする場合も `~/.cache/atcoder-tools/` を共有しておけば fetch 結果を使い回せる**。
 
 ## コマンド
 
@@ -70,9 +73,9 @@ exercise test <contest> --task <task> [-v] [-d] [--case <N[,M,...]>] [--refresh]
 ## 動作
 
 1. `exercise/YYYY/MM/DD/<task>.py` の存在を確認 (無ければエラー)。
-2. `exercise/YYYY/MM/DD/<task>/tests/` を確認:
+2. `$XDG_CACHE_HOME/atcoder-tools/<contest>/<task>/tests/` を確認:
    - 存在し `--refresh` も無ければそれを使う。
-   - 無ければ AtCoder からサンプル入出力と Time Limit を取得して保存。
+   - 無ければ AtCoder からサンプル入出力と Time Limit を取得して同ベースに保存。
 3. 各サンプルケースに対して `<repo_root>/.venv/bin/python <task>.py < NN.in` を実行。
 4. 標準出力を `NN.out` と比較し、結果をケースごとに表示。
 

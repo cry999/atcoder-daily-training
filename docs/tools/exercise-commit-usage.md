@@ -18,6 +18,8 @@ exercise commit
 4. `git commit -m "exercise: YYYY-MM-DD" -- exercise/YYYY/MM/DD/` を実行。
    - pathspec を付けているので、当日ディレクトリ外に staged されている変更は **index に残ったままコミットされない**。
 
+> 補足: テスト用のサンプル I/O (`tests/NN.in NN.out`) と meta.toml は `$XDG_CACHE_HOME/atcoder-tools/` 配下に保存されているため、本コマンドのコミット対象には含まれない (= コミットは解答ファイルだけが軽量に乗る)。
+
 ## コミットメッセージ
 
 固定で `exercise: YYYY-MM-DD` (例: `exercise: 2026-06-06`)。リポジトリの既存スタイル ([recent commits](https://github.com/cry999/atcoder-daily-training/commits/main)) に合わせている。

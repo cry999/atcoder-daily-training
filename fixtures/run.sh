@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# fixtures/run.sh -- `exercise test` コマンドのスモークテスト
+# fixtures/run.sh -- `exercise test` / `exercise run` のスモークテスト
 #
-# fixtures/ にある fixture を一時ディレクトリ内の `exercise/YYYY/MM/DD/` に複製し、
-# そこに `cd` してからツールを呼び出すことで、ツール本体に「テスト用パス上書き」のような
-# 機能を持たせずに各種ステータス (PASS/FAIL/RE/TLE/DEBUG) を一周検査する。
+# fixtures/<task>.py を一時ディレクトリの exercise/YYYY/MM/DD/ に置き、
+# fixtures/cache/ を XDG_CACHE_HOME に指定することで、ツール本体に
+# テスト専用のパス上書き機構を持たせずに各種ステータスを検査する。
 
 set -euo pipefail
 
@@ -13,16 +13,21 @@ FIXTURES="$REPO_ROOT/fixtures"
 
 # Build the tool.
 TOOL_DIR="$(mktemp -d)"
-trap 'rm -rf "$TOOL_DIR" "$STAGE"' EXIT
+trap 'rm -rf "$TOOL_DIR" "$STAGE" "$CACHE_HOME"' EXIT
 BIN="$TOOL_DIR/exercise"
 echo "Building $BIN ..."
 go build -o "$BIN" ./cmd/exercise
 
-# Stage fixtures under <stage>/exercise/YYYY/MM/DD/, then cd there.
+# Stage solutions under <stage>/exercise/YYYY/MM/DD/.
 STAGE="$(mktemp -d)"
 DATE_DIR="exercise/$(date +%Y/%m/%d)"
 mkdir -p "$STAGE/$DATE_DIR"
-cp -R "$FIXTURES/"fixture_* "$STAGE/$DATE_DIR/"
+cp "$FIXTURES/"fixture_*.py "$STAGE/$DATE_DIR/"
+
+# Stage pre-populated cache (meta.toml + tests/) under a private XDG_CACHE_HOME.
+CACHE_HOME="$(mktemp -d)"
+cp -R "$FIXTURES/cache/." "$CACHE_HOME/"
+export XDG_CACHE_HOME="$CACHE_HOME"
 
 cd "$STAGE"
 

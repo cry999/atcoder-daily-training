@@ -32,6 +32,9 @@ internal/ui/
 
 internal/runexec/
   runexec.go     # Run(Options) + Executor/Reporter interface (ad-hoc 実行: 任意 stdin → 出力表示)
+
+internal/cachepath/
+  cachepath.go   # キャッシュ配置 (XDG_CACHE_HOME / ~/.cache / atcoder-tools 配下) の解決
 ```
 
 > 補足: `internal/runexec` は `exercise run` サブコマンドの実装。`testexec` と並列の位置付けで、判定 (PASS/FAIL) を行わず単発実行に特化する。詳細は [exercise-run-usage.md](./exercise-run-usage.md)。

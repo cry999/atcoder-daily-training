@@ -57,6 +57,7 @@
 - `internal/runner/` — プロセス実行
 - `internal/testexec/` — `test` の orchestration・judge・meta・fetch
 - `internal/runexec/` — `run` の orchestration
+- `internal/cachepath/` — キャッシュ配置の解決
 - `internal/ui/` — Reporter 実装・スタイル
 
 逆に、`docs/` や `exercise/`/`abc/`/`adt/`/`dp/` 等の練習問題のみの変更では走らせる必要はない。

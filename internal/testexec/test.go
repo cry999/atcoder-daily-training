@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cry999/atcoder-daily-training/internal/cachepath"
 	"github.com/cry999/atcoder-daily-training/internal/runner"
 )
 
@@ -43,7 +44,9 @@ func Run(opts Options) (int, error) {
 		return 1, fmt.Errorf("解答ファイルが見つかりません: %s", solutionPath)
 	}
 
-	taskDir := filepath.Join(dateDir, opts.Task)
+	// キャッシュ (meta.toml + tests/) は XDG_CACHE_HOME/atcoder-tools 配下に置く。
+	// 解答ファイル自体は per-day の exercise/YYYY/MM/DD のまま。
+	taskDir := cachepath.Task(opts.Contest, opts.Task)
 	testsDir := filepath.Join(taskDir, "tests")
 	metaPath := filepath.Join(taskDir, "meta.toml")
 

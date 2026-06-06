@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/cry999/atcoder-daily-training/internal/cachepath"
 	"github.com/cry999/atcoder-daily-training/internal/runner"
 )
 
@@ -74,7 +75,7 @@ func Run(opts Options) (int, error) {
 	}
 
 	timeLimitMs := defaultTimeLimitMs
-	metaPath := filepath.Join(dateDir, opts.Task, "meta.toml")
+	metaPath := filepath.Join(cachepath.Task(opts.Contest, opts.Task), "meta.toml")
 	if m, err := loadMeta(metaPath); err == nil {
 		timeLimitMs = m.TimeLimitMs
 	}

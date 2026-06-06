@@ -20,30 +20,39 @@
 
 ## ディレクトリ構造
 
-解答ファイルと同階層に、同名サフィックス無しのディレクトリを置き、その配下にメタ情報とテストケースを保存する。
+解答ファイルは当日の演習ディレクトリ配下、キャッシュ (テストサンプル + メタ情報) は **XDG Base Directory** に従ったユーザー単位の場所に分離する:
 
 ```
+# 解答コード (ユーザが書く、git 管理対象)
 exercise/YYYY/MM/DD/
-  abc325_d.py            # 解答コード (ユーザが書く)
-  abc325_d/              # 問題コンテキスト (ツールが管理)
-    meta.toml            # contest, task, time_limit_ms, url など
-    tests/
-      01.in              # サンプル入力 1
-      01.out             # サンプル出力 1
-      02.in
-      02.out
-      ...
+  abc325_d.py
+
+# キャッシュ (ツールが管理、コミットしない)
+$XDG_CACHE_HOME/atcoder-tools/<contest>/<task>/
+  meta.toml              # contest, task, time_limit_ms, url など
+  tests/
+    01.in                # サンプル入力 1
+    01.out               # サンプル出力 1
+    02.in
+    02.out
+    ...
 ```
+
+`$XDG_CACHE_HOME` が未設定なら `~/.cache` が使われる。設計上のメリット:
+
+- 同じ問題を別日に解いても fetch 結果を共有できる
+- 別 clone (自宅/職場) でも `$HOME/.cache/atcoder-tools/` を共有すれば再 fetch 不要
+- コミット履歴は解答だけが残り、テストサンプルで肥大化しない
 
 ### 命名規約
 
 | 種別 | 規約 |
 |---|---|
-| 解答ファイル | `<task>.py` (例: `abc325_d.py`) |
-| 問題コンテキスト ディレクトリ | `<task>/` (解答ファイルのベース名と一致) |
-| メタファイル | `<task>/meta.toml` |
-| サンプル入力 | `<task>/tests/NN.in` (NN は 2 桁ゼロ埋め、01 始まり) |
-| サンプル出力 | `<task>/tests/NN.out` |
+| 解答ファイル | `exercise/YYYY/MM/DD/<task>.py` (例: `abc325_d.py`) |
+| キャッシュ ベース | `$XDG_CACHE_HOME/atcoder-tools/<contest>/<task>/` |
+| メタファイル | キャッシュベース直下の `meta.toml` |
+| サンプル入力 | キャッシュベース直下の `tests/NN.in` (NN は 2 桁ゼロ埋め、01 始まり) |
+| サンプル出力 | キャッシュベース直下の `tests/NN.out` |
 
 ### `meta.toml` のスキーマ
 
@@ -89,8 +98,8 @@ exercise test <contest> --task <task> [--refresh] [--timeout <dur>]
      - サンプル入力 / 出力のペア (順序を保持)
      - Time Limit (例: "実行時間制限: 2 sec" を ms に換算)
 4. **保存**
-   - `exercise/YYYY/MM/DD/<task>/meta.toml` にメタ情報を書き出す。
-   - `exercise/YYYY/MM/DD/<task>/tests/NN.in` `NN.out` を書き出す (`NN` は 01 始まりのゼロ埋め)。
+   - `$XDG_CACHE_HOME/atcoder-tools/<contest>/<task>/meta.toml` にメタ情報を書き出す。
+   - 同ベースの `tests/NN.in` / `NN.out` を書き出す (`NN` は 01 始まりのゼロ埋め)。
 5. **解答の実行**
    - 各テストケース `NN.in` を標準入力として `<repo_root>/.venv/bin/python <task>.py` を起動する。
    - `.venv/bin/python` が存在しない場合は `PATH` 上の `python` にフォールバックする。
