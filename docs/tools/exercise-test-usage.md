@@ -56,7 +56,7 @@ exercise test <contest> --task <task> [--refresh] [--timeout <dur>]
 | 引数 | 必須 | 説明 |
 |---|---|---|
 | `<contest>` | ✔ | AtCoder のコンテスト ID (例: `abc325`)。URL の `/contests/<contest>/` に対応 |
-| `--task <task>` | ✔ | AtCoder のタスク ID (例: `abc325_d`)。URL の `/tasks/<task>` に対応 |
+| `--task <task>` | ✔ | AtCoder のタスク ID (例: `abc325_d`)。URL の `/tasks/<task>` に対応。**短縮形**: `_` を含まない値は `<contest>_<task>` に自動展開 (例: `--task d` + `<contest>=abc325` → `abc325_d`) |
 | `--refresh` | | テストキャッシュを無視して AtCoder から再取得 |
 | `--timeout <dur>` | | 1 ケースあたりの実行制限時間を上書き。Go の duration 記法 (例: `5s`, `500ms`)。未指定なら `meta.toml.time_limit_ms` の値を使う |
 
@@ -116,8 +116,14 @@ Result: 2/3 PASS
 ### 通常の演習チェック
 
 ```sh
+# 短縮形 (ABC 系は contest + task で abcXXX 部分が重複するので便利)
+go run ./cmd/exercise test abc325 --task d
+
+# 等価。フル ID で書いてもよい
 go run ./cmd/exercise test abc325 --task abc325_d
 ```
+
+ADT のように contest ID と task ID が独立しているケースは、フル ID (`--task abc325_d` 等) で指定する。
 
 ### サンプルケースを最新化したい
 
