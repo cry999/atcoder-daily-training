@@ -223,4 +223,5 @@ go run ./cmd/exercise test abc325 --task abc325_d --timeout 200ms
 
 - 要件定義: [exercise-test-requirements.md](./exercise-test-requirements.md)
 - アーキテクチャ: [exercise-test-architecture.md](./exercise-test-architecture.md)
+- テスト戦略: [exercise-test-testing.md](./exercise-test-testing.md)
 - ツール本体: [`cmd/exercise/main.go`](../../cmd/exercise/main.go)
