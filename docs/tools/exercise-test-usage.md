@@ -48,7 +48,7 @@ exercise/YYYY/MM/DD/
 ## コマンド
 
 ```
-exercise test <contest> --task <task> [--refresh] [--timeout <dur>]
+exercise test <contest> --task <task> [-v] [--refresh] [--timeout <dur>]
 ```
 
 ### 引数
@@ -57,6 +57,7 @@ exercise test <contest> --task <task> [--refresh] [--timeout <dur>]
 |---|---|---|
 | `<contest>` | ✔ | AtCoder のコンテスト ID (例: `abc325`)。URL の `/contests/<contest>/` に対応 |
 | `--task <task>` | ✔ | AtCoder のタスク ID (例: `abc325_d`)。URL の `/tasks/<task>` に対応。**短縮形**: `_` を含まない値は `<contest>_<task>` に自動展開 (例: `--task d` + `<contest>=abc325` → `abc325_d`) |
+| `-v` / `--verbose` | | 各ケースで入力 (`input:`) と実際の出力 (`output:`) を表示 |
 | `--refresh` | | テストキャッシュを無視して AtCoder から再取得 |
 | `--timeout <dur>` | | 1 ケースあたりの実行制限時間を上書き。Go の duration 記法 (例: `5s`, `500ms`)。未指定なら `meta.toml.time_limit_ms` の値を使う |
 

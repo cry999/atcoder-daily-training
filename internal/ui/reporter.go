@@ -8,9 +8,11 @@ import (
 	"github.com/cry999/atcoder-daily-training/internal/testexec"
 )
 
-type TestReporter struct{}
+type TestReporter struct {
+	verbose bool
+}
 
-func NewTestReporter() *TestReporter { return &TestReporter{} }
+func NewTestReporter(verbose bool) *TestReporter { return &TestReporter{verbose: verbose} }
 
 func (r *TestReporter) Fetching(contest, task string) {
 	fmt.Println(infoStyle.Render(fmt.Sprintf("Fetching %s/%s from AtCoder...", contest, task)))
@@ -41,11 +43,26 @@ func (r *TestReporter) Case(cr testexec.CaseResult) {
 		statusBadge(cr.Status),
 		elapsedText,
 	)
+	if r.verbose {
+		printContent("input:", cr.Input)
+		printContent("output:", cr.Actual)
+	}
 	switch cr.Status {
 	case testexec.Fail:
 		printDiff(cr.Expected, cr.Actual)
 	case testexec.RE:
 		printStderr(cr.Stderr)
+	}
+}
+
+func printContent(label, body string) {
+	fmt.Println("       " + sectionLabel.Render(label))
+	body = strings.TrimRight(body, "\n")
+	if body == "" {
+		return
+	}
+	for _, line := range strings.Split(body, "\n") {
+		fmt.Println("         " + line)
 	}
 }
 

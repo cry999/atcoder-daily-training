@@ -20,14 +20,21 @@ type CaseResult struct {
 	Name            string
 	Status          CaseStatus
 	Elapsed         time.Duration
-	Expected        string
-	Actual          string
-	Stderr          string
-	OriginalLimitMs int // problem の本来の制限時間 (ms)。Status==Pass で Elapsed が超えていたら本来 TLE。
+	Input           string // 常にセット (テストケースの標準入力)
+	Expected        string // 常にセット (normalize 済みの期待出力)
+	Actual          string // 常にセット (normalize 済みの実際の stdout)
+	Stderr          string // RE のみ
+	OriginalLimitMs int    // problem の本来の制限時間 (ms)。Status==Pass で Elapsed が超えていたら本来 TLE。
 }
 
-func judge(name, expected string, pr *runner.ProcessResult) CaseResult {
-	cr := CaseResult{Name: name, Elapsed: pr.Elapsed}
+func judge(name, input, expected string, pr *runner.ProcessResult) CaseResult {
+	cr := CaseResult{
+		Name:     name,
+		Elapsed:  pr.Elapsed,
+		Input:    strings.TrimRight(input, "\n"),
+		Expected: normalizeOutput(expected),
+		Actual:   normalizeOutput(pr.Stdout),
+	}
 	switch pr.Status {
 	case runner.TimedOut:
 		cr.Status = TLE
@@ -37,15 +44,11 @@ func judge(name, expected string, pr *runner.ProcessResult) CaseResult {
 			cr.Stderr = pr.Stderr
 			break
 		}
-		exp := normalizeOutput(expected)
-		got := normalizeOutput(pr.Stdout)
-		if exp == got {
+		if cr.Expected == cr.Actual {
 			cr.Status = Pass
 			break
 		}
 		cr.Status = Fail
-		cr.Expected = exp
-		cr.Actual = got
 	}
 	return cr
 }

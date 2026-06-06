@@ -23,6 +23,9 @@ func cmdTest(args []string) (int, error) {
 	taskFlag := flags.String("task", "", `AtCoder task ID, or short form (e.g. "d" expands to "<contest>_d")`)
 	refresh := flags.Bool("refresh", false, "Force refetch sample cases")
 	timeoutFlag := flags.Duration("timeout", 0, "Override time limit (e.g. 5s, 500ms). Defaults to the problem's time limit.")
+	var verbose bool
+	flags.BoolVar(&verbose, "v", false, "Show input/output content for each case")
+	flags.BoolVar(&verbose, "verbose", false, "Show input/output content for each case")
 	flags.SetOutput(os.Stderr)
 
 	if err := flags.Parse(args[1:]); err != nil {
@@ -43,7 +46,7 @@ func cmdTest(args []string) (int, error) {
 		Refresh:     *refresh,
 		Timeout:     *timeoutFlag,
 		ExecutorFor: selectExecutor,
-		Reporter:    ui.NewTestReporter(),
+		Reporter:    ui.NewTestReporter(verbose),
 	})
 }
 

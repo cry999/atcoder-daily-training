@@ -104,7 +104,7 @@ func runCase(executor Executor, solutionPath, testsDir, name string, timeout tim
 	if err != nil {
 		return CaseResult{}, err
 	}
-	return judge(name, string(expected), pr), nil
+	return judge(name, string(input), string(expected), pr), nil
 }
 
 func ensureTests(reporter Reporter, contest, task, taskDir, testsDir, metaPath string, refresh bool) (*meta, error) {

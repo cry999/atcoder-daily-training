@@ -65,6 +65,7 @@ exercise test <contest> --task <task> [--refresh] [--timeout <dur>]
 |---|---|---|
 | `<contest>` | ✔ | AtCoder のコンテスト ID (例: `abc325`)。URL の `/contests/<contest>/` 部分に対応 |
 | `--task <task>` | ✔ | AtCoder のタスク ID (例: `abc325_d`)。URL の `/tasks/<task>` 部分に対応。`_` を含まない短縮形 (例: `d`) を渡した場合は `<contest>_<task>` に自動展開する |
+| `-v` / `--verbose` | | 各ケースについて、入力 (`<task>/tests/NN.in` の中身) と解答の標準出力を追加表示する |
 | `--refresh` | | テストキャッシュを無視して AtCoder から再取得する |
 | `--timeout <dur>` | | 1 ケースあたりの制限時間を上書き (Go の `time.ParseDuration` 記法: `5s`, `500ms` 等)。未指定なら `meta.toml.time_limit_ms` を使う。`meta.toml` への永続化はしない |
 
