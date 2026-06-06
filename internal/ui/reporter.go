@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cry999/atcoder-daily-training/internal/runexec"
 	"github.com/cry999/atcoder-daily-training/internal/testexec"
 )
 
@@ -136,6 +137,59 @@ const (
 	stderrHeadLines        = 10
 	stderrTailLines        = 10
 )
+
+// ----- runexec.Reporter implementation -----
+
+type RunReporter struct {
+	verbose bool
+}
+
+func NewRunReporter(verbose bool) *RunReporter { return &RunReporter{verbose: verbose} }
+
+func (r *RunReporter) Header(task, contest string, timeLimitMs, timeoutMs int) {
+	parts := []string{
+		headerTitleStyle.Render(task),
+		keyStyle.Render("contest=") + valueStyle.Render(contest),
+		keyStyle.Render("time_limit=") + valueStyle.Render(fmt.Sprintf("%dms", timeLimitMs)),
+	}
+	if timeoutMs != timeLimitMs {
+		parts = append(parts, overrideStyle.Render(fmt.Sprintf("timeout=%dms", timeoutMs)))
+	}
+	parts = append(parts, infoStyle.Render("(ad-hoc stdin)"))
+	fmt.Println(strings.Join(parts, "  "))
+	fmt.Println()
+}
+
+func (r *RunReporter) Result(res runexec.Result) {
+	fmt.Printf("%s  %s\n",
+		runStatusBadge(res.Status),
+		elapsedStyle.Render(fmt.Sprintf("%d ms", res.Elapsed.Milliseconds())),
+	)
+	if r.verbose {
+		printContent("input:", res.Input)
+	}
+	printContent("output:", res.Stdout)
+	if res.Debug != "" {
+		printContent("debug:", res.Debug)
+	}
+	if res.Status == runexec.Crashed {
+		printStderr(res.Stderr)
+	}
+}
+
+func runStatusBadge(s runexec.Status) string {
+	switch s {
+	case runexec.Ok:
+		return passBadge.Render("OK")
+	case runexec.Timeout:
+		return tleBadge.Render("TLE")
+	case runexec.Crashed:
+		return reBadge.Render("RE")
+	}
+	return ""
+}
+
+// ----- shared helpers -----
 
 func printStderr(stderrOut string) {
 	stderrOut = strings.TrimRight(stderrOut, "\n")

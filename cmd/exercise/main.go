@@ -23,6 +23,12 @@ func main() {
 			fmt.Fprintln(os.Stderr, "exercise test:", err)
 		}
 		os.Exit(code)
+	case "run":
+		code, err := cmdRun(os.Args[2:])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "exercise run:", err)
+		}
+		os.Exit(code)
 	default:
 		usage()
 		os.Exit(2)
@@ -32,5 +38,6 @@ func main() {
 func usage() {
 	fmt.Fprintln(os.Stderr, `Usage:
   exercise new
-  exercise test <contest> --task <task> [-v] [-d] [--case <N[,M,...]>] [--refresh] [--timeout <dur>]`)
+  exercise test <contest> --task <task> [-v] [-d] [--case <N[,M,...]>] [--refresh] [--timeout <dur>]
+  exercise run  <contest> --task <task> [-v] [-d] [--stdin <path>|-] [--timeout <dur>]`)
 }

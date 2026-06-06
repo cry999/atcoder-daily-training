@@ -27,7 +27,8 @@ Use this skill after edits to any of:
 
 - `cmd/exercise/` — argument parsing, dispatch, runner factory.
 - `internal/runner/` — process execution.
-- `internal/testexec/` — orchestration, judge, meta cache, AtCoder fetch.
+- `internal/testexec/` — `test` orchestration, judge, meta cache, AtCoder fetch.
+- `internal/runexec/` — `run` orchestration (ad-hoc stdin).
 - `internal/ui/` — reporter implementation, styles.
 
 Use it also when the user asks to verify the tool / check for regressions.

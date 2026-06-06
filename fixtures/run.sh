@@ -56,6 +56,13 @@ run_case "fixture_multi --case 02"    0 test fixture --task multi --case 02
 run_case "fixture_multi --case 1,3"   0 test fixture --task multi --case 1,3
 run_case "fixture_multi --case 99"    1 test fixture --task multi --case 99
 
+# `exercise run` (ad-hoc stdin) smoke tests
+INPUT_FILE="$STAGE/run-input.txt"
+echo "5" > "$INPUT_FILE"
+run_case "run fixture_pass --stdin"   0 run fixture --task pass --stdin "$INPUT_FILE"
+run_case "run fixture_re   --stdin"   1 run fixture --task re   --stdin "$INPUT_FILE"
+run_case "run fixture_tle  --stdin"   1 run fixture --task tle  --stdin "$INPUT_FILE"
+
 echo
 if [[ "$failures" -gt 0 ]]; then
     echo "${failures} case(s) failed"

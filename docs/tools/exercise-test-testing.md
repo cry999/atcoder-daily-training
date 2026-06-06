@@ -55,7 +55,8 @@
 
 - `cmd/exercise/` — 引数パース・dispatch・factory
 - `internal/runner/` — プロセス実行
-- `internal/testexec/` — orchestration・judge・meta・fetch
+- `internal/testexec/` — `test` の orchestration・judge・meta・fetch
+- `internal/runexec/` — `run` の orchestration
 - `internal/ui/` — Reporter 実装・スタイル
 
 逆に、`docs/` や `exercise/`/`abc/`/`adt/`/`dp/` 等の練習問題のみの変更では走らせる必要はない。

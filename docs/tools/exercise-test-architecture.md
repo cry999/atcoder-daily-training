@@ -27,9 +27,14 @@ internal/testexec/
   fetch.go       # AtCoder fetch + HTML パース (xpath via htmlquery)
 
 internal/ui/
-  reporter.go    # TestReporter: Reporter 実装 (case 出力、diff/stderr 表示、summary)
+  reporter.go    # TestReporter / RunReporter: Reporter 実装 (case/result 出力、diff/stderr 表示、summary)
   style.go       # lipgloss スタイル定義
+
+internal/runexec/
+  runexec.go     # Run(Options) + Executor/Reporter interface (ad-hoc 実行: 任意 stdin → 出力表示)
 ```
+
+> 補足: `internal/runexec` は `exercise run` サブコマンドの実装。`testexec` と並列の位置付けで、判定 (PASS/FAIL) を行わず単発実行に特化する。詳細は [exercise-run-usage.md](./exercise-run-usage.md)。
 
 ## 依存方向
 
