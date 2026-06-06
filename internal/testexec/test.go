@@ -23,6 +23,7 @@ type Options struct {
 	Contest     string
 	Task        string
 	Refresh     bool
+	Timeout     time.Duration // 0 → use the problem's time_limit_ms from meta.toml
 	ExecutorFor ExecutorFor
 	Reporter    Reporter
 }
@@ -61,9 +62,11 @@ func Run(opts Options) (int, error) {
 		return 1, errors.New("テストケースが見つかりません")
 	}
 
-	opts.Reporter.Header(opts.Task, opts.Contest, mta.TimeLimitMs, len(names))
-
 	timeout := time.Duration(mta.TimeLimitMs) * time.Millisecond
+	if opts.Timeout > 0 {
+		timeout = opts.Timeout
+	}
+	opts.Reporter.Header(opts.Task, opts.Contest, int(timeout/time.Millisecond), len(names))
 	passed := 0
 	for _, name := range names {
 		cr, err := runCase(executor, solutionPath, testsDir, name, timeout)

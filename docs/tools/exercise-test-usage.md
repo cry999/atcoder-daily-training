@@ -48,7 +48,7 @@ exercise/YYYY/MM/DD/
 ## コマンド
 
 ```
-exercise test <contest> --task <task> [--refresh]
+exercise test <contest> --task <task> [--refresh] [--timeout <dur>]
 ```
 
 ### 引数
@@ -58,6 +58,7 @@ exercise test <contest> --task <task> [--refresh]
 | `<contest>` | ✔ | AtCoder のコンテスト ID (例: `abc325`)。URL の `/contests/<contest>/` に対応 |
 | `--task <task>` | ✔ | AtCoder のタスク ID (例: `abc325_d`)。URL の `/tasks/<task>` に対応 |
 | `--refresh` | | テストキャッシュを無視して AtCoder から再取得 |
+| `--timeout <dur>` | | 1 ケースあたりの実行制限時間を上書き。Go の duration 記法 (例: `5s`, `500ms`)。未指定なら `meta.toml.time_limit_ms` の値を使う |
 
 ### 解答ファイルの特定
 
@@ -78,7 +79,7 @@ exercise test <contest> --task <task> [--refresh]
 |---|---|
 | `PASS` | 期待出力と一致 (末尾改行の差は無視) |
 | `FAIL` | 期待出力と一致しない |
-| `TLE` | `meta.toml.time_limit_ms` を超過 |
+| `TLE` | 制限時間 (デフォルトは `meta.toml.time_limit_ms`、`--timeout` で上書き可) を超過 |
 | `RE` | Python プロセスが非ゼロ終了 |
 
 ## 出力例
@@ -133,6 +134,18 @@ go run ./cmd/exercise test abc325 --task abc325_d --refresh
 ```sh
 # 解答を編集して保存後
 go run ./cmd/exercise test abc325 --task abc325_d
+```
+
+### 制限時間を上書きしたい
+
+問題ページの制限時間を超えても挙動を見たい / より厳しい制限で TLE をローカル検出したい、などのケース:
+
+```sh
+# AtCoder の値を無視して 5 秒で TLE 判定
+go run ./cmd/exercise test abc325 --task abc325_d --timeout 5s
+
+# 自前の高速性検証で 200ms 以内に収まるか確認
+go run ./cmd/exercise test abc325 --task abc325_d --timeout 200ms
 ```
 
 ## トラブルシューティング

@@ -21,6 +21,7 @@ func cmdTest(args []string) (int, error) {
 	flags := flag.NewFlagSet("test", flag.ContinueOnError)
 	taskFlag := flags.String("task", "", "AtCoder task ID (required)")
 	refresh := flags.Bool("refresh", false, "Force refetch sample cases")
+	timeoutFlag := flags.Duration("timeout", 0, "Override time limit (e.g. 5s, 500ms). Defaults to the problem's time limit.")
 	flags.SetOutput(os.Stderr)
 
 	if err := flags.Parse(args[1:]); err != nil {
@@ -35,6 +36,7 @@ func cmdTest(args []string) (int, error) {
 		Contest:     contest,
 		Task:        task,
 		Refresh:     *refresh,
+		Timeout:     *timeoutFlag,
 		ExecutorFor: selectExecutor,
 		Reporter:    ui.NewTestReporter(),
 	})

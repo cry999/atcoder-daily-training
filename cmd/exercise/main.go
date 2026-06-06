@@ -32,5 +32,5 @@ func main() {
 func usage() {
 	fmt.Fprintln(os.Stderr, `Usage:
   exercise new
-  exercise test <contest> --task <task> [--refresh]`)
+  exercise test <contest> --task <task> [--refresh] [--timeout <dur>]`)
 }
