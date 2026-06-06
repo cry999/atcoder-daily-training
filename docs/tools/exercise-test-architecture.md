@@ -88,13 +88,13 @@ func (p *Python) Run(ctx, source, input, timeout) (*ProcessResult, error)
 ```go
 // Consumer-side interface: testexec が必要とする実行の最小契約。
 type Executor interface {
-    Run(ctx context.Context, source string, input []byte, timeout time.Duration) (*runner.ProcessResult, error)
+    Run(ctx context.Context, source string, input []byte, timeout time.Duration, extraEnv []string) (*runner.ProcessResult, error)
 }
 
 // Consumer-side interface: testexec が必要とする表示の最小契約。
 type Reporter interface {
     Fetching(contest, task string)
-    Header(task, contest string, timeLimitMs, ntests int)
+    Header(task, contest string, timeLimitMs, timeoutMs, ntests int)
     Case(cr CaseResult)
     Summary(passed, total int)
 }
@@ -105,6 +105,8 @@ type Options struct {
     Contest     string
     Task        string
     Refresh     bool
+    Timeout     time.Duration
+    Debug       bool
     ExecutorFor ExecutorFor
     Reporter    Reporter
 }
@@ -122,16 +124,21 @@ const (
     RE
 )
 
+const DebugPrefix = "[DEBUG]"
+
 type CaseResult struct {
-    Name     string
-    Status   CaseStatus
-    Elapsed  time.Duration
-    Expected string  // Fail のとき
-    Actual   string  // Fail のとき
-    Stderr   string  // RE のとき
+    Name            string
+    Status          CaseStatus
+    Elapsed         time.Duration
+    Input           string  // 常時
+    Expected        string  // 常時
+    Actual          string  // 常時 (debug 時は [DEBUG] 行を除外したもの)
+    Debug           string  // debug 時に [DEBUG] 行を集約
+    Stderr          string  // RE のとき
+    OriginalLimitMs int     // 本来の time_limit との比較用
 }
 
-func judge(name, expected string, pr *runner.ProcessResult) CaseResult
+func judge(name, input, expected string, pr *runner.ProcessResult, debug bool) CaseResult
 ```
 
 設計上のポイント:

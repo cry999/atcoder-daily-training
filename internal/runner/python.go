@@ -31,12 +31,15 @@ func NewPython() (*Python, error) {
 	return nil, errors.New("python が見つかりません (.venv/bin/python も PATH の python も見つかりません)")
 }
 
-func (p *Python) Run(ctx context.Context, source string, input []byte, timeout time.Duration) (*ProcessResult, error) {
+func (p *Python) Run(ctx context.Context, source string, input []byte, timeout time.Duration, extraEnv []string) (*ProcessResult, error) {
 	cctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	cmd := exec.CommandContext(cctx, p.binPath, source)
 	cmd.Stdin = bytes.NewReader(input)
+	if len(extraEnv) > 0 {
+		cmd.Env = append(os.Environ(), extraEnv...)
+	}
 	var outBuf, errBuf bytes.Buffer
 	cmd.Stdout = &outBuf
 	cmd.Stderr = &errBuf

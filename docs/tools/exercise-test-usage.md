@@ -48,7 +48,7 @@ exercise/YYYY/MM/DD/
 ## コマンド
 
 ```
-exercise test <contest> --task <task> [-v] [--refresh] [--timeout <dur>]
+exercise test <contest> --task <task> [-v] [-d] [--refresh] [--timeout <dur>]
 ```
 
 ### 引数
@@ -58,6 +58,7 @@ exercise test <contest> --task <task> [-v] [--refresh] [--timeout <dur>]
 | `<contest>` | ✔ | AtCoder のコンテスト ID (例: `abc325`)。URL の `/contests/<contest>/` に対応 |
 | `--task <task>` | ✔ | AtCoder のタスク ID (例: `abc325_d`)。URL の `/tasks/<task>` に対応。**短縮形**: `_` を含まない値は `<contest>_<task>` に自動展開 (例: `--task d` + `<contest>=abc325` → `abc325_d`) |
 | `-v` / `--verbose` | | 各ケースで入力 (`input:`) と実際の出力 (`output:`) を表示 |
+| `-d` / `--debug` | | 子プロセスに `DEBUG=1` を渡し、stdout のうち `[DEBUG]` で始まる行を比較対象から除外。除外行は `debug:` セクションに表示 |
 | `--refresh` | | テストキャッシュを無視して AtCoder から再取得 |
 | `--timeout <dur>` | | 1 ケースあたりの実行制限時間を上書き。Go の duration 記法 (例: `5s`, `500ms`)。未指定なら `meta.toml.time_limit_ms` の値を使う |
 
@@ -141,6 +142,34 @@ go run ./cmd/exercise test abc325 --task abc325_d --refresh
 ```sh
 # 解答を編集して保存後
 go run ./cmd/exercise test abc325 --task abc325_d
+```
+
+### 解答コードにデバッグ出力を仕込みたい
+
+`-d` 指定で子プロセスに `DEBUG=1` が渡る。Python 側で `os.environ.get("DEBUG")` を分岐すれば、デバッグ実行時のみログを出せる。出力行のうち先頭が `[DEBUG]` のものは比較対象から自動除外される。
+
+```python
+import os
+DEBUG = bool(os.environ.get("DEBUG"))
+def dprint(*args, **kwargs):
+    if DEBUG:
+        print("[DEBUG]", *args, **kwargs)
+
+N = int(input())
+dprint("N =", N)        # `-d` 時のみ [DEBUG] N = ... が出る
+# ...
+print(answer)
+```
+
+```sh
+# 通常実行: DEBUG 未設定、デバッグ出力なし、判定通り
+go run ./cmd/exercise test abc325 --task d
+
+# デバッグ実行: [DEBUG] 行を debug: セクションで確認しつつ判定もそのまま
+go run ./cmd/exercise test abc325 --task d -d
+
+# 入力・出力もまとめて見たい
+go run ./cmd/exercise test abc325 --task d -d -v
 ```
 
 ### 制限時間を上書きしたい

@@ -26,6 +26,9 @@ func cmdTest(args []string) (int, error) {
 	var verbose bool
 	flags.BoolVar(&verbose, "v", false, "Show input/output content for each case")
 	flags.BoolVar(&verbose, "verbose", false, "Show input/output content for each case")
+	var debug bool
+	flags.BoolVar(&debug, "d", false, "Run with DEBUG=1 and filter [DEBUG]-prefixed lines from comparison")
+	flags.BoolVar(&debug, "debug", false, "Run with DEBUG=1 and filter [DEBUG]-prefixed lines from comparison")
 	flags.SetOutput(os.Stderr)
 
 	if err := flags.Parse(args[1:]); err != nil {
@@ -45,6 +48,7 @@ func cmdTest(args []string) (int, error) {
 		Task:        task,
 		Refresh:     *refresh,
 		Timeout:     *timeoutFlag,
+		Debug:       debug,
 		ExecutorFor: selectExecutor,
 		Reporter:    ui.NewTestReporter(verbose),
 	})

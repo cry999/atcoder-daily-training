@@ -14,7 +14,7 @@ import (
 )
 
 type Executor interface {
-	Run(ctx context.Context, source string, input []byte, timeout time.Duration) (*runner.ProcessResult, error)
+	Run(ctx context.Context, source string, input []byte, timeout time.Duration, extraEnv []string) (*runner.ProcessResult, error)
 }
 
 type ExecutorFor func(sourcePath string) (Executor, error)
@@ -24,6 +24,7 @@ type Options struct {
 	Task        string
 	Refresh     bool
 	Timeout     time.Duration // 0 → use the problem's time_limit_ms from meta.toml
+	Debug       bool          // true → DEBUG=1 を子プロセスに渡し、stdout から [DEBUG] 行を除外して比較
 	ExecutorFor ExecutorFor
 	Reporter    Reporter
 }
@@ -67,9 +68,15 @@ func Run(opts Options) (int, error) {
 		timeout = opts.Timeout
 	}
 	opts.Reporter.Header(opts.Task, opts.Contest, mta.TimeLimitMs, int(timeout/time.Millisecond), len(names))
+
+	var extraEnv []string
+	if opts.Debug {
+		extraEnv = []string{"DEBUG=1"}
+	}
+
 	passed := 0
 	for _, name := range names {
-		cr, err := runCase(executor, solutionPath, testsDir, name, timeout)
+		cr, err := runCase(executor, extraEnv, opts.Debug, solutionPath, testsDir, name, timeout)
 		if err != nil {
 			return 1, err
 		}
@@ -87,7 +94,7 @@ func Run(opts Options) (int, error) {
 	return 0, nil
 }
 
-func runCase(executor Executor, solutionPath, testsDir, name string, timeout time.Duration) (CaseResult, error) {
+func runCase(executor Executor, extraEnv []string, debug bool, solutionPath, testsDir, name string, timeout time.Duration) (CaseResult, error) {
 	inPath := filepath.Join(testsDir, name+".in")
 	outPath := filepath.Join(testsDir, name+".out")
 
@@ -100,11 +107,11 @@ func runCase(executor Executor, solutionPath, testsDir, name string, timeout tim
 		return CaseResult{}, err
 	}
 
-	pr, err := executor.Run(context.Background(), solutionPath, input, timeout)
+	pr, err := executor.Run(context.Background(), solutionPath, input, timeout, extraEnv)
 	if err != nil {
 		return CaseResult{}, err
 	}
-	return judge(name, string(input), string(expected), pr), nil
+	return judge(name, string(input), string(expected), pr, debug), nil
 }
 
 func ensureTests(reporter Reporter, contest, task, taskDir, testsDir, metaPath string, refresh bool) (*meta, error) {

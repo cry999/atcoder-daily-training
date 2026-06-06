@@ -47,6 +47,9 @@ func (r *TestReporter) Case(cr testexec.CaseResult) {
 		printContent("input:", cr.Input)
 		printContent("output:", cr.Actual)
 	}
+	if cr.Debug != "" {
+		printContent("debug:", cr.Debug)
+	}
 	switch cr.Status {
 	case testexec.Fail:
 		printDiff(cr.Expected, cr.Actual)
