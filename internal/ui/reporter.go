@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/cry999/atcoder-daily-training/internal/testexec"
 )
@@ -15,22 +16,30 @@ func (r *TestReporter) Fetching(contest, task string) {
 	fmt.Println(infoStyle.Render(fmt.Sprintf("Fetching %s/%s from AtCoder...", contest, task)))
 }
 
-func (r *TestReporter) Header(task, contest string, timeLimitMs, ntests int) {
+func (r *TestReporter) Header(task, contest string, timeLimitMs, timeoutMs, ntests int) {
 	parts := []string{
 		headerTitleStyle.Render(task),
 		keyStyle.Render("contest=") + valueStyle.Render(contest),
 		keyStyle.Render("time_limit=") + valueStyle.Render(fmt.Sprintf("%dms", timeLimitMs)),
-		keyStyle.Render("tests=") + valueStyle.Render(fmt.Sprintf("%d", ntests)),
 	}
+	if timeoutMs != timeLimitMs {
+		parts = append(parts, overrideStyle.Render(fmt.Sprintf("timeout=%dms", timeoutMs)))
+	}
+	parts = append(parts, keyStyle.Render("tests=")+valueStyle.Render(fmt.Sprintf("%d", ntests)))
 	fmt.Println(strings.Join(parts, "  "))
 	fmt.Println()
 }
 
 func (r *TestReporter) Case(cr testexec.CaseResult) {
+	elapsedText := elapsedStyle.Render(fmt.Sprintf("%d ms", cr.Elapsed.Milliseconds()))
+	if cr.Status == testexec.Pass && cr.OriginalLimitMs > 0 &&
+		cr.Elapsed > time.Duration(cr.OriginalLimitMs)*time.Millisecond {
+		elapsedText += "  " + overLimitStyle.Render(fmt.Sprintf("(over original %dms)", cr.OriginalLimitMs))
+	}
 	fmt.Printf("%s %s  %s\n",
 		caseLabelStyle.Render("["+cr.Name+"]"),
 		statusBadge(cr.Status),
-		elapsedStyle.Render(fmt.Sprintf("%d ms", cr.Elapsed.Milliseconds())),
+		elapsedText,
 	)
 	switch cr.Status {
 	case testexec.Fail:

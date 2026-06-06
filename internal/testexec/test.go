@@ -66,13 +66,14 @@ func Run(opts Options) (int, error) {
 	if opts.Timeout > 0 {
 		timeout = opts.Timeout
 	}
-	opts.Reporter.Header(opts.Task, opts.Contest, int(timeout/time.Millisecond), len(names))
+	opts.Reporter.Header(opts.Task, opts.Contest, mta.TimeLimitMs, int(timeout/time.Millisecond), len(names))
 	passed := 0
 	for _, name := range names {
 		cr, err := runCase(executor, solutionPath, testsDir, name, timeout)
 		if err != nil {
 			return 1, err
 		}
+		cr.OriginalLimitMs = mta.TimeLimitMs
 		opts.Reporter.Case(cr)
 		if cr.Status == Pass {
 			passed++

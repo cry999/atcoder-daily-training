@@ -17,12 +17,13 @@ const (
 )
 
 type CaseResult struct {
-	Name     string
-	Status   CaseStatus
-	Elapsed  time.Duration
-	Expected string
-	Actual   string
-	Stderr   string
+	Name            string
+	Status          CaseStatus
+	Elapsed         time.Duration
+	Expected        string
+	Actual          string
+	Stderr          string
+	OriginalLimitMs int // problem の本来の制限時間 (ms)。Status==Pass で Elapsed が超えていたら本来 TLE。
 }
 
 func judge(name, expected string, pr *runner.ProcessResult) CaseResult {

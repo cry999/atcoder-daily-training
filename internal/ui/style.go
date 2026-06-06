@@ -27,6 +27,10 @@ var (
 	removedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("203"))
 	addedStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("114"))
 
+	// override / over-limit を強調するためのスタイル
+	overrideStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("203")).Bold(true)
+	overLimitStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("203")).Bold(true)
+
 	summaryPassStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("114")).Bold(true)
 	summaryFailStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("203")).Bold(true)
 
