@@ -21,21 +21,28 @@ internal/runner/
 
 internal/testexec/
   test.go        # Run(Options) + Executor interface + orchestration
-  judge.go       # CaseResult + CaseStatus + judge() + report() + diff/stderr 表示
+  judge.go       # CaseResult + CaseStatus + judge() + normalizeOutput()
+  reporter.go    # Reporter interface (UI 抽象)
   meta.go        # meta 型 + load/save (meta.toml の I/O)
   fetch.go       # AtCoder fetch + HTML パース (xpath via htmlquery)
+
+internal/ui/
+  reporter.go    # TestReporter: Reporter 実装 (case 出力、diff/stderr 表示、summary)
+  style.go       # lipgloss スタイル定義
 ```
 
 ## 依存方向
 
 ```
 cmd/exercise  ──▶  internal/testexec  ──▶  internal/runner
-        └────────────────────────────────▶  internal/runner
+        ├──────▶  internal/runner
+        └──────▶  internal/ui  ──▶  internal/testexec  (CaseResult/CaseStatus 参照)
 ```
 
 - 矢印は import 方向。
-- `cmd/exercise` (composition root) のみが両者を import し、`testexec` と `runner` を結線する。
-- `testexec` は `runner` の `ProcessResult` を import するが、具象実装 (Python, …) は import しない。
+- `cmd/exercise` (composition root) のみが全 internal パッケージを import し、結線する。
+- `testexec` は `runner.ProcessResult` を import するが、具象実装 (Python, …) は import しない。
+- `ui` は `testexec` を import (CaseResult や CaseStatus を扱うため) するが、`testexec` 側は `ui` を import しない (consumer-side interface)。
 - `runner` はどこにも依存しない (末端)。
 
 ## レイヤー設計
@@ -74,17 +81,24 @@ func (p *Python) Run(ctx, source, input, timeout) (*ProcessResult, error)
 
 ### Layer 2: `internal/testexec` — テスト実行の orchestration
 
-役割: 解答ファイルを特定し、テストキャッシュを用意 (必要なら fetch) し、各ケースを Executor で実行して判定・表示する。
+役割: 解答ファイルを特定し、テストキャッシュを用意 (必要なら fetch) し、各ケースを Executor で実行して判定する。**表示は行わず Reporter に委譲する**。
 
 主な型と関数:
 
 ```go
-// Consumer-side interface: testexec が必要とする最小契約のみを宣言。
+// Consumer-side interface: testexec が必要とする実行の最小契約。
 type Executor interface {
     Run(ctx context.Context, source string, input []byte, timeout time.Duration) (*runner.ProcessResult, error)
 }
 
-// 拡張子 → Executor のファクトリ。実装は composition root が注入する。
+// Consumer-side interface: testexec が必要とする表示の最小契約。
+type Reporter interface {
+    Fetching(contest, task string)
+    Header(task, contest string, timeLimitMs, ntests int)
+    Case(cr CaseResult)
+    Summary(passed, total int)
+}
+
 type ExecutorFor func(sourcePath string) (Executor, error)
 
 type Options struct {
@@ -92,6 +106,7 @@ type Options struct {
     Task        string
     Refresh     bool
     ExecutorFor ExecutorFor
+    Reporter    Reporter
 }
 
 func Run(opts Options) (exitCode int, err error)
@@ -121,17 +136,40 @@ func judge(name, expected string, pr *runner.ProcessResult) CaseResult
 
 設計上のポイント:
 
-- **`Executor` interface は testexec で定義** (Go のイディオム: インタフェースは consumer 側)。
+- **`Executor` も `Reporter` も testexec で定義** (Go のイディオム: インタフェースは consumer 側)。
 - **`ExecutorFor` を関数値として注入**することで、testexec は「どの拡張子をサポートするか」を知らない。新言語追加は composition root の変更のみで済む。
+- **`Reporter` を注入**することで、testexec は表示形式に依存しない。色付き表示・プレーン表示・テスト用の nop reporter などを差し替え可能。
 - **`ProcessResult` と `CaseResult` は別の型**:
   - `ProcessResult`: 実行という事実 (低レベル、runner 側)
   - `CaseResult`: 判定という解釈 (高レベル、testexec 側)
   - `judge()` が両者を橋渡しする純粋関数。
 - `meta`/`fetch` は testexec の内部実装 (テストキャッシュの取得・永続化) であり外部に公開しない。
 
-### Layer 3: `cmd/exercise` — composition root
+### Layer 3: `internal/ui` — 表示
 
-役割: コマンドの dispatch、引数のパース、ファクトリの定義 (拡張子 → 具象 runner)、`testexec.Run` への注入。
+役割: `testexec.Reporter` の具象実装。lipgloss でステータスバッジ・色付き diff・サマリ等をターミナルに描画する。`testexec` のフックポイントから呼び出されるのみで、orchestration ロジックは持たない。
+
+```go
+type TestReporter struct{}
+
+func NewTestReporter() *TestReporter
+
+// testexec.Reporter を満たすメソッド
+func (r *TestReporter) Fetching(contest, task string)
+func (r *TestReporter) Header(task, contest string, timeLimitMs, ntests int)
+func (r *TestReporter) Case(cr testexec.CaseResult)
+func (r *TestReporter) Summary(passed, total int)
+```
+
+設計上のポイント:
+
+- **`ui` は `testexec` を import するが逆は無い**。testexec は ui の存在を知らず、structural typing で `*ui.TestReporter` が `testexec.Reporter` を満たす。
+- **lipgloss は `ui` 内に閉じ込められている**。スタイリングを差し替えたい (別ライブラリ、HTML 出力、JSON 出力など) ときは ui の置き換えで完結する。
+- 非 TTY 環境では lipgloss が自動でエスケープを除去するため、CI やパイプ経由でも素直なテキストが流れる。
+
+### Layer 4: `cmd/exercise` — composition root
+
+役割: コマンドの dispatch、引数のパース、ファクトリの定義 (拡張子 → 具象 runner)、Reporter の生成、`testexec.Run` への注入。
 
 ```go
 func cmdTest(args []string) (int, error) {
@@ -140,7 +178,8 @@ func cmdTest(args []string) (int, error) {
         Contest:     contest,
         Task:        task,
         Refresh:     *refresh,
-        ExecutorFor: selectExecutor, // ← ここで注入
+        ExecutorFor: selectExecutor,        // ← runner の注入
+        Reporter:    ui.NewTestReporter(),  // ← UI の注入
     })
 }
 
@@ -156,8 +195,8 @@ func selectExecutor(sourcePath string) (testexec.Executor, error) {
 
 設計上のポイント:
 
-- main パッケージは **「どの言語をサポートするか」を唯一知っているレイヤー**。
-- `testexec` も `runner` も特定の言語選択ロジックには関与しない。
+- main パッケージは **「どの言語をサポートするか」「どう表示するか」を唯一知っているレイヤー**。
+- `testexec` も `runner` も `ui` も、特定の言語選択や具体的な描画ライブラリには関与しない。
 
 ## 拡張: 新しい言語を追加するには
 
@@ -179,14 +218,18 @@ testexec.Run
   │
   ├─ ensureTests
   │   ├─ <task>/tests/ と <task>/meta.toml が両方ある & !refresh → 使う
-  │   └─ それ以外 → fetchProblem(contest, task) → meta.toml + tests/NN.{in,out} を書き出し
+  │   └─ それ以外 → reporter.Fetching() → fetchProblem(contest, task) → meta.toml + tests/NN.{in,out} を書き出し
   │
   ├─ selectExecutor(solutionPath) → Executor を取得
   │
-  └─ 各ケース:
-      ├─ executor.Run(ctx, solutionPath, input, timeout) → *runner.ProcessResult
-      ├─ judge(name, expected, pr) → CaseResult
-      └─ report(cr) で表示
+  ├─ reporter.Header(...)
+  │
+  ├─ 各ケース:
+  │   ├─ executor.Run(ctx, solutionPath, input, timeout) → *runner.ProcessResult
+  │   ├─ judge(name, expected, pr) → CaseResult
+  │   └─ reporter.Case(cr)
+  │
+  └─ reporter.Summary(passed, total)
 ```
 
 ## なぜこの設計か
@@ -199,3 +242,4 @@ testexec.Run
 | TLE を `ProcessStatus` enum で表現 | sentinel error より明示的な状態遷移。RE (非ゼロ終了) との性質の違い (殺された vs 自走で失敗) を型で区別できる。 |
 | `judge()` を純粋関数で分離 | I/O も実行も含まない純粋な「ProcessResult + 期待値 → CaseResult」の翻訳。単体テスト容易。 |
 | `meta`/`fetch` を testexec 内に閉じた | テストキャッシュの取得・永続化は test コマンドのみの関心事。他コマンドからの再利用が発生したら別パッケージへ昇格する。 |
+| 表示を `internal/ui` に分離した | lipgloss / 色付けなどの presentation 詳細を testexec から切り離し、testexec を pure な orchestration に保つため。表示形式の差し替え (プレーン出力、JSON 出力、TUI) も ui の入れ替えで完結する。 |

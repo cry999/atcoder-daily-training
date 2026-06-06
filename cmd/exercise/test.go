@@ -9,6 +9,7 @@ import (
 
 	"github.com/cry999/atcoder-daily-training/internal/runner"
 	"github.com/cry999/atcoder-daily-training/internal/testexec"
+	"github.com/cry999/atcoder-daily-training/internal/ui"
 )
 
 func cmdTest(args []string) (int, error) {
@@ -35,6 +36,7 @@ func cmdTest(args []string) (int, error) {
 		Task:        task,
 		Refresh:     *refresh,
 		ExecutorFor: selectExecutor,
+		Reporter:    ui.NewTestReporter(),
 	})
 }
 

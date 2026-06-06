@@ -24,6 +24,7 @@ type Options struct {
 	Task        string
 	Refresh     bool
 	ExecutorFor ExecutorFor
+	Reporter    Reporter
 }
 
 func Run(opts Options) (int, error) {
@@ -42,7 +43,7 @@ func Run(opts Options) (int, error) {
 	testsDir := filepath.Join(taskDir, "tests")
 	metaPath := filepath.Join(taskDir, "meta.toml")
 
-	mta, err := ensureTests(opts.Contest, opts.Task, taskDir, testsDir, metaPath, opts.Refresh)
+	mta, err := ensureTests(opts.Reporter, opts.Contest, opts.Task, taskDir, testsDir, metaPath, opts.Refresh)
 	if err != nil {
 		return 1, err
 	}
@@ -60,8 +61,7 @@ func Run(opts Options) (int, error) {
 		return 1, errors.New("テストケースが見つかりません")
 	}
 
-	fmt.Printf("%s  contest=%s  time_limit=%dms  tests=%d\n\n",
-		opts.Task, opts.Contest, mta.TimeLimitMs, len(names))
+	opts.Reporter.Header(opts.Task, opts.Contest, mta.TimeLimitMs, len(names))
 
 	timeout := time.Duration(mta.TimeLimitMs) * time.Millisecond
 	passed := 0
@@ -70,13 +70,13 @@ func Run(opts Options) (int, error) {
 		if err != nil {
 			return 1, err
 		}
-		report(cr)
+		opts.Reporter.Case(cr)
 		if cr.Status == Pass {
 			passed++
 		}
 	}
 
-	fmt.Printf("\nResult: %d/%d PASS\n", passed, len(names))
+	opts.Reporter.Summary(passed, len(names))
 	if passed != len(names) {
 		return 1, nil
 	}
@@ -103,7 +103,7 @@ func runCase(executor Executor, solutionPath, testsDir, name string, timeout tim
 	return judge(name, string(expected), pr), nil
 }
 
-func ensureTests(contest, task, taskDir, testsDir, metaPath string, refresh bool) (*meta, error) {
+func ensureTests(reporter Reporter, contest, task, taskDir, testsDir, metaPath string, refresh bool) (*meta, error) {
 	if !refresh {
 		_, errTests := os.Stat(testsDir)
 		if errTests == nil {
@@ -113,7 +113,7 @@ func ensureTests(contest, task, taskDir, testsDir, metaPath string, refresh bool
 		}
 	}
 
-	fmt.Printf("Fetching %s/%s from AtCoder...\n", contest, task)
+	reporter.Fetching(contest, task)
 	prob, err := fetchProblem(contest, task)
 	if err != nil {
 		return nil, fmt.Errorf("AtCoder から取得できませんでした: %w", err)

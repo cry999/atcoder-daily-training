@@ -1,0 +1,117 @@
+package ui
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/cry999/atcoder-daily-training/internal/testexec"
+)
+
+type TestReporter struct{}
+
+func NewTestReporter() *TestReporter { return &TestReporter{} }
+
+func (r *TestReporter) Fetching(contest, task string) {
+	fmt.Println(infoStyle.Render(fmt.Sprintf("Fetching %s/%s from AtCoder...", contest, task)))
+}
+
+func (r *TestReporter) Header(task, contest string, timeLimitMs, ntests int) {
+	parts := []string{
+		headerTitleStyle.Render(task),
+		keyStyle.Render("contest=") + valueStyle.Render(contest),
+		keyStyle.Render("time_limit=") + valueStyle.Render(fmt.Sprintf("%dms", timeLimitMs)),
+		keyStyle.Render("tests=") + valueStyle.Render(fmt.Sprintf("%d", ntests)),
+	}
+	fmt.Println(strings.Join(parts, "  "))
+	fmt.Println()
+}
+
+func (r *TestReporter) Case(cr testexec.CaseResult) {
+	fmt.Printf("%s %s  %s\n",
+		caseLabelStyle.Render("["+cr.Name+"]"),
+		statusBadge(cr.Status),
+		elapsedStyle.Render(fmt.Sprintf("%d ms", cr.Elapsed.Milliseconds())),
+	)
+	switch cr.Status {
+	case testexec.Fail:
+		printDiff(cr.Expected, cr.Actual)
+	case testexec.RE:
+		printStderr(cr.Stderr)
+	}
+}
+
+func (r *TestReporter) Summary(passed, total int) {
+	fmt.Println()
+	text := fmt.Sprintf("Result: %d/%d PASS", passed, total)
+	if passed == total {
+		fmt.Println(summaryPassStyle.Render(text))
+	} else {
+		fmt.Println(summaryFailStyle.Render(text))
+	}
+}
+
+func statusBadge(s testexec.CaseStatus) string {
+	switch s {
+	case testexec.Pass:
+		return passBadge.Render("PASS")
+	case testexec.Fail:
+		return failBadge.Render("FAIL")
+	case testexec.TLE:
+		return tleBadge.Render("TLE")
+	case testexec.RE:
+		return reBadge.Render("RE")
+	}
+	return ""
+}
+
+func printDiff(expected, got string) {
+	fmt.Println("       " + sectionLabel.Render("expected:"))
+	for _, l := range strings.Split(expected, "\n") {
+		fmt.Println("         " + l)
+	}
+	fmt.Println("       " + sectionLabel.Render("got:"))
+	for _, l := range strings.Split(got, "\n") {
+		fmt.Println("         " + l)
+	}
+	fmt.Println("       " + sectionLabel.Render("diff:"))
+	expLines := strings.Split(expected, "\n")
+	gotLines := strings.Split(got, "\n")
+	maxL := len(expLines)
+	if len(gotLines) > maxL {
+		maxL = len(gotLines)
+	}
+	for i := 0; i < maxL; i++ {
+		var e, g string
+		hasE := i < len(expLines)
+		hasG := i < len(gotLines)
+		if hasE {
+			e = expLines[i]
+		}
+		if hasG {
+			g = gotLines[i]
+		}
+		if hasE && hasG && e == g {
+			continue
+		}
+		if hasE {
+			fmt.Println("         " + removedStyle.Render("- "+e))
+		}
+		if hasG {
+			fmt.Println("         " + addedStyle.Render("+ "+g))
+		}
+	}
+}
+
+func printStderr(stderrOut string) {
+	stderrOut = strings.TrimRight(stderrOut, "\n")
+	if stderrOut == "" {
+		return
+	}
+	if len(stderrOut) > 1000 {
+		stderrOut = stderrOut[:1000] + "... (truncated)"
+	}
+	fmt.Println("       " + sectionLabel.Render("stderr:"))
+	for _, line := range strings.Split(stderrOut, "\n") {
+		fmt.Println("         " + line)
+	}
+}
