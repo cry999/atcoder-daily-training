@@ -60,11 +60,11 @@ func (r *TestReporter) Case(cr testexec.CaseResult) {
 }
 
 func printContent(label, body string) {
-	fmt.Println("       " + sectionLabel.Render(label))
 	body = strings.TrimRight(body, "\n")
 	if body == "" {
 		return
 	}
+	fmt.Println("       " + sectionLabel.Render(label))
 	for _, line := range strings.Split(body, "\n") {
 		fmt.Println("         " + line)
 	}
@@ -146,7 +146,7 @@ type RunReporter struct {
 
 func NewRunReporter(verbose bool) *RunReporter { return &RunReporter{verbose: verbose} }
 
-func (r *RunReporter) Header(task, contest string, timeLimitMs, timeoutMs int) {
+func (r *RunReporter) Header(task, contest string, timeLimitMs, timeoutMs int, interactive bool) {
 	parts := []string{
 		headerTitleStyle.Render(task),
 		keyStyle.Render("contest=") + valueStyle.Render(contest),
@@ -155,7 +155,11 @@ func (r *RunReporter) Header(task, contest string, timeLimitMs, timeoutMs int) {
 	if timeoutMs != timeLimitMs {
 		parts = append(parts, overrideStyle.Render(fmt.Sprintf("timeout=%dms", timeoutMs)))
 	}
-	parts = append(parts, infoStyle.Render("(ad-hoc stdin)"))
+	mode := "(ad-hoc stdin)"
+	if interactive {
+		mode = "(interactive)"
+	}
+	parts = append(parts, infoStyle.Render(mode))
 	fmt.Println(strings.Join(parts, "  "))
 	fmt.Println()
 }

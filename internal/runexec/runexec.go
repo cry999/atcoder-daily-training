@@ -20,12 +20,13 @@ import (
 
 type Executor interface {
 	Run(ctx context.Context, source string, input []byte, timeout time.Duration, extraEnv []string) (*runner.ProcessResult, error)
+	RunInteractive(ctx context.Context, source string, stdin io.Reader, stdout, stderr io.Writer, timeout time.Duration, extraEnv []string) (*runner.ProcessResult, error)
 }
 
 type ExecutorFor func(sourcePath string) (Executor, error)
 
 type Reporter interface {
-	Header(task, contest string, timeLimitMs, timeoutMs int)
+	Header(task, contest string, timeLimitMs, timeoutMs int, interactive bool)
 	Result(r Result)
 }
 
@@ -71,17 +72,11 @@ func Run(opts Options) (int, error) {
 		return 1, fmt.Errorf("解答ファイルが見つかりません: %s", solutionPath)
 	}
 
-	input, err := readStdin(opts.StdinFile)
-	if err != nil {
-		return 1, err
-	}
-
 	timeLimitMs := defaultTimeLimitMs
 	metaPath := filepath.Join(dateDir, opts.Task, "meta.toml")
 	if m, err := loadMeta(metaPath); err == nil {
 		timeLimitMs = m.TimeLimitMs
 	}
-
 	timeout := time.Duration(timeLimitMs) * time.Millisecond
 	if opts.Timeout > 0 {
 		timeout = opts.Timeout
@@ -92,11 +87,24 @@ func Run(opts Options) (int, error) {
 		return 1, err
 	}
 
-	opts.Reporter.Header(opts.Task, opts.Contest, timeLimitMs, int(timeout/time.Millisecond))
-
 	var extraEnv []string
 	if opts.Debug {
 		extraEnv = []string{"DEBUG=1"}
+	}
+
+	interactive := opts.StdinFile == "-"
+	opts.Reporter.Header(opts.Task, opts.Contest, timeLimitMs, int(timeout/time.Millisecond), interactive)
+
+	if interactive {
+		return runInteractive(opts, executor, solutionPath, timeout, extraEnv)
+	}
+	return runBatch(opts, executor, solutionPath, timeout, extraEnv)
+}
+
+func runBatch(opts Options, executor Executor, solutionPath string, timeout time.Duration, extraEnv []string) (int, error) {
+	input, err := readStdin(opts.StdinFile)
+	if err != nil {
+		return 1, err
 	}
 
 	pr, err := executor.Run(context.Background(), solutionPath, input, timeout, extraEnv)
@@ -118,23 +126,46 @@ func Run(opts Options) (int, error) {
 		Elapsed:  pr.Elapsed,
 		ExitCode: pr.ExitCode,
 	}
-	switch pr.Status {
-	case runner.TimedOut:
-		res.Status = Timeout
-	case runner.Exited:
-		if pr.ExitCode != 0 {
-			res.Status = Crashed
-		} else {
-			res.Status = Ok
-		}
-	}
+	res.Status = classify(pr)
 
 	opts.Reporter.Result(res)
-
 	if res.Status != Ok {
 		return 1, nil
 	}
 	return 0, nil
+}
+
+func runInteractive(opts Options, executor Executor, solutionPath string, timeout time.Duration, extraEnv []string) (int, error) {
+	pr, err := executor.RunInteractive(context.Background(), solutionPath, os.Stdin, os.Stdout, os.Stderr, timeout, extraEnv)
+	if err != nil {
+		return 1, err
+	}
+
+	// インタラクティブモードでは stdout/stderr は live で出ているため、Result の同フィールドは空のまま。
+	res := Result{
+		Elapsed:  pr.Elapsed,
+		ExitCode: pr.ExitCode,
+	}
+	res.Status = classify(pr)
+
+	opts.Reporter.Result(res)
+	if res.Status != Ok {
+		return 1, nil
+	}
+	return 0, nil
+}
+
+func classify(pr *runner.ProcessResult) Status {
+	switch pr.Status {
+	case runner.TimedOut:
+		return Timeout
+	case runner.Exited:
+		if pr.ExitCode != 0 {
+			return Crashed
+		}
+		return Ok
+	}
+	return Ok
 }
 
 func readStdin(stdinFile string) ([]byte, error) {

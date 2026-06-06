@@ -26,7 +26,7 @@ exercise run <contest> --task <task> [-v] [-d] [--stdin <path>|-] [--timeout <du
 |---|---|---|
 | `<contest>` | ✔ | AtCoder のコンテスト ID (例: `abc325`) |
 | `--task <task>` | ✔ | AtCoder のタスク ID (例: `abc325_d`)。`_` を含まない短縮形は `<contest>_<task>` に展開される |
-| `--stdin <path>` | | 標準入力として渡すファイル。`-` または省略時は親プロセスの stdin (パイプ / リダイレクト) |
+| `--stdin <path>` | | 標準入力として渡すファイル。省略時は親プロセスの stdin を **read-all** (batch モード)。`-` を明示した場合のみ **インタラクティブモード** に切り替わる (子の stdin/stdout/stderr を親の fd に直結し、live streaming) |
 | `-v` / `--verbose` | | 渡した入力 (`input:` セクション) も合わせて表示 |
 | `-d` / `--debug` | | 子プロセスに `DEBUG=1` を渡し、stdout から `[DEBUG]` で始まる行を `debug:` セクションに切り出す (`test` と同じ規約) |
 | `--timeout <dur>` | | 制限時間の上書き (`5s`, `500ms` 等)。未指定なら meta.toml の値、無ければ 2 秒 |
@@ -76,6 +76,27 @@ exercise run abc325 --task d --stdin my_case.txt -d -v
 # 制限時間を 10 秒に緩める (重い解法を観察)
 exercise run abc325 --task d --stdin my_case.txt --timeout 10s
 ```
+
+## インタラクティブモード
+
+`--stdin -` を明示するとインタラクティブモードに入る:
+
+- 子プロセスの **stdin / stdout / stderr** を親プロセスの fd に直結 (`exec.Cmd.Stdin = os.Stdin`, …)。
+- 解答の出力はキャプチャされず、ターミナルへ即座に流れる (live streaming)。`output:` セクションは表示されない (既に見えているため)。
+- Python は **自動で `PYTHONUNBUFFERED=1`** が渡される (行バッファ化を防ぎ、双方向の応答が成立するため)。明示的な `sys.stdout.flush()` は不要。
+- `-d` (DEBUG=1) と併用可。`[DEBUG]` 行のフィルタはインタラクティブでは行わない (stream を後加工しないため、そのまま端末に出る)。
+
+典型的な使用例:
+
+```sh
+# キーボード入力でインタラクティブに解く
+exercise run abc999 --task a --stdin -
+
+# テストハーネスで応答を仕込んで通す (CI 等で)
+printf "3\nok\nok\nok\n" | exercise run abc999 --task a --stdin -
+```
+
+省略時 (`--stdin` を付けない場合) は **batch モード**: 親の stdin から read-all してから子に渡し、出力をキャプチャしてから `output:` セクションに表示する。リダイレクトやパイプで「全入力を先に決めて流す」一括処理に適する。
 
 ## test との比較
 

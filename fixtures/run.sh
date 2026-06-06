@@ -45,6 +45,25 @@ run_case() {
     fi
 }
 
+run_piped() {
+    local label="$1"
+    local expected_exit="$2"
+    local input="$3"
+    shift 3
+    echo
+    echo "=== ${label} (expecting exit ${expected_exit}) ==="
+    set +e
+    printf '%s' "$input" | "$BIN" "$@"
+    local got=$?
+    set -e
+    if [[ "$got" -ne "$expected_exit" ]]; then
+        echo "  ✗ exit ${got} (expected ${expected_exit})"
+        failures=$((failures + 1))
+    else
+        echo "  ✓ exit ${got}"
+    fi
+}
+
 run_case "fixture_pass"               0 test fixture --task pass
 run_case "fixture_fail"               1 test fixture --task fail
 run_case "fixture_re"                 1 test fixture --task re
@@ -62,6 +81,13 @@ echo "5" > "$INPUT_FILE"
 run_case "run fixture_pass --stdin"   0 run fixture --task pass --stdin "$INPUT_FILE"
 run_case "run fixture_re   --stdin"   1 run fixture --task re   --stdin "$INPUT_FILE"
 run_case "run fixture_tle  --stdin"   1 run fixture --task tle  --stdin "$INPUT_FILE"
+
+# Interactive mode: --stdin - で fd を直結。piped 入力でも query/response の交互が成立することを確認。
+run_piped "run fixture_interactive --stdin -"  0 "3
+ok
+ok
+ok
+" run fixture --task interactive --stdin -
 
 echo
 if [[ "$failures" -gt 0 ]]; then
