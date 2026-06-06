@@ -29,7 +29,6 @@ func cmdTest(args []string) (int, error) {
 	var debug bool
 	flags.BoolVar(&debug, "d", false, "Run with DEBUG=1 and filter [DEBUG]-prefixed lines from comparison")
 	flags.BoolVar(&debug, "debug", false, "Run with DEBUG=1 and filter [DEBUG]-prefixed lines from comparison")
-	exerciseDir := flags.String("exercise-dir", "", "Override solution directory (default: today's exercise/YYYY/MM/DD)")
 	flags.SetOutput(os.Stderr)
 
 	if err := flags.Parse(args[1:]); err != nil {
@@ -50,7 +49,6 @@ func cmdTest(args []string) (int, error) {
 		Refresh:     *refresh,
 		Timeout:     *timeoutFlag,
 		Debug:       debug,
-		ExerciseDir: *exerciseDir,
 		ExecutorFor: selectExecutor,
 		Reporter:    ui.NewTestReporter(verbose),
 	})

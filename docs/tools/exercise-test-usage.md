@@ -48,7 +48,7 @@ exercise/YYYY/MM/DD/
 ## コマンド
 
 ```
-exercise test <contest> --task <task> [-v] [-d] [--refresh] [--timeout <dur>] [--exercise-dir <path>]
+exercise test <contest> --task <task> [-v] [-d] [--refresh] [--timeout <dur>]
 ```
 
 ### 引数
@@ -61,7 +61,6 @@ exercise test <contest> --task <task> [-v] [-d] [--refresh] [--timeout <dur>] [-
 | `-d` / `--debug` | | 子プロセスに `DEBUG=1` を渡し、stdout のうち `[DEBUG]` で始まる行を比較対象から除外。除外行は `debug:` セクションに表示 |
 | `--refresh` | | テストキャッシュを無視して AtCoder から再取得 |
 | `--timeout <dur>` | | 1 ケースあたりの実行制限時間を上書き。Go の duration 記法 (例: `5s`, `500ms`)。未指定なら `meta.toml.time_limit_ms` の値を使う |
-| `--exercise-dir <path>` | | 解答ファイルを探す基底ディレクトリを上書き (デフォルト: 当日の `exercise/YYYY/MM/DD`)。テスト用 fixture や任意配置のソースを試したいときに使う |
 
 ### 解答ファイルの特定
 

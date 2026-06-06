@@ -1,45 +1,36 @@
-# Test fixtures
+# Test fixtures for `exercise test`
 
-`exercise test` コマンドの挙動を手動で確認するためのフィクスチャ群。
-当日の演習ディレクトリ (`exercise/YYYY/MM/DD/`) を汚さずに済むよう、`--exercise-dir fixtures` で明示的に参照する。
+`exercise test` コマンド自身の挙動をスモークテストするための fixture 一式と、それを走らせるスクリプト。
 
-## 実行例
+ツール本体には「テスト用パス上書き」のような専用機能は持たせていない。代わりに `run.sh` が一時ディレクトリ内に当日の `exercise/YYYY/MM/DD/` 構造を作り、そこに fixtures を複製してから `cd` 経由でツールを呼び出す (= 普段のユースケースと同じ呼び出し方になる)。
+
+## 実行
 
 ```sh
-# ビルドしておく
-go build -o /tmp/exercise-bin ./cmd/exercise
-
-# 全 PASS
-/tmp/exercise-bin test fixture --task pass  --exercise-dir fixtures
-
-# FAIL (off-by-one)
-/tmp/exercise-bin test fixture --task fail  --exercise-dir fixtures
-
-# RE (Runtime Error)
-/tmp/exercise-bin test fixture --task re    --exercise-dir fixtures
-
-# TLE (sleep が time_limit=200ms を超過)
-/tmp/exercise-bin test fixture --task tle   --exercise-dir fixtures
-
-# debug: [DEBUG] 行のフィルタを確認
-/tmp/exercise-bin test fixture --task debug --exercise-dir fixtures      # FAIL (汚染)
-/tmp/exercise-bin test fixture --task debug --exercise-dir fixtures -d   # PASS (フィルタ)
+./fixtures/run.sh
 ```
 
-| fixture | 入力 | 期待出力 | 挙動 |
+ツールを `go build` し、各 fixture について実行・exit code を assert。最後にまとめを出力する。
+
+## fixture 一覧
+
+| fixture | 入力 | 期待出力 | 期待挙動 |
 |---|---|---|---|
-| `fixture_pass` | `5` | `10` | 正答 (N\*2 を出力)。常に PASS |
-| `fixture_fail` | `5` | `10` | 誤答 (N\*2+1)。常に FAIL |
-| `fixture_re` | `5` | `10` | `RuntimeError` を raise。常に RE |
-| `fixture_tle` | `5` | `10` | `time.sleep(2)` 後に出力。`time_limit=200ms` で常に TLE |
-| `fixture_debug` | `5` | `10` | `[DEBUG]` 行を常時出力。`-d` 無し → FAIL、`-d` 付き → PASS |
+| `fixture_pass` | `5` | `10` | 正答 (N\*2)。PASS、exit 0 |
+| `fixture_fail` | `5` | `10` | 誤答 (N\*2+1)。FAIL、exit 1 |
+| `fixture_re` | `5` | `10` | `RuntimeError` を raise。RE、exit 1 |
+| `fixture_tle` | `5` | `10` | `time.sleep(2)`、`time_limit=200ms` のため TLE、exit 1 |
+| `fixture_debug` (`-d` 無し) | `5` | `10` | `[DEBUG]` 行で汚染 → FAIL、exit 1 |
+| `fixture_debug` (`-d` 付き) | `5` | `10` | `[DEBUG]` がフィルタされ PASS、exit 0 |
 
 ## ディレクトリ構造
 
-各 fixture は要件定義の規約 (`<task>.py` + 同名ディレクトリ配下に `meta.toml` と `tests/NN.in NN.out`) を踏襲している。
+各 fixture は `exercise/YYYY/MM/DD/<task>.py` + `exercise/YYYY/MM/DD/<task>/{meta.toml,tests/NN.in NN.out}` という規約 (要件定義書参照) に従う。
 
 ```
 fixtures/
+  README.md
+  run.sh
   fixture_pass.py
   fixture_pass/
     meta.toml
