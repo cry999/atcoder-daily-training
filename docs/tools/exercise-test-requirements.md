@@ -69,6 +69,7 @@ exercise test <contest> --task <task> [--refresh] [--timeout <dur>]
 | `-d` / `--debug` | | 子プロセスに環境変数 `DEBUG=1` を渡す。さらに stdout から先頭が `[DEBUG]` の行を除外したうえで期待出力と比較する。除外行は `debug:` セクションに表示する |
 | `--refresh` | | テストキャッシュを無視して AtCoder から再取得する |
 | `--timeout <dur>` | | 1 ケースあたりの制限時間を上書き (Go の `time.ParseDuration` 記法: `5s`, `500ms` 等)。未指定なら `meta.toml.time_limit_ms` を使う。`meta.toml` への永続化はしない |
+| `--exercise-dir <path>` | | 解答ファイルを探す基底ディレクトリを上書き。未指定なら当日の `exercise/YYYY/MM/DD/`。`<path>/<task>.py` + `<path>/<task>/{meta.toml,tests/}` というレイアウトに従う |
 
 省略時の動作:
 - `--task` 未指定 → エラー (exit code 2 相当)。

@@ -25,17 +25,21 @@ type Options struct {
 	Refresh     bool
 	Timeout     time.Duration // 0 → use the problem's time_limit_ms from meta.toml
 	Debug       bool          // true → DEBUG=1 を子プロセスに渡し、stdout から [DEBUG] 行を除外して比較
+	ExerciseDir string        // "" → 当日の exercise/YYYY/MM/DD を自動算出。指定時はそのディレクトリを解答配置先として使う
 	ExecutorFor ExecutorFor
 	Reporter    Reporter
 }
 
 func Run(opts Options) (int, error) {
-	y, m, d := time.Now().Local().Date()
-	dateDir := filepath.Join("exercise",
-		fmt.Sprintf("%04d", y),
-		fmt.Sprintf("%02d", m),
-		fmt.Sprintf("%02d", d),
-	)
+	dateDir := opts.ExerciseDir
+	if dateDir == "" {
+		y, m, d := time.Now().Local().Date()
+		dateDir = filepath.Join("exercise",
+			fmt.Sprintf("%04d", y),
+			fmt.Sprintf("%02d", m),
+			fmt.Sprintf("%02d", d),
+		)
+	}
 	solutionPath := filepath.Join(dateDir, opts.Task+".py")
 	if _, err := os.Stat(solutionPath); err != nil {
 		return 1, fmt.Errorf("解答ファイルが見つかりません: %s", solutionPath)

@@ -1,0 +1,5 @@
+contest = "fixture"
+task = "fixture_re"
+url = ""
+time_limit_ms = 2000
+fetched_at = 2026-06-06T00:00:00+09:00
