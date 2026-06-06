@@ -45,12 +45,16 @@ run_case() {
     fi
 }
 
-run_case "fixture_pass"          0 test fixture --task pass
-run_case "fixture_fail"          1 test fixture --task fail
-run_case "fixture_re"            1 test fixture --task re
-run_case "fixture_tle"           1 test fixture --task tle
-run_case "fixture_debug w/o -d"  1 test fixture --task debug
-run_case "fixture_debug w/  -d"  0 test fixture --task debug -d
+run_case "fixture_pass"               0 test fixture --task pass
+run_case "fixture_fail"               1 test fixture --task fail
+run_case "fixture_re"                 1 test fixture --task re
+run_case "fixture_tle"                1 test fixture --task tle
+run_case "fixture_debug w/o -d"       1 test fixture --task debug
+run_case "fixture_debug w/  -d"       0 test fixture --task debug -d
+run_case "fixture_multi all"          0 test fixture --task multi
+run_case "fixture_multi --case 02"    0 test fixture --task multi --case 02
+run_case "fixture_multi --case 1,3"   0 test fixture --task multi --case 1,3
+run_case "fixture_multi --case 99"    1 test fixture --task multi --case 99
 
 echo
 if [[ "$failures" -gt 0 ]]; then

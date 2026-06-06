@@ -67,6 +67,7 @@ exercise test <contest> --task <task> [--refresh] [--timeout <dur>]
 | `--task <task>` | ✔ | AtCoder のタスク ID (例: `abc325_d`)。URL の `/tasks/<task>` 部分に対応。`_` を含まない短縮形 (例: `d`) を渡した場合は `<contest>_<task>` に自動展開する |
 | `-v` / `--verbose` | | 各ケースについて、入力 (`<task>/tests/NN.in` の中身) と解答の標準出力を追加表示する |
 | `-d` / `--debug` | | 子プロセスに環境変数 `DEBUG=1` を渡す。さらに stdout から先頭が `[DEBUG]` の行を除外したうえで期待出力と比較する。除外行は `debug:` セクションに表示する |
+| `--case <N>` | | 指定したケース番号 (カンマ区切りで複数可) のみを実行する。値が数値のみの場合は `01`, `03` のように 2 桁ゼロ埋めへ正規化したうえでマッチを取る。指定した名前が 1 つもマッチしなければエラー終了 |
 | `--refresh` | | テストキャッシュを無視して AtCoder から再取得する |
 | `--timeout <dur>` | | 1 ケースあたりの制限時間を上書き (Go の `time.ParseDuration` 記法: `5s`, `500ms` 等)。未指定なら `meta.toml.time_limit_ms` を使う。`meta.toml` への永続化はしない |
 

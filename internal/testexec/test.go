@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -25,6 +26,7 @@ type Options struct {
 	Refresh     bool
 	Timeout     time.Duration // 0 → use the problem's time_limit_ms from meta.toml
 	Debug       bool          // true → DEBUG=1 を子プロセスに渡し、stdout から [DEBUG] 行を除外して比較
+	Cases       []string      // 非空ならこの名前 (例: "01", "03") のケースだけ実行。数値のみは 2 桁ゼロ埋めに正規化
 	ExecutorFor ExecutorFor
 	Reporter    Reporter
 }
@@ -61,6 +63,12 @@ func Run(opts Options) (int, error) {
 	}
 	if len(names) == 0 {
 		return 1, errors.New("テストケースが見つかりません")
+	}
+	if len(opts.Cases) > 0 {
+		names, err = filterCases(names, opts.Cases)
+		if err != nil {
+			return 1, err
+		}
 	}
 
 	timeout := time.Duration(mta.TimeLimitMs) * time.Millisecond
@@ -161,6 +169,33 @@ func ensureTests(reporter Reporter, contest, task, taskDir, testsDir, metaPath s
 		return nil, err
 	}
 	return mta, nil
+}
+
+// filterCases は要求されたケース名 (例: "1", "01", "03") の和集合に含まれる
+// ケースだけを並びを保って返す。数値のみの指定は 2 桁ゼロ埋めに正規化する。
+// 該当するケースが 1 つも無ければエラー。
+func filterCases(all, requested []string) ([]string, error) {
+	want := make(map[string]bool, len(requested))
+	for _, r := range requested {
+		want[normalizeCaseName(r)] = true
+	}
+	var out []string
+	for _, name := range all {
+		if want[name] {
+			out = append(out, name)
+		}
+	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("該当するテストケースがありません: %v", requested)
+	}
+	return out, nil
+}
+
+func normalizeCaseName(s string) string {
+	if n, err := strconv.Atoi(s); err == nil && n >= 0 && n < 100 {
+		return fmt.Sprintf("%02d", n)
+	}
+	return s
 }
 
 func listCases(testsDir string) ([]string, error) {

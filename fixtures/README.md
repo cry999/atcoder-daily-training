@@ -22,6 +22,7 @@
 | `fixture_tle` | `5` | `10` | `time.sleep(2)`、`time_limit=200ms` のため TLE、exit 1 |
 | `fixture_debug` (`-d` 無し) | `5` | `10` | `[DEBUG]` 行で汚染 → FAIL、exit 1 |
 | `fixture_debug` (`-d` 付き) | `5` | `10` | `[DEBUG]` がフィルタされ PASS、exit 0 |
+| `fixture_multi` | `1`/`2`/`3` | `2`/`4`/`6` | 3 ケース持ちで `--case` フィルタの動作確認用 (`fixture_pass` と同じ N\*2 ロジック)。指定無しなら 3 ケース全 PASS、`--case 02` で 1 ケース、`--case 99` で「該当無し」エラー exit 1 |
 
 ## ディレクトリ構造
 
