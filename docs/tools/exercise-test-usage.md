@@ -173,4 +173,5 @@ go run ./cmd/exercise test abc325 --task abc325_d
 ## 関連
 
 - 要件定義: [exercise-test-requirements.md](./exercise-test-requirements.md)
+- アーキテクチャ: [exercise-test-architecture.md](./exercise-test-architecture.md)
 - ツール本体: [`cmd/exercise/main.go`](../../cmd/exercise/main.go)
