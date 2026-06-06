@@ -5,6 +5,7 @@
 package runexec
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -136,7 +137,20 @@ func runBatch(opts Options, executor Executor, solutionPath string, timeout time
 }
 
 func runInteractive(opts Options, executor Executor, solutionPath string, timeout time.Duration, extraEnv []string) (int, error) {
-	pr, err := executor.RunInteractive(context.Background(), solutionPath, os.Stdin, os.Stdout, os.Stderr, timeout, extraEnv)
+	var stdin io.Reader = os.Stdin
+	var echo *linePrefixWriter
+	if !stdinIsTTY() {
+		// 非 TTY 入力 (pipe/redirect) では端末 echo が効かないので、TeeReader で
+		// 各行を "> " プレフィックスを付けて os.Stdout にも流す。これでスクリプト
+		// 経由でも「何が入力として送られたか」がプログラム出力と並んで見える。
+		echo = &linePrefixWriter{w: os.Stdout, prefix: "> "}
+		stdin = io.TeeReader(os.Stdin, echo)
+	}
+
+	pr, err := executor.RunInteractive(context.Background(), solutionPath, stdin, os.Stdout, os.Stderr, timeout, extraEnv)
+	if echo != nil {
+		echo.Flush()
+	}
 	if err != nil {
 		return 1, err
 	}
@@ -153,6 +167,46 @@ func runInteractive(opts Options, executor Executor, solutionPath string, timeou
 		return 1, nil
 	}
 	return 0, nil
+}
+
+func stdinIsTTY() bool {
+	stat, err := os.Stdin.Stat()
+	if err != nil {
+		return false
+	}
+	return (stat.Mode() & os.ModeCharDevice) != 0
+}
+
+// linePrefixWriter は書き込まれたバイト列を改行単位で区切り、各行にプレフィックスを
+// 付けて下流の Writer に流すラッパー。改行で終わっていない末尾は次の Write まで
+// バッファに保持される (Flush で強制吐き出し)。
+type linePrefixWriter struct {
+	w      io.Writer
+	prefix string
+	buf    []byte
+}
+
+func (l *linePrefixWriter) Write(b []byte) (int, error) {
+	l.buf = append(l.buf, b...)
+	for {
+		i := bytes.IndexByte(l.buf, '\n')
+		if i < 0 {
+			break
+		}
+		if _, err := fmt.Fprintf(l.w, "%s%s\n", l.prefix, l.buf[:i]); err != nil {
+			return 0, err
+		}
+		l.buf = l.buf[i+1:]
+	}
+	return len(b), nil
+}
+
+func (l *linePrefixWriter) Flush() {
+	if len(l.buf) == 0 {
+		return
+	}
+	fmt.Fprintf(l.w, "%s%s\n", l.prefix, l.buf)
+	l.buf = nil
 }
 
 func classify(pr *runner.ProcessResult) Status {
