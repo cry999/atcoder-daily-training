@@ -242,8 +242,15 @@ func (m *chatModel) refreshViewport() {
 	if !m.ready {
 		return
 	}
+	// Note: メッセージ間は "\n" でつなぐが、末尾に "\n" は **付けない**。
+	// viewport は content を strings.Split で行分割するため、末尾 "\n" があると
+	// "空行" が 1 つカウントされて GotoBottom() がそこに飛び、本来の最終行
+	// (= 直近で入力 / 出力したテキスト) が画面外に押し出される。
 	var sb strings.Builder
-	for _, msg := range m.msgs {
+	for i, msg := range m.msgs {
+		if i > 0 {
+			sb.WriteString("\n")
+		}
 		switch msg.kind {
 		case kindIn:
 			sb.WriteString(chatInPromptStyle.Render("→") + " " + chatInTextStyle.Render(msg.text))
@@ -254,17 +261,15 @@ func (m *chatModel) refreshViewport() {
 		case kindInfo:
 			sb.WriteString(infoStyle.Render(msg.text))
 		}
-		sb.WriteString("\n")
 	}
 	content := sb.String()
 	m.viewport.SetContent(content)
 
-	// 高さを content の行数に合わせる (上限は端末高 - ヘッダ - 入力)。
-	// これで scrollback が少ないうちは入力ボックスが画面の上の方に出て、
-	// メッセージが増えてくると下に拡がり、上限に達したら viewport が scroll する。
-	lines := strings.Count(content, "\n")
-	if lines < 1 {
-		lines = 1
+	// 高さを content の表示行数に合わせる。content が "" なら 1 行確保。
+	// (msg.text 自体に "\n" を含むケースに備えて Count + 1 で数える)
+	lines := 1
+	if content != "" {
+		lines = strings.Count(content, "\n") + 1
 	}
 	if max := m.maxViewportHeight(); lines > max {
 		lines = max
