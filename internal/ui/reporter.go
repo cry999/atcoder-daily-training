@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,7 +20,7 @@ func (r *TestReporter) Fetching(contest, task string) {
 	fmt.Println(infoStyle.Render(fmt.Sprintf("Fetching %s/%s from AtCoder...", contest, task)))
 }
 
-func (r *TestReporter) Header(task, contest string, timeLimitMs, timeoutMs, ntests int) {
+func (r *TestReporter) Header(task, contest string, timeLimitMs, timeoutMs, ntests int, tolerance float64) {
 	parts := []string{
 		headerTitleStyle.Render(task),
 		keyStyle.Render("contest=") + valueStyle.Render(contest),
@@ -28,9 +29,21 @@ func (r *TestReporter) Header(task, contest string, timeLimitMs, timeoutMs, ntes
 	if timeoutMs != timeLimitMs {
 		parts = append(parts, overrideStyle.Render(fmt.Sprintf("timeout=%dms", timeoutMs)))
 	}
-	parts = append(parts, keyStyle.Render("tests=")+valueStyle.Render(fmt.Sprintf("%d", ntests)))
+	parts = append(parts,
+		keyStyle.Render("tolerance=")+valueStyle.Render(formatTolerance(tolerance)),
+		keyStyle.Render("tests=")+valueStyle.Render(fmt.Sprintf("%d", ntests)),
+	)
 	fmt.Println(strings.Join(parts, "  "))
 	fmt.Println()
+}
+
+// formatTolerance は 1e-6 を "1e-6" のように表示する (Go の %g だと "1e-06" になるため、
+// 指数部の leading zero を剥がして読みやすくする)。
+func formatTolerance(t float64) string {
+	s := strconv.FormatFloat(t, 'g', -1, 64)
+	s = strings.ReplaceAll(s, "e-0", "e-")
+	s = strings.ReplaceAll(s, "e+0", "e+")
+	return s
 }
 
 func (r *TestReporter) Case(cr testexec.CaseResult) {

@@ -78,7 +78,7 @@ func Run(opts Options) (int, error) {
 	if opts.Timeout > 0 {
 		timeout = opts.Timeout
 	}
-	opts.Reporter.Header(opts.Task, opts.Contest, mta.TimeLimitMs, int(timeout/time.Millisecond), len(names))
+	opts.Reporter.Header(opts.Task, opts.Contest, mta.TimeLimitMs, int(timeout/time.Millisecond), len(names), DefaultTolerance)
 
 	var extraEnv []string
 	if opts.Debug {

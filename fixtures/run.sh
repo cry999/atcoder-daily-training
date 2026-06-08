@@ -80,6 +80,7 @@ run_case "fixture_multi --case 02"    0 test fixture --task multi --case 02
 run_case "fixture_multi -c 1,3"       0 test fixture --task multi -c 1,3
 run_case "fixture_multi --case 99"    1 test fixture --task multi --case 99
 run_case "fixture_diff (multi-line)"  1 test fixture --task diff
+run_case "fixture_float (1e-6 tol)"   0 test fixture --task float
 
 # `exercise run` (ad-hoc stdin) smoke tests
 INPUT_FILE="$STAGE/run-input.txt"
