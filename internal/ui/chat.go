@@ -119,20 +119,15 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		headerLines := strings.Count(m.renderHeader(), "\n") + 1
-		inputLines := 1
-		vpH := m.height - headerLines - inputLines - 1
-		if vpH < 3 {
-			vpH = 3
-		}
 		if !m.ready {
-			m.viewport = viewport.New(m.width, vpH)
+			m.viewport = viewport.New(m.width, 1)
 			m.ready = true
 		} else {
 			m.viewport.Width = m.width
-			m.viewport.Height = vpH
 		}
 		m.input.Width = m.width - 4
+		// viewport の高さは refreshViewport の中で content 行数 + maxViewportHeight()
+		// から動的に決定する (空のあいだは入力ボックスを画面の上の方に出す)。
 		m.refreshViewport()
 
 	case tea.KeyMsg:
@@ -218,11 +213,14 @@ func (m *chatModel) View() string {
 	if !m.ready {
 		return ""
 	}
-	return strings.Join([]string{
-		m.renderHeader(),
-		m.viewport.View(),
-		m.renderInputLine(),
-	}, "\n")
+	// メッセージが無いときは viewport を描画せず、入力ボックスをヘッダの真下に置く。
+	// 1 件でも出力 / 入力があれば viewport を含めてレンダリングする。
+	parts := []string{m.renderHeader()}
+	if len(m.msgs) > 0 {
+		parts = append(parts, m.viewport.View())
+	}
+	parts = append(parts, m.renderInputLine())
+	return strings.Join(parts, "\n")
 }
 
 func (m *chatModel) renderHeader() string {
@@ -258,8 +256,36 @@ func (m *chatModel) refreshViewport() {
 		}
 		sb.WriteString("\n")
 	}
-	m.viewport.SetContent(sb.String())
+	content := sb.String()
+	m.viewport.SetContent(content)
+
+	// 高さを content の行数に合わせる (上限は端末高 - ヘッダ - 入力)。
+	// これで scrollback が少ないうちは入力ボックスが画面の上の方に出て、
+	// メッセージが増えてくると下に拡がり、上限に達したら viewport が scroll する。
+	lines := strings.Count(content, "\n")
+	if lines < 1 {
+		lines = 1
+	}
+	if max := m.maxViewportHeight(); lines > max {
+		lines = max
+	}
+	m.viewport.Height = lines
 	m.viewport.GotoBottom()
+}
+
+// maxViewportHeight は scrollback (viewport) に割ける最大行数。
+// 端末高 - header 行数 - 入力行 (1) を返す。下限は 1。
+func (m *chatModel) maxViewportHeight() int {
+	if m.height <= 0 {
+		return 1
+	}
+	headerH := strings.Count(m.renderHeader(), "\n") + 1
+	inputH := 1
+	h := m.height - headerH - inputH
+	if h < 1 {
+		h = 1
+	}
+	return h
 }
 
 // chat 専用のスタイル (style.go に置いてもよいが chat だけで使うので近くに置く)。
