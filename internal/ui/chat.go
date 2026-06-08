@@ -18,6 +18,7 @@ type ChatHeader struct {
 	Task        string
 	Contest     string
 	TimeLimitMs int
+	Debug       bool // true なら子の stdout 行のうち [DEBUG] プレフィックスを持つものを別カテゴリで表示する
 }
 
 // RunChat は与えられた ChatHandle で対話 TUI を駆動し、子プロセスが終了したら
@@ -34,10 +35,15 @@ func RunChat(handle *runner.ChatHandle, header ChatHeader) (*runner.ProcessResul
 const (
 	kindIn    = "in"
 	kindOut   = "out"
+	kindDebug = "debug" // [DEBUG] プレフィックスを持つ stdout 行 (Debug が true のときだけ振り分け)
 	kindErr   = "err"
 	kindInfo  = "info"
 	kindEnded = "ended"
 )
+
+// debugPrefix は子の stdout 行を debug 出力として扱うかの判定マーカー。
+// runexec の splitDebug と同じ規約 (test/run の batch モードと整合させる)。
+const debugPrefix = "[DEBUG]"
 
 type chatLineMsg struct {
 	kind string
@@ -182,7 +188,16 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case chatLineMsg:
-		m.msgs = append(m.msgs, chatLine{kind: msg.kind, text: msg.text})
+		kind, text := msg.kind, msg.text
+		// -d 指定時のみ、stdout 行のうち [DEBUG] プレフィックスを持つものは
+		// kindDebug に振り分け、プレフィックス (とその直後の半角空白 1 つ) を剥がす。
+		// 表示側で独自のインジケーター・色を当てるため、prefix は冗長になる。
+		if m.header.Debug && kind == kindOut && strings.HasPrefix(text, debugPrefix) {
+			kind = kindDebug
+			text = strings.TrimPrefix(text, debugPrefix)
+			text = strings.TrimPrefix(text, " ")
+		}
+		m.msgs = append(m.msgs, chatLine{kind: kind, text: text})
 		m.refreshViewport()
 		// 同じ stream の次行を読む Cmd を再発行して継続的に吸い出す。
 		switch msg.kind {
@@ -256,6 +271,8 @@ func (m *chatModel) refreshViewport() {
 			sb.WriteString(chatInPromptStyle.Render("→") + " " + chatInTextStyle.Render(msg.text))
 		case kindOut:
 			sb.WriteString(chatOutPromptStyle.Render("←") + " " + chatOutTextStyle.Render(msg.text))
+		case kindDebug:
+			sb.WriteString(chatDebugPromptStyle.Render("*") + " " + chatDebugTextStyle.Render(msg.text))
 		case kindErr:
 			sb.WriteString(chatErrPromptStyle.Render("✖") + " " + chatErrTextStyle.Render(msg.text))
 		case kindInfo:
@@ -307,6 +324,8 @@ var (
 	chatInTextStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay1)).Italic(true)
 	chatOutPromptStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaGreen)).Bold(true)
 	chatOutTextStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaText))
+	chatDebugPromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaLavender)).Bold(true)
+	chatDebugTextStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaLavender))
 	chatErrPromptStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaRed)).Bold(true)
 	chatErrTextStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaMaroon))
 )

@@ -59,6 +59,7 @@ func runChat(handle *runner.ChatHandle, header runexec.ChatHeader) (*runner.Proc
 		Task:        header.Task,
 		Contest:     header.Contest,
 		TimeLimitMs: header.TimeLimitMs,
+		Debug:       header.Debug,
 	})
 }
 

@@ -39,6 +39,7 @@ type ChatHeader struct {
 	Task        string
 	Contest     string
 	TimeLimitMs int
+	Debug       bool // true なら chat TUI は子の stdout から [DEBUG] 行を別カテゴリに振り分ける
 }
 
 // ChatRunner は ChatHandle で chat-style TUI を駆動するコールバック。
@@ -133,6 +134,7 @@ func runChatMode(opts Options, executor Executor, solutionPath string, timeLimit
 		Task:        opts.Task,
 		Contest:     opts.Contest,
 		TimeLimitMs: timeLimitMs,
+		Debug:       opts.Debug,
 	})
 	if err != nil {
 		_ = handle.Kill()
