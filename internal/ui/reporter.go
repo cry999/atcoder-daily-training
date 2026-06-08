@@ -53,7 +53,8 @@ func (r *TestReporter) Case(cr testexec.CaseResult) {
 	}
 	switch cr.Status {
 	case testexec.Fail:
-		printDiff(cr.Expected, cr.Actual)
+		// -v のときは diff にマッチ行も context として含める。
+		printDiff(cr.Expected, cr.Actual, r.verbose)
 	case testexec.RE:
 		printStderr(cr.Stderr)
 	}
@@ -94,9 +95,9 @@ func statusBadge(s testexec.CaseStatus) string {
 	return ""
 }
 
-func printDiff(expected, got string) {
+func printDiff(expected, got string, full bool) {
 	fmt.Println("       " + sectionLabel.Render("diff:"))
-	fmt.Print(renderDiff(expected, got))
+	fmt.Print(renderDiff(expected, got, full))
 }
 
 const (

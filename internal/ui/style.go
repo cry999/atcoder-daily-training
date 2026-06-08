@@ -67,6 +67,7 @@ var (
 	diffPlusEmphStyle  = lipgloss.NewStyle().Background(lipgloss.Color(mochaGreen)).Foreground(lipgloss.Color(mochaBase)).Bold(true)
 	diffMinusSignStyle = lipgloss.NewStyle().Background(lipgloss.Color(diffMinusBg)).Foreground(lipgloss.Color(mochaRed)).Bold(true)
 	diffPlusSignStyle  = lipgloss.NewStyle().Background(lipgloss.Color(diffPlusBg)).Foreground(lipgloss.Color(mochaGreen)).Bold(true)
+	diffContextStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay1)) // -v 時の context (マッチ行)。背景なし dim foreground
 
 	// override / over-limit を強調するためのスタイル
 	overrideStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaRed)).Bold(true)

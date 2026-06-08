@@ -6,7 +6,8 @@ import (
 )
 
 // 表示形式は delta / Claude Code の unified diff を模す:
-//   - 行末尾改行を無視し、変化のあった行だけを表示する (no-context diff)
+//   - 既定は変化のあった行だけ (no-context)。full=true ならマッチ行も
+//     " " (空白) サイン + dim 表示の context 行として出す。
 //   - 左に line number + " │ " gutter
 //   - 行全体に subtle な背景色 (赤 / 緑)、変化のあった token だけ強調背景
 //   - LCS による行整列と、ペアになった行は token 単位の intra-line diff を行う
@@ -67,12 +68,13 @@ func lcsDiff(a, b []string) []diffOp {
 
 // renderDiff は expected と actual の unified diff 文字列を返す。
 // 各行は "<indent><lineNo> │ <sign> <tokens...>\n" の形。
-// マッチ行は出さない。
+//   - full=false: 変化のあった行だけ (簡潔)
+//   - full=true : マッチ行も " " サイン付きの context 行として出す (-v 用)
 //
 // LCS が返す op 列は「同じ hunk 内で del を全部出してから add を全部」とい
 // う形になりがちなので、hunk (連続する非 keep 区間) をまず切り出し、その中
 // で del を adds と 1:1 でペアにする。
-func renderDiff(expected, actual string) string {
+func renderDiff(expected, actual string, full bool) string {
 	expLines := strings.Split(expected, "\n")
 	actLines := strings.Split(actual, "\n")
 	ops := lcsDiff(expLines, actLines)
@@ -84,6 +86,9 @@ func renderDiff(expected, actual string) string {
 		if ops[i].Kind == diffKeep {
 			expN++
 			actN++
+			if full {
+				sb.WriteString(renderContextLine(ops[i].Text, expN))
+			}
 			i++
 			continue
 		}
@@ -118,6 +123,19 @@ func renderDiff(expected, actual string) string {
 			sb.WriteString(renderSoloLine(adds[k], actN, false))
 		}
 	}
+	return sb.String()
+}
+
+// renderContextLine は match した行を unified diff 風に " " (空白) サイン付きで描画する。
+// 背景色は付けず、本文も dim foreground にして「変化点ではない」ことを視覚的に示す。
+func renderContextLine(line string, n int) string {
+	var sb strings.Builder
+	sb.WriteString("         ")
+	sb.WriteString(diffLineNumStyle.Render(fmt.Sprintf("%3d", n)))
+	sb.WriteString(diffGutterStyle.Render(" │ "))
+	sb.WriteString("  ") // "- " / "+ " と桁を揃える
+	sb.WriteString(diffContextStyle.Render(line))
+	sb.WriteString("\n")
 	return sb.String()
 }
 
