@@ -248,7 +248,7 @@ func (m *chatModel) refreshViewport() {
 		case kindIn:
 			sb.WriteString(chatInPromptStyle.Render("→") + " " + chatInTextStyle.Render(msg.text))
 		case kindOut:
-			sb.WriteString(chatOutPromptStyle.Render("←") + " " + msg.text)
+			sb.WriteString(chatOutPromptStyle.Render("←") + " " + chatOutTextStyle.Render(msg.text))
 		case kindErr:
 			sb.WriteString(chatErrPromptStyle.Render("✖") + " " + chatErrTextStyle.Render(msg.text))
 		case kindInfo:
@@ -289,11 +289,16 @@ func (m *chatModel) maxViewportHeight() int {
 }
 
 // chat 専用のスタイル (style.go に置いてもよいが chat だけで使うので近くに置く)。
+// インディケーター (→ ← ✖) と本文を同系統の色で揃え、行の種別を一目で判別できるようにする:
+//   入力 (送ったもの):  → と本文を Blue / Sapphire 系
+//   出力 (受け取り):    ← と本文を Green / Teal 系
+//   エラー (stderr):    ✖ と本文を Red / Maroon 系
 var (
 	chatInputPromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaSapphire)).Bold(true)
 	chatInPromptStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaBlue)).Bold(true)
-	chatInTextStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaText))
+	chatInTextStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaSapphire))
 	chatOutPromptStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaGreen)).Bold(true)
+	chatOutTextStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaTeal))
 	chatErrPromptStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaRed)).Bold(true)
 	chatErrTextStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaMaroon))
 )
