@@ -42,9 +42,15 @@ type ChatHeader struct {
 	Debug       bool // true なら chat TUI は子の stdout から [DEBUG] 行を別カテゴリに振り分ける
 }
 
-// ChatRunner は ChatHandle で chat-style TUI を駆動するコールバック。
+// ChatSpawner は chat TUI 内で子プロセスを (再) 起動するためのファクトリ。
+// 連続テスト機能 (TUI 内で「もう一回」) のために、TUI 側がライフサイクルを所有して
+// 必要な回数だけ呼び出せるよう関数値で渡す。
+type ChatSpawner func() (*runner.ChatHandle, error)
+
+// ChatRunner は chat-style TUI を駆動するコールバック。
 // composition root (cmd/exercise) が ui.RunChat を注入する。
-type ChatRunner func(handle *runner.ChatHandle, header ChatHeader) (*runner.ProcessResult, error)
+// 最終的に最後のセッションの ProcessResult を返す。
+type ChatRunner func(spawn ChatSpawner, header ChatHeader) (*runner.ProcessResult, error)
 
 type Options struct {
 	Contest     string
@@ -126,18 +132,16 @@ func Run(opts Options) (int, error) {
 }
 
 func runChatMode(opts Options, executor Executor, solutionPath string, timeLimitMs int, extraEnv []string) (int, error) {
-	handle, err := executor.StartChat(solutionPath, extraEnv)
-	if err != nil {
-		return 1, err
+	spawner := func() (*runner.ChatHandle, error) {
+		return executor.StartChat(solutionPath, extraEnv)
 	}
-	pr, err := opts.ChatRunner(handle, ChatHeader{
+	pr, err := opts.ChatRunner(spawner, ChatHeader{
 		Task:        opts.Task,
 		Contest:     opts.Contest,
 		TimeLimitMs: timeLimitMs,
 		Debug:       opts.Debug,
 	})
 	if err != nil {
-		_ = handle.Kill()
 		return 1, err
 	}
 	// chat 終了後にステータスを 1 行だけ出して締める (TUI 内ですべての yarn は流したので Result の本文は不要)。

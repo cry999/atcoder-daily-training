@@ -54,8 +54,8 @@ func cmdRun(args []string) (int, error) {
 	})
 }
 
-func runChat(handle *runner.ChatHandle, header runexec.ChatHeader) (*runner.ProcessResult, error) {
-	return ui.RunChat(handle, ui.ChatHeader{
+func runChat(spawn runexec.ChatSpawner, header runexec.ChatHeader) (*runner.ProcessResult, error) {
+	return ui.RunChat(ui.Spawner(spawn), ui.ChatHeader{
 		Task:        header.Task,
 		Contest:     header.Contest,
 		TimeLimitMs: header.TimeLimitMs,

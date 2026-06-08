@@ -21,15 +21,28 @@ type ChatHeader struct {
 	Debug       bool // true なら子の stdout 行のうち [DEBUG] プレフィックスを持つものを別カテゴリで表示する
 }
 
-// RunChat は与えられた ChatHandle で対話 TUI を駆動し、子プロセスが終了したら
-// runner.ProcessResult を返す。利用側 (runexec) はその結果を Reporter に流す。
-func RunChat(handle *runner.ChatHandle, header ChatHeader) (*runner.ProcessResult, error) {
-	prog := tea.NewProgram(initialChatModel(handle, header))
-	if _, err := prog.Run(); err != nil {
+// Spawner は子プロセスを (再) 起動するためのファクトリ。
+// chat TUI は連続テスト用にこれを複数回呼び出すことがある。
+type Spawner func() (*runner.ChatHandle, error)
+
+// RunChat は spawner で子プロセスを起動し、対話 TUI を駆動する。
+// TUI 内でユーザーが [r] を押すと spawner が再呼び出され、新セッションが始まる。
+// 最終的に最後の (= 現在の) セッションの ProcessResult を返す。
+func RunChat(spawn Spawner, header ChatHeader) (*runner.ProcessResult, error) {
+	handle, err := spawn()
+	if err != nil {
 		return nil, err
 	}
-	// Run() が返った時点で TUI は終了している。Wait() で終了コードと経過時間を得る。
-	return handle.Wait(), nil
+	model := initialChatModel(handle, header, spawn)
+	finalModel, err := tea.NewProgram(model).Run()
+	if err != nil {
+		return nil, err
+	}
+	cm, ok := finalModel.(*chatModel)
+	if !ok || cm.handle == nil {
+		return handle.Wait(), nil
+	}
+	return cm.handle.Wait(), nil
 }
 
 const (
@@ -61,6 +74,7 @@ type chatLine struct {
 
 type chatModel struct {
 	handle      *runner.ChatHandle
+	spawn       Spawner // 再起動時に呼ぶ。nil なら再起動不可
 	header      ChatHeader
 	input       textinput.Model
 	viewport    viewport.Model
@@ -72,12 +86,14 @@ type chatModel struct {
 	errScanner  *bufio.Scanner
 	endedOut    bool
 	endedErr    bool
+	awaitingRestart bool // 子終了後の "press [r] to restart / any other key to quit" 待ち状態
+	sessionN    int      // 1 始まり。restart で incr して区切りに番号を出す
 	width       int
 	height      int
 	ready       bool
 }
 
-func initialChatModel(handle *runner.ChatHandle, header ChatHeader) *chatModel {
+func initialChatModel(handle *runner.ChatHandle, header ChatHeader, spawn Spawner) *chatModel {
 	ti := textinput.New()
 	ti.Placeholder = "Enter で送信  /  Ctrl+D で stdin を閉じる  /  Ctrl+C で中断"
 	ti.Focus()
@@ -90,11 +106,13 @@ func initialChatModel(handle *runner.ChatHandle, header ChatHeader) *chatModel {
 
 	return &chatModel{
 		handle:     handle,
+		spawn:      spawn,
 		header:     header,
 		input:      ti,
 		historyPos: 0,
 		outScanner: outScan,
 		errScanner: errScan,
+		sessionN:   1,
 	}
 }
 
@@ -118,6 +136,37 @@ func readLineCmd(scanner *bufio.Scanner, kind string) tea.Cmd {
 	}
 }
 
+// restart は spawner で新しい子プロセスを起動し、TUI 側の状態をリセットする。
+// scrollback は保持し、区切り行 (── session #N ──) を追加してから新セッションを始める。
+func (m *chatModel) restart() tea.Cmd {
+	// 前セッションのハンドルを reap (既に終了しているのですぐ返る)。
+	if m.handle != nil {
+		_ = m.handle.Wait()
+	}
+	newHandle, err := m.spawn()
+	if err != nil {
+		m.msgs = append(m.msgs, chatLine{kind: kindErr, text: "restart failed: " + err.Error()})
+		m.refreshViewport()
+		return tea.Quit
+	}
+	m.handle = newHandle
+	m.outScanner = bufio.NewScanner(newHandle.Stdout)
+	m.outScanner.Buffer(make([]byte, 64*1024), 1024*1024)
+	m.errScanner = bufio.NewScanner(newHandle.Stderr)
+	m.errScanner.Buffer(make([]byte, 64*1024), 1024*1024)
+	m.endedOut = false
+	m.endedErr = false
+	m.stdinClosed = false
+	m.awaitingRestart = false
+	m.sessionN++
+	m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: fmt.Sprintf("─── session #%d ───", m.sessionN)})
+	m.refreshViewport()
+	return tea.Batch(
+		readLineCmd(m.outScanner, kindOut),
+		readLineCmd(m.errScanner, kindErr),
+	)
+}
+
 func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
@@ -137,6 +186,16 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.refreshViewport()
 
 	case tea.KeyMsg:
+		// 子プロセス終了後の "press [r] to restart / any other key to quit" 待ちは
+		// 通常のキー処理より先に処理する。
+		if m.awaitingRestart {
+			for _, r := range msg.Runes {
+				if r == 'r' || r == 'R' {
+					return m, m.restart()
+				}
+			}
+			return m, tea.Quit
+		}
 		switch msg.Type {
 		case tea.KeyCtrlC:
 			_ = m.handle.Kill()
@@ -215,6 +274,13 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.endedErr = true
 		}
 		if m.endedOut && m.endedErr {
+			// spawner があれば再起動の選択肢を提示、無ければそのまま終了。
+			if m.spawn != nil {
+				m.awaitingRestart = true
+				m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(child exited; press [r] to run again, any other key to quit)"})
+				m.refreshViewport()
+				return m, nil
+			}
 			m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(child process exited; press any key to close)"})
 			m.refreshViewport()
 			return m, tea.Quit
