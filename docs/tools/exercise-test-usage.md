@@ -93,21 +93,22 @@ exercise test <contest> --task <task> [-v] [-d] [--case <N[,M,...]>] [--refresh]
 ```
 abc325_d  contest=abc325  time_limit=2000ms  tests=3
 
-[01] PASS  12 ms
-[02] FAIL  18 ms
-       expected:
-         3
-         1 2 3
-       got:
-         3
-         1 3 2
+[01]  PASS  12 ms
+[02]  FAIL  18 ms
        diff:
-         - 1 2 3
-         + 1 3 2
-[03] PASS  10 ms
+           2 │ - 1 2 3
+           2 │ + 1 3 2
+[03]  PASS  10 ms
 
 Result: 2/3 PASS
 ```
+
+`diff:` セクションは `delta` 風の unified diff:
+
+- 一致行は省略 (差分のみ表示)
+- 左から `<行番号> │ - / + <内容>`
+- TTY (TrueColor) 端末では、行全体に subtle な背景色 (Mocha の red / green tint)、変化したトークンには bright な強調背景がのる
+- パイプ / 非 TTY ではプレーンテキストにフォールバック (上記の見た目)
 
 ### exit code
 

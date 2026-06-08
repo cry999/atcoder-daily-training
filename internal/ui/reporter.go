@@ -95,41 +95,8 @@ func statusBadge(s testexec.CaseStatus) string {
 }
 
 func printDiff(expected, got string) {
-	fmt.Println("       " + sectionLabel.Render("expected:"))
-	for _, l := range strings.Split(expected, "\n") {
-		fmt.Println("         " + l)
-	}
-	fmt.Println("       " + sectionLabel.Render("got:"))
-	for _, l := range strings.Split(got, "\n") {
-		fmt.Println("         " + l)
-	}
 	fmt.Println("       " + sectionLabel.Render("diff:"))
-	expLines := strings.Split(expected, "\n")
-	gotLines := strings.Split(got, "\n")
-	maxL := len(expLines)
-	if len(gotLines) > maxL {
-		maxL = len(gotLines)
-	}
-	for i := 0; i < maxL; i++ {
-		var e, g string
-		hasE := i < len(expLines)
-		hasG := i < len(gotLines)
-		if hasE {
-			e = expLines[i]
-		}
-		if hasG {
-			g = gotLines[i]
-		}
-		if hasE && hasG && e == g {
-			continue
-		}
-		if hasE {
-			fmt.Println("         " + removedStyle.Render("- "+e))
-		}
-		if hasG {
-			fmt.Println("         " + addedStyle.Render("+ "+g))
-		}
-	}
+	fmt.Print(renderDiff(expected, got))
 }
 
 const (

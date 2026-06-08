@@ -54,8 +54,19 @@ var (
 		Background(lipgloss.Color(mochaMauve)).
 		Foreground(lipgloss.Color(mochaBase))
 
-	removedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaRed))
-	addedStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaGreen))
+	// diff 表示: 行全体の subtle な bg + 変化トークンへの emph、
+	// および line number / gutter のスタイル。
+	diffMinusBg = "#3a2030" // Mocha Base にうっすら赤を乗せた色 (line bg)
+	diffPlusBg  = "#1f3a2a" // 同上、green tint
+
+	diffLineNumStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay0))
+	diffGutterStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaSurface2))
+	diffMinusLineStyle = lipgloss.NewStyle().Background(lipgloss.Color(diffMinusBg)).Foreground(lipgloss.Color(mochaText))
+	diffPlusLineStyle  = lipgloss.NewStyle().Background(lipgloss.Color(diffPlusBg)).Foreground(lipgloss.Color(mochaText))
+	diffMinusEmphStyle = lipgloss.NewStyle().Background(lipgloss.Color(mochaRed)).Foreground(lipgloss.Color(mochaBase)).Bold(true)
+	diffPlusEmphStyle  = lipgloss.NewStyle().Background(lipgloss.Color(mochaGreen)).Foreground(lipgloss.Color(mochaBase)).Bold(true)
+	diffMinusSignStyle = lipgloss.NewStyle().Background(lipgloss.Color(diffMinusBg)).Foreground(lipgloss.Color(mochaRed)).Bold(true)
+	diffPlusSignStyle  = lipgloss.NewStyle().Background(lipgloss.Color(diffPlusBg)).Foreground(lipgloss.Color(mochaGreen)).Bold(true)
 
 	// override / over-limit を強調するためのスタイル
 	overrideStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaRed)).Bold(true)
