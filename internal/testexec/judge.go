@@ -37,7 +37,10 @@ type CaseResult struct {
 	OriginalLimitMs int    // problem の本来の制限時間 (ms)。Status==Pass で Elapsed が超えていたら本来 TLE。
 }
 
-func judge(name, input, expected string, pr *runner.ProcessResult, debug bool) CaseResult {
+func judge(name, input, expected string, pr *runner.ProcessResult, debug bool, tolerance float64) CaseResult {
+	if tolerance <= 0 {
+		tolerance = DefaultTolerance
+	}
 	stdout := pr.Stdout
 	var debugOut string
 	if debug {
@@ -65,7 +68,7 @@ func judge(name, input, expected string, pr *runner.ProcessResult, debug bool) C
 			break
 		}
 		// exact match に失敗したら、float 形式の token は許容誤差つきで再判定する。
-		if tokensMatch(cr.Expected, cr.Actual, DefaultTolerance) {
+		if tokensMatch(cr.Expected, cr.Actual, tolerance) {
 			cr.Status = Pass
 			break
 		}

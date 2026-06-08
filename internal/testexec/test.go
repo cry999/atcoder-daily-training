@@ -28,6 +28,7 @@ type Options struct {
 	Timeout     time.Duration // 0 → use the problem's time_limit_ms from meta.toml
 	Debug       bool          // true → DEBUG=1 を子プロセスに渡し、stdout から [DEBUG] 行を除外して比較
 	Cases       []string      // 非空ならこの名前 (例: "01", "03") のケースだけ実行。数値のみは 2 桁ゼロ埋めに正規化
+	Tolerance   float64       // float トークン比較の絶対 / 相対誤差。0 以下なら DefaultTolerance を使う
 	ExecutorFor ExecutorFor
 	Reporter    Reporter
 }
@@ -78,7 +79,11 @@ func Run(opts Options) (int, error) {
 	if opts.Timeout > 0 {
 		timeout = opts.Timeout
 	}
-	opts.Reporter.Header(opts.Task, opts.Contest, mta.TimeLimitMs, int(timeout/time.Millisecond), len(names), DefaultTolerance)
+	tolerance := opts.Tolerance
+	if tolerance <= 0 {
+		tolerance = DefaultTolerance
+	}
+	opts.Reporter.Header(opts.Task, opts.Contest, mta.TimeLimitMs, int(timeout/time.Millisecond), len(names), tolerance)
 
 	var extraEnv []string
 	if opts.Debug {
@@ -87,7 +92,7 @@ func Run(opts Options) (int, error) {
 
 	passed := 0
 	for _, name := range names {
-		cr, err := runCase(executor, extraEnv, opts.Debug, solutionPath, testsDir, name, timeout)
+		cr, err := runCase(executor, extraEnv, opts.Debug, tolerance, solutionPath, testsDir, name, timeout)
 		if err != nil {
 			return 1, err
 		}
@@ -105,7 +110,7 @@ func Run(opts Options) (int, error) {
 	return 0, nil
 }
 
-func runCase(executor Executor, extraEnv []string, debug bool, solutionPath, testsDir, name string, timeout time.Duration) (CaseResult, error) {
+func runCase(executor Executor, extraEnv []string, debug bool, tolerance float64, solutionPath, testsDir, name string, timeout time.Duration) (CaseResult, error) {
 	inPath := filepath.Join(testsDir, name+".in")
 	outPath := filepath.Join(testsDir, name+".out")
 
@@ -122,7 +127,7 @@ func runCase(executor Executor, extraEnv []string, debug bool, solutionPath, tes
 	if err != nil {
 		return CaseResult{}, err
 	}
-	return judge(name, string(input), string(expected), pr, debug), nil
+	return judge(name, string(input), string(expected), pr, debug, tolerance), nil
 }
 
 func ensureTests(reporter Reporter, contest, task, taskDir, testsDir, metaPath string, refresh bool) (*meta, error) {

@@ -32,6 +32,7 @@ func cmdTest(args []string) (int, error) {
 	var caseStr string
 	flags.StringVar(&caseStr, "case", "", `Run only the specified case(s); comma-separated (e.g. "01" or "1,3")`)
 	flags.StringVar(&caseStr, "c", "", `Run only the specified case(s); comma-separated (e.g. "01" or "1,3")`)
+	tolFlag := flags.Float64("tolerance", 0, "Absolute/relative tolerance for float token comparison (e.g. 1e-9). 0 or unset → use default 1e-6.")
 	flags.SetOutput(os.Stderr)
 
 	if err := flags.Parse(args[1:]); err != nil {
@@ -62,6 +63,7 @@ func cmdTest(args []string) (int, error) {
 		Timeout:     *timeoutFlag,
 		Debug:       debug,
 		Cases:       cases,
+		Tolerance:   *tolFlag,
 		ExecutorFor: selectExecutor,
 		Reporter:    ui.NewTestReporter(verbose),
 	})
