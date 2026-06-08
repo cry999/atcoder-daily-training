@@ -45,3 +45,21 @@ When adding a solution, match the layout already in use for that sub-tree (don't
 ## Tracked status
 
 `.gitignore` only excludes `/target`. Stray files at the repo root (`test.txt`, `output.txt`, `test.output`, `example_01*.txt`) appear to be ad-hoc scratch I/O — don't treat them as canonical inputs.
+
+## Workflow rules
+
+- **Always work in a `git worktree`.** For every new instruction (anything beyond reading or trivial inspection), create a fresh worktree off `main` first, do the work + commit there, then merge back to `main` and remove the worktree.
+
+  ```sh
+  # branch name should describe the task, e.g. feat-chat-resize, fix-tle-display, doc-cache-paths
+  git worktree add ../atcoder-daily-training.worktrees/<branch> -b <branch>
+  cd ../atcoder-daily-training.worktrees/<branch>
+  # ...work...
+  git commit -m "..."
+  cd -
+  git merge --ff-only <branch>      # (or non-ff if separate branch history is meaningful)
+  git worktree remove ../atcoder-daily-training.worktrees/<branch>
+  git branch -d <branch>
+  ```
+
+  Worktree path convention: sibling to the main checkout under `../atcoder-daily-training.worktrees/<branch>/`. One worktree per coherent task; don't reuse worktrees across unrelated changes.
