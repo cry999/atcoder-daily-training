@@ -27,11 +27,13 @@ internal/testexec/
   fetch.go       # AtCoder fetch + HTML パース (xpath via htmlquery)
 
 internal/ui/
-  reporter.go    # TestReporter / RunReporter: Reporter 実装 (case/result 出力、diff/stderr 表示、summary)
+  reporter.go    # TestReporter / RunReporter: Reporter 実装 (case/result 出力、stderr 表示、summary)
+  diff.go        # delta 風 unified diff (LCS + intra-line token highlight)
+  chat.go        # bubbletea ベース chat TUI (`exercise run --stdin -` の TTY モード)
   style.go       # lipgloss スタイル定義
 
 internal/runexec/
-  runexec.go     # Run(Options) + Executor/Reporter interface (ad-hoc 実行: 任意 stdin → 出力表示)
+  runexec.go     # Run(Options) + Executor/Reporter/ChatRunner interface (ad-hoc 実行: 任意 stdin → 出力表示)
 
 internal/cachepath/
   cachepath.go   # キャッシュ配置 (XDG_CACHE_HOME / ~/.cache / atcoder-tools 配下) の解決

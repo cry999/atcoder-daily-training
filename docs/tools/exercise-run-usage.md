@@ -79,29 +79,44 @@ exercise run abc325 --task d --stdin my_case.txt --timeout 10s
 
 ## インタラクティブモード
 
-`--stdin -` を明示するとインタラクティブモードに入る:
+`--stdin -` を明示するとインタラクティブモードに入る。入力ソースによって 2 通りの挙動になる。
 
-- 子プロセスの **stdout / stderr** を親プロセスの fd に直結 (`exec.Cmd.Stdout = os.Stdout`, …)。出力は live streaming され `output:` セクションには出ない (既に見えているため)。
-- **stdin の扱いは入力ソース次第**:
-  - 端末から直接入力 (TTY): そのまま直結。ユーザの typing は端末側でエコーされ、改行ごとに子に届く。
-  - パイプ / リダイレクト (非TTY): `io.TeeReader` で stdin を経由させ、各行を **`> ` プレフィックスを付けて os.Stdout にも出力**する。これでスクリプト経由でも「何が送られたか」が見える。
-- Python は **自動で `PYTHONUNBUFFERED=1`** が渡される (行バッファ化を防ぎ、双方向の応答が成立するため)。明示的な `sys.stdout.flush()` は不要。
-- `-d` (DEBUG=1) と併用可。`[DEBUG]` 行のフィルタはインタラクティブでは行わない (stream を後加工しないため、そのまま端末に出る)。
+### TTY 入力 (端末から直接): **chat TUI**
 
-典型的な使用例:
+bubbletea ベースの簡易チャット UI を起動する。
+
+- 画面下部の入力ボックスに 1 行入力 → `Enter` で子プロセスに 1 行送信、scrollback に `→ <input>` が追加される
+- 子プロセスの出力は届き次第 `← <output>` として scrollback に追加される (改行単位、live)
+- `↑` / `↓` で入力履歴を辿れる (セッション中のみ)
+- `Ctrl+D`: 子の stdin を閉じる (EOF 通知)。子が `input()` を呼んで終了することがある
+- `Ctrl+C`: 子を kill して TUI 終了
+
+子プロセスは `PYTHONUNBUFFERED=1` を付けて起動するので、`sys.stdout.flush()` を呼ばなくても各 `print()` が即座に届く。
+
+子が exit すると TUI は `(child process exited; press any key to close)` を表示する。任意のキーで TUI を抜けると、`OK` / `RE` ステータスと経過時間が画面に残る。
 
 ```sh
-# キーボード入力でインタラクティブに解く
+# インタラクティブ問題を chat UI で解く
 exercise run abc999 --task a --stdin -
+```
 
-# テストハーネスで応答を仕込んで通す (CI 等で)
-#   入力は `> 3 / > ok / > ok / > ok` と echo され、その後に解答の出力が続く
+### 非TTY 入力 (パイプ / リダイレクト): **passthrough + tee**
+
+CI やスクリプトから応答を仕込みたいときの batch-friendly モード。
+
+- 子の stdout / stderr を親 fd に直結 (live streaming)
+- stdin は `io.TeeReader` で経由させ、各行を `> <input>` と echo してから子に転送 — スクリプト経由でも「何が送られたか」が見える
+- TUI は使わない (キーボード入力ループが成立しないため)
+
+```sh
 printf "3\nok\nok\nok\n" | exercise run abc999 --task a --stdin -
 ```
 
-> 注意: 非TTY での入出力 interleave は厳密には保証されない。pipe バッファ (~64KB) より小さい入力は子の読み込みより先にすべて echo され、その後に解答の出力が現れる。**真にチャットらしい交互表示が必要なら TTY 入力**を使うか、`expect`(1) 等の外部ツールで応答を協調させる。
+> 注意: 非TTY での入出力 interleave は厳密には保証されない。pipe バッファ (~64KB) より小さい入力は子の読み込みより先にすべて echo され、その後に解答の出力が現れる。**真にチャットらしい交互表示が必要なら TTY (chat UI)** を使うか、`expect`(1) 等の外部ツールで応答を協調させる。
 
-省略時 (`--stdin` を付けない場合) は **batch モード**: 親の stdin から read-all してから子に渡し、出力をキャプチャしてから `output:` セクションに表示する。リダイレクトやパイプで「全入力を先に決めて流す」一括処理に適する。
+### batch モード (`--stdin` 省略時)
+
+親の stdin を read-all してから子に渡し、出力をキャプチャしてから `output:` セクションに表示する。リダイレクトやパイプで「全入力を先に決めて流す」一括処理に適する。
 
 ## test との比較
 

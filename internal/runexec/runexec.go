@@ -23,6 +23,7 @@ import (
 type Executor interface {
 	Run(ctx context.Context, source string, input []byte, timeout time.Duration, extraEnv []string) (*runner.ProcessResult, error)
 	RunInteractive(ctx context.Context, source string, stdin io.Reader, stdout, stderr io.Writer, timeout time.Duration, extraEnv []string) (*runner.ProcessResult, error)
+	StartChat(source string, extraEnv []string) (*runner.ChatHandle, error)
 }
 
 type ExecutorFor func(sourcePath string) (Executor, error)
@@ -32,6 +33,18 @@ type Reporter interface {
 	Result(r Result)
 }
 
+// ChatHeader は chat TUI に渡すメタ情報。runexec は ui には依存しないため、
+// 同等の型をここで再宣言し、ChatRunner の引数として渡す。
+type ChatHeader struct {
+	Task        string
+	Contest     string
+	TimeLimitMs int
+}
+
+// ChatRunner は ChatHandle で chat-style TUI を駆動するコールバック。
+// composition root (cmd/exercise) が ui.RunChat を注入する。
+type ChatRunner func(handle *runner.ChatHandle, header ChatHeader) (*runner.ProcessResult, error)
+
 type Options struct {
 	Contest     string
 	Task        string
@@ -40,6 +53,7 @@ type Options struct {
 	Debug       bool          // DEBUG=1 と [DEBUG] フィルタ (test と同じ規約)
 	ExecutorFor ExecutorFor
 	Reporter    Reporter
+	ChatRunner  ChatRunner // 非 nil かつ stdin が TTY のとき chat TUI を起動する
 }
 
 type Status int
@@ -95,12 +109,46 @@ func Run(opts Options) (int, error) {
 	}
 
 	interactive := opts.StdinFile == "-"
-	opts.Reporter.Header(opts.Task, opts.Contest, timeLimitMs, int(timeout/time.Millisecond), interactive)
 
+	// chat モード: stdin が "-" かつ TTY、かつ ChatRunner が注入されているとき。
+	// バブルティーの TUI を起動するため、ヘッダは TUI 側で描画する (ここでは何も
+	// 出さない — リポータの Header を呼ぶと TUI 起動前に行が漏れて混乱する)。
+	if interactive && opts.ChatRunner != nil && stdinIsTTY() {
+		return runChatMode(opts, executor, solutionPath, timeLimitMs, extraEnv)
+	}
+
+	opts.Reporter.Header(opts.Task, opts.Contest, timeLimitMs, int(timeout/time.Millisecond), interactive)
 	if interactive {
 		return runInteractive(opts, executor, solutionPath, timeout, extraEnv)
 	}
 	return runBatch(opts, executor, solutionPath, timeout, extraEnv)
+}
+
+func runChatMode(opts Options, executor Executor, solutionPath string, timeLimitMs int, extraEnv []string) (int, error) {
+	handle, err := executor.StartChat(solutionPath, extraEnv)
+	if err != nil {
+		return 1, err
+	}
+	pr, err := opts.ChatRunner(handle, ChatHeader{
+		Task:        opts.Task,
+		Contest:     opts.Contest,
+		TimeLimitMs: timeLimitMs,
+	})
+	if err != nil {
+		_ = handle.Kill()
+		return 1, err
+	}
+	// chat 終了後にステータスを 1 行だけ出して締める (TUI 内ですべての yarn は流したので Result の本文は不要)。
+	res := Result{
+		Elapsed:  pr.Elapsed,
+		ExitCode: pr.ExitCode,
+	}
+	res.Status = classify(pr)
+	opts.Reporter.Result(res)
+	if res.Status != Ok {
+		return 1, nil
+	}
+	return 0, nil
 }
 
 func runBatch(opts Options, executor Executor, solutionPath string, timeout time.Duration, extraEnv []string) (int, error) {

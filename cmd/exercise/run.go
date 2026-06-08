@@ -50,6 +50,15 @@ func cmdRun(args []string) (int, error) {
 		Debug:       debug,
 		ExecutorFor: selectRunExecutor,
 		Reporter:    ui.NewRunReporter(verbose),
+		ChatRunner:  runChat,
+	})
+}
+
+func runChat(handle *runner.ChatHandle, header runexec.ChatHeader) (*runner.ProcessResult, error) {
+	return ui.RunChat(handle, ui.ChatHeader{
+		Task:        header.Task,
+		Contest:     header.Contest,
+		TimeLimitMs: header.TimeLimitMs,
 	})
 }
 
