@@ -289,16 +289,19 @@ func (m *chatModel) maxViewportHeight() int {
 }
 
 // chat 専用のスタイル (style.go に置いてもよいが chat だけで使うので近くに置く)。
-// インディケーター (→ ← ✖) と本文を同系統の色で揃え、行の種別を一目で判別できるようにする:
-//   入力 (送ったもの):  → と本文を Blue / Sapphire 系
-//   出力 (受け取り):    ← と本文を Green / Teal 系
-//   エラー (stderr):    ✖ と本文を Red / Maroon 系
+// インディケーターは行種別の「カテゴリ」を色で示し (Blue / Green / Red)、
+// 本文は luminance のコントラストで「読みやすさの優先度」を表す:
+//   入力 (自分で打ったもの)    : 本文を dim な overlay 色に落として控えめに
+//   出力 (解答が返してきた内容): 本文を default text 色で最も明るく
+//   エラー (stderr)             : Maroon 系を維持
+// 入力 vs 出力 を色 (Blue vs Green) だけで分けようとすると、寒色同士で輪郭が
+// 鈍るので、明暗差で組み合わせる。
 var (
 	chatInputPromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaSapphire)).Bold(true)
 	chatInPromptStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaBlue)).Bold(true)
-	chatInTextStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaSapphire))
+	chatInTextStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay1)).Italic(true)
 	chatOutPromptStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaGreen)).Bold(true)
-	chatOutTextStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaTeal))
+	chatOutTextStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaText))
 	chatErrPromptStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaRed)).Bold(true)
 	chatErrTextStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaMaroon))
 )
