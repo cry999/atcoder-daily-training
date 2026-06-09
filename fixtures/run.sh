@@ -143,6 +143,28 @@ rm -rf "$CFG_DIR" "$BAD_CFG_DIR"
 # bash では関数呼び出し前置の代入が残存しうるので、隔離用の空 config dir に戻す。
 export XDG_CONFIG_HOME="$CONFIG_HOME"
 
+# ----- config サブコマンド (show / get / set / path) -----
+# 空 config では show が既定値を出す。
+check_output "config show (default)"   0 has   "side_by_side = false" -- config show
+# path は config.toml の所在を出す。
+check_output "config path"             0 has   "config.toml"          -- config path
+# 未知サブコマンド / キー / 型不一致 / 引数不足は exit 2。
+run_case    "config (no subcommand)"        2 config
+run_case    "config bogus (unknown sub)"    2 config bogus
+run_case    "config get unknown key"        2 config get bogus.key
+run_case    "config set unknown key"        2 config set bogus.key x
+run_case    "config set invalid bool value" 2 config set test.side_by_side notabool
+run_case    "config get (missing key arg)"  2 config get
+run_case    "config set (missing value)"    2 config set test.side_by_side
+
+# 書き込み専用 dir で set → get の往復、および set した値が test に波及することを確認。
+CFGW="$(mktemp -d)"
+XDG_CONFIG_HOME="$CFGW" run_case     "config set test.side_by_side true"  0 config set test.side_by_side true
+XDG_CONFIG_HOME="$CFGW" check_output "config get reads back the set value" 0 has "true" -- config get test.side_by_side
+XDG_CONFIG_HOME="$CFGW" check_output "config set propagates to test"       1 has "side-by-side" -- test fixture --task diff
+rm -rf "$CFGW"
+export XDG_CONFIG_HOME="$CONFIG_HOME"
+
 # ABC layout smoke: --layout=auto picks abc/<num>/<letter>.py for abc<NNN> contest IDs.
 run_case "abc999/a test (--layout auto)"    0 test abc999 --task a
 run_case "abc999/a test (--layout abc)"     0 test abc999 --task a --layout abc

@@ -1,4 +1,4 @@
-// Package config は `exercise` のユーザ設定ファイル (config.toml) を解決・読み込む。
+// Package config は `atcoder` のユーザ設定ファイル (config.toml) を解決・読み込む。
 //
 // キャッシュ (internal/cachepath, XDG_CACHE_HOME) と対をなす「個人の既定値」の層。
 // XDG Base Directory Specification に従い、設定は XDG_CONFIG_HOME 配下に置く:
@@ -36,7 +36,7 @@ type Config struct {
 	Test TestConfig `toml:"test"`
 }
 
-// TestConfig は [test] セクション。exercise test の既定値。
+// TestConfig は [test] セクション。atcoder test の既定値。
 type TestConfig struct {
 	// SideBySide は FAIL 時の diff を side-by-side でレンダリングする既定値 (-s 相当)。
 	SideBySide bool `toml:"side_by_side"`
@@ -67,7 +67,7 @@ func Load() (*Config, error) {
 		if os.IsNotExist(err) {
 			return &cfg, nil
 		}
-		return nil, fmt.Errorf("設定ファイルの読み込みに失敗: %s: %w", path, err)
+		return nil, fmt.Errorf("%w: %s: %v", ErrParse, path, err)
 	}
 	return &cfg, nil
 }

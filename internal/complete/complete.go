@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/cry999/atcoder-daily-training/internal/cachepath"
+	"github.com/cry999/atcoder-daily-training/internal/config"
 	"github.com/cry999/atcoder-daily-training/internal/contestmeta"
 	"github.com/cry999/atcoder-daily-training/internal/layout"
 )
@@ -24,6 +25,9 @@ var layoutValues = []string{"auto", "abc", "exercise"}
 
 // shells は completion サブコマンドが対応するシェル。
 var shells = []string{"bash", "zsh", "fish"}
+
+// configSubcommands は `atcoder config` の sub-subcommand 候補 (ソート済み)。
+var configSubcommands = []string{"get", "path", "set", "show"}
 
 // valueFlags は値を 1 つ取るフラグ (次トークンがその値になる)。位置引数の判定で
 // 値トークンを読み飛ばすのに使う。
@@ -49,7 +53,7 @@ var takesContest = map[string]bool{"test": true, "run": true, "submit": true}
 
 // Subcommands は補完対象のサブコマンド名を返す (__complete は隠すので含めない)。
 func Subcommands() []string {
-	return []string{"new", "test", "run", "submit", "stats", "commit", "completion"}
+	return []string{"new", "test", "run", "submit", "stats", "config", "commit", "completion"}
 }
 
 // Flags は指定サブコマンドのフラグ候補を返す。未知サブコマンドは nil。
@@ -140,6 +144,20 @@ func Complete(root string, words []string) []string {
 	// completion の shell 引数。
 	if sub == "completion" {
 		return filterPrefix(shells, cur)
+	}
+
+	// config の sub-subcommand / キー / 値。
+	if sub == "config" {
+		pos := positionals(words[:len(words)-1])
+		switch {
+		case len(pos) == 0:
+			return filterPrefix(configSubcommands, cur)
+		case len(pos) == 1 && (pos[0] == "get" || pos[0] == "set"):
+			return filterPrefix(config.Keys(), cur)
+		case len(pos) == 2 && pos[0] == "set":
+			return filterPrefix(config.ValueCandidates(pos[1]), cur)
+		}
+		return nil
 	}
 
 	// フラグ補完。
