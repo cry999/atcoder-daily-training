@@ -71,6 +71,18 @@ func main() {
 			fmt.Fprintln(os.Stderr, "atcoder completion:", err)
 		}
 		os.Exit(code)
+	case "update":
+		code, err := cmdUpdate(os.Args[2:])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "atcoder update:", err)
+		}
+		os.Exit(code)
+	case "version":
+		code, err := cmdVersion(os.Args[2:])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "atcoder version:", err)
+		}
+		os.Exit(code)
 	case "__complete":
 		// 隠しヘルパ。補完スクリプトからのみ呼ばれる。補完を壊さないため常に exit 0。
 		code, _ := cmdComplete(os.Args[2:])
@@ -96,5 +108,7 @@ func usage() {
   atcoder stats  [-w|--week | -m|--month | -y|--year | -l|--last <dur>] [-g|--graph]
   atcoder config <show | get <key> | set <key> <value> | path>
   atcoder completion <bash|zsh|fish>
-  atcoder commit`)
+  atcoder commit
+  atcoder update [--check]
+  atcoder version`)
 }

@@ -65,6 +65,8 @@ var subcommandCands = []Candidate{
 	{"config", "show or change tool settings"},
 	{"commit", "git-commit today's exercise solutions"},
 	{"completion", "print a shell completion script"},
+	{"update", "update atcoder to the latest version"},
+	{"version", "print the installed atcoder version"},
 }
 
 // valueFlags は値を 1 つ取るフラグ (次トークンがその値になる)。位置引数の判定で
@@ -140,6 +142,9 @@ var subFlags = map[string][]Candidate{
 		{"-w", "poll until the verdict is final (needs a TTY)"},
 		{"--interval", "polling interval for --watch (min 2s)"},
 		{"--open", "open the submission page in a browser"},
+	},
+	"update": {
+		{"--check", "only check for a newer version; don't install"},
 	},
 }
 

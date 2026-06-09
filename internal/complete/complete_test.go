@@ -55,6 +55,10 @@ func TestComplete(t *testing.T) {
 		{"new mode", []string{"new", ""}, []string{"abc"}},
 		{"new contest after abc", []string{"new", "abc", "ab"}, []string{"abc457"}},
 		{"stats has no contest", []string{"stats", "ab"}, nil},
+		{"subcommand prefix up -> update", []string{"up"}, []string{"update"}},
+		{"subcommand prefix ver -> version", []string{"ver"}, []string{"version"}},
+		{"update --check flag", []string{"update", "--ch"}, []string{"--check"}},
+		{"version has no flags/contest", []string{"version", "ab"}, nil},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

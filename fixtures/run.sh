@@ -300,6 +300,13 @@ run_case "__complete (always exit 0)"    0 __complete -- te
 [[ -z "$("$BIN" __complete -- test abc000 --task "" | cut -s -f2)" ]] \
     || { echo "  ✗ __complete --task letters should have no description"; failures=$((failures + 1)); }
 
+# `atcoder version` / `atcoder update`: 自己更新。version はオフラインで動き常に exit 0。
+# update の引数誤りは exit 2。ネットワーク経路 (最新解決・install) は run.sh では叩かず、
+# GOPROXY=off で最新解決が決定的に失敗する経路 (exit 1) だけ固定する。
+run_case "version (offline)"             0 version
+run_case "update --bogus (reject)"       2 update --bogus
+GOPROXY=off run_case "update --check (GOPROXY=off → exit 1)" 1 update --check
+
 echo
 if [[ "$failures" -gt 0 ]]; then
     echo "${failures} case(s) failed"
