@@ -63,7 +63,13 @@ var (
 	diffLineNumStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay0))
 	diffMinusLineNumStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay0)).Background(lipgloss.Color(diffMinusBg))
 	diffPlusLineNumStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay0)).Background(lipgloss.Color(diffPlusBg))
-	diffGutterStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaSurface2))
+	// gutter (罫線 "│") のスタイル。bg を持つ版は、SBS の center を組み立て
+	// るときに各セグメント (bar / padding) が独立に bg を持つよう使う。
+	// (lipgloss の nested Render では内側 reset 後に外側 bg が抜けるので、
+	// 各セグメントに直接 bg を当てる必要がある。)
+	diffGutterStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaSurface2))
+	diffMinusGutterStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaSurface2)).Background(lipgloss.Color(diffMinusBg))
+	diffPlusGutterStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaSurface2)).Background(lipgloss.Color(diffPlusBg))
 	diffMinusLineStyle = lipgloss.NewStyle().Background(lipgloss.Color(diffMinusBg)).Foreground(lipgloss.Color(mochaText))
 	diffPlusLineStyle  = lipgloss.NewStyle().Background(lipgloss.Color(diffPlusBg)).Foreground(lipgloss.Color(mochaText))
 	// intra-line emph: 差分のあった token を「文字色」で強調する。

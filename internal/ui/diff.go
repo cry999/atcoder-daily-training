@@ -330,6 +330,12 @@ func renderDiffSideBySide(expected, actual string, full bool) string {
 // ("│ <as> │ ") は paired/soloAdd で plus の薄い行 bg を持つ。中央 sigil の
 // "-+" 2 文字は bg を持たず、左右 bg の継ぎ目になる。左の "-" は左側
 // (expected) の sign、右の "+" は右側 (actual) の sign。
+//
+// 実装上の注意: lipgloss の nested Render は内側 reset ("\033[0m") の後に
+// 外側 bg を再適用しないため、`diffMinusLineStyle.Render(" │ <es> │")` と
+// 一括ラップすると bar や padding の bg が抜けて見える (左右で揃わない)。
+// よって各セグメント (bar / padding / 行番号) を個別に bg 付きスタイルで
+// 描画してから連結する。
 func renderSBCenter(expN, actN int, kind sbRowKind) string {
 	// 行番号スタイル: 前景は dim、背景で minus/plus を識別
 	expStyle := diffLineNumStyle
@@ -366,21 +372,25 @@ func renderSBCenter(expN, actN int, kind sbRowKind) string {
 	case sbRowSoloDel:
 		minusCh = diffMinusSignFgStyle.Render("-")
 	}
-	bar := diffGutterStyle.Render("│")
 
-	// 左 chunk: " │ <es> │" / 右 chunk: "│ <as> │ "
-	// 中央の "│+-│" の左 "│" は左 chunk の末尾、右 "│" は右 chunk の先頭。
-	leftChunk := " " + bar + " " + es + " " + bar
-	rightChunk := bar + " " + as + " " + bar + " "
-	switch kind {
-	case sbRowPaired:
-		leftChunk = diffMinusLineStyle.Render(leftChunk)
-		rightChunk = diffPlusLineStyle.Render(rightChunk)
-	case sbRowSoloDel:
-		leftChunk = diffMinusLineStyle.Render(leftChunk)
-	case sbRowSoloAdd:
-		rightChunk = diffPlusLineStyle.Render(rightChunk)
+	// 左 chunk: " │ <es> │" の各セグメントを kind に応じて bg 付きで作る。
+	leftSpace := " "
+	leftBar := diffGutterStyle.Render("│")
+	if kind == sbRowPaired || kind == sbRowSoloDel {
+		leftSpace = diffMinusLineStyle.Render(" ")
+		leftBar = diffMinusGutterStyle.Render("│")
 	}
+	leftChunk := leftSpace + leftBar + leftSpace + es + leftSpace + leftBar
+
+	// 右 chunk: "│ <as> │ " の各セグメントを kind に応じて bg 付きで作る。
+	rightSpace := " "
+	rightBar := diffGutterStyle.Render("│")
+	if kind == sbRowPaired || kind == sbRowSoloAdd {
+		rightSpace = diffPlusLineStyle.Render(" ")
+		rightBar = diffPlusGutterStyle.Render("│")
+	}
+	rightChunk := rightBar + rightSpace + as + rightSpace + rightBar + rightSpace
+
 	// 左に "-" (期待値側 = minus)、右に "+" (実際値側 = plus)。
 	return leftChunk + minusCh + plusCh + rightChunk
 }
