@@ -7,17 +7,17 @@
 ## コマンド
 
 ```
-atcoder stats [--week | --month | --year]
+atcoder stats [-w | --week | -m | --month | -y | --year]
 ```
 
 | フラグ | 集計範囲 |
 |---|---|
 | (なし) | 全期間 |
-| `--week` | 今週 (月曜始まり、今日を含む) |
-| `--month` | 今月 |
-| `--year` | 今年 |
+| `--week` (`-w`) | 今週 (月曜始まり、今日を含む) |
+| `--month` (`-m`) | 今月 |
+| `--year` (`-y`) | 今年 |
 
-`--week` / `--month` / `--year` は排他。2 つ以上指定すると exit 2。
+`--week` / `--month` / `--year` (短縮形 `-w` / `-m` / `-y`) は排他。2 つ以上指定すると exit 2。
 
 ## 集計対象
 

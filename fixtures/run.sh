@@ -210,6 +210,11 @@ run_case "stats --month"               0 stats --month
 run_case "stats --week"                0 stats --week
 run_case "stats --year"                0 stats --year
 run_case "stats --week --month reject" 2 stats --week --month
+# 短縮形 -w/-m/-y は長形と同一フラグ。混在指定も排他違反 (exit 2)。
+run_case "stats -w"                    0 stats -w
+run_case "stats -m"                    0 stats -m
+run_case "stats -y"                    0 stats -y
+run_case "stats -w --month reject"     2 stats -w --month
 
 # `atcoder completion` smoke: 各シェルのスクリプト出力と、隠し __complete ヘルパ。
 # completion の引数エラーは exit 2。__complete は常に exit 0 で候補を吐く。

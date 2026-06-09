@@ -13,15 +13,19 @@ import (
 // 読み取り専用で、リポジトリには一切書き込まない。
 func cmdStats(args []string) (int, error) {
 	flags := flag.NewFlagSet("stats", flag.ContinueOnError)
-	week := flags.Bool("week", false, "Limit to this week (Monday start, including today)")
-	month := flags.Bool("month", false, "Limit to this month")
-	year := flags.Bool("year", false, "Limit to this year")
+	var week, month, year bool
+	flags.BoolVar(&week, "week", false, "Limit to this week (Monday start, including today)")
+	flags.BoolVar(&week, "w", false, "Limit to this week (Monday start, including today)")
+	flags.BoolVar(&month, "month", false, "Limit to this month")
+	flags.BoolVar(&month, "m", false, "Limit to this month")
+	flags.BoolVar(&year, "year", false, "Limit to this year")
+	flags.BoolVar(&year, "y", false, "Limit to this year")
 	flags.SetOutput(os.Stderr)
 	if err := flags.Parse(args); err != nil {
 		return 2, err
 	}
 
-	period, err := resolvePeriod(*week, *month, *year)
+	period, err := resolvePeriod(week, month, year)
 	if err != nil {
 		return 2, err
 	}
