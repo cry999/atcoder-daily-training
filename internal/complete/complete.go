@@ -59,6 +59,9 @@ var subcommandCands = []Candidate{
 	{"test", "run a solution against downloaded samples"},
 	{"run", "run a solution on ad-hoc stdin"},
 	{"submit", "open the AtCoder submission page"},
+	{"login", "log in to AtCoder and save a session"},
+	{"logout", "delete the saved AtCoder session"},
+	{"status", "show the judge verdict of your submission"},
 	{"stats", "show daily practice statistics"},
 	{"config", "show or change tool settings"},
 	{"commit", "git-commit today's exercise solutions"},
@@ -72,6 +75,7 @@ var valueFlags = map[string]bool{
 	"--case": true, "-c": true, "--in": true, "-i": true,
 	"--out": true, "-o": true, "--jobs": true, "-j": true,
 	"--tolerance": true, "--last": true, "-l": true,
+	"--user": true, "--interval": true,
 }
 
 // subFlags は各サブコマンドのフラグ候補 (説明付き)。cmd/atcoder/*.go の実フラグ・
@@ -136,10 +140,22 @@ var subFlags = map[string][]Candidate{
 		{"--graph", "render time series as a contribution graph"},
 		{"-g", "render time series as a contribution graph"},
 	},
+	"login": {
+		{"--user", "AtCoder username (prompts if omitted)"},
+		{"--password-stdin", "read the password from stdin (non-interactive)"},
+	},
+	"logout": nil,
+	"status": {
+		{"--task", "task ID or short letter (e.g. d)"},
+		{"--watch", "poll until the verdict is final (needs a TTY)"},
+		{"-w", "poll until the verdict is final (needs a TTY)"},
+		{"--interval", "polling interval for --watch (min 2s)"},
+		{"--open", "open the submission page in a browser"},
+	},
 }
 
 // takesContest はそのサブコマンドが <contest> 位置引数を取るか。
-var takesContest = map[string]bool{"test": true, "run": true, "submit": true}
+var takesContest = map[string]bool{"test": true, "run": true, "submit": true, "status": true}
 
 // Subcommands は補完対象のサブコマンド名を返す (__complete は隠すので含めない)。
 func Subcommands() []string {
