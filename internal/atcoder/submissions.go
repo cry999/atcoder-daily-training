@@ -81,10 +81,11 @@ func (a *authedSource) Submissions(contest string) ([]Submission, error) {
 }
 
 var (
-	subIDRe   = regexp.MustCompile(`/submissions/(\d+)`)
-	taskIDRe  = regexp.MustCompile(`/tasks/([0-9a-z_]+)`)
-	execTeRe  = regexp.MustCompile(`(\d+)\s*ms`)
-	memoryRe  = regexp.MustCompile(`(\d+)\s*(KiB|KB)`)
+	subIDRe    = regexp.MustCompile(`/submissions/(\d+)`)
+	taskIDRe   = regexp.MustCompile(`/tasks/([0-9a-z_]+)`)
+	langLinkRe = regexp.MustCompile(`[?&]f\.Language=`)
+	execTeRe   = regexp.MustCompile(`(\d+)\s*ms`)
+	memoryRe   = regexp.MustCompile(`(\d+)\s*(KiB|KB)`)
 	progressRe = regexp.MustCompile(`^\d+/\d+$`)
 )
 
@@ -92,6 +93,9 @@ var (
 // 列順に依存せず、ID/task/verdict は href やラベル span から意味的に拾うことで、
 // ジャッジ中 (実行時間・メモリ列が欠ける) でも壊れないようにする。
 func parseSubmissions(doc *html.Node, contest string) []Submission {
+	if doc == nil {
+		return nil
+	}
 	rows := htmlquery.Find(doc, `//table//tbody/tr`)
 	var subs []Submission
 	for _, row := range rows {
@@ -106,8 +110,12 @@ func parseSubmissions(doc *html.Node, contest string) []Submission {
 
 func parseRow(row *html.Node, contest string) Submission {
 	var s Submission
+	if row == nil {
+		return s
+	}
 
-	// ID: 個別提出ページへのリンクから。
+	// ID / task / 言語: アンカーの href から意味的に拾う。列インデックスに
+	// 依存しないので、ジャッジ中で末尾列が欠けても壊れない。
 	for _, a := range htmlquery.Find(row, `.//a`) {
 		href := htmlquery.SelectAttr(a, "href")
 		if m := subIDRe.FindStringSubmatch(href); m != nil {
@@ -119,6 +127,12 @@ func parseRow(row *html.Node, contest string) Submission {
 		if m := taskIDRe.FindStringSubmatch(href); m != nil && s.Task == "" {
 			s.Task = m[1]
 			s.TaskTitle = strings.TrimSpace(htmlquery.InnerText(a))
+		}
+		// 言語セルは `?f.Language=<id>` フィルタへのリンク。これが最も確実。
+		if s.Language == "" && langLinkRe.MatchString(href) {
+			if t := strings.TrimSpace(htmlquery.InnerText(a)); t != "" {
+				s.Language = t
+			}
 		}
 	}
 
@@ -160,7 +174,10 @@ func parseRow(row *html.Node, contest string) Submission {
 			}
 		}
 	}
-	s.Language = guessLanguage(tds)
+	// 言語がリンクから取れなかったレイアウト (旧 UI 等) は best-effort で推定。
+	if s.Language == "" {
+		s.Language = guessLanguage(tds)
+	}
 	return s
 }
 
