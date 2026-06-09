@@ -232,6 +232,24 @@ go run ./cmd/atcoder test abc325 --task abc325_d --timeout 200ms
 - 解答自体の計算量を見直す。
 - `meta.toml` の `time_limit_ms` が問題ページから誤って小さく取得された疑いがあれば、`--refresh` を試す、または手で書き換える。
 
+## 設定ファイルで既定値を固定する
+
+毎回付けているフラグの既定値は、ユーザ設定ファイルにまとめて書いておける。設定は **`$XDG_CONFIG_HOME/atcoder-daily-training/config.toml`** (未設定なら `~/.config/atcoder-daily-training/config.toml`) を読む。キャッシュ (`XDG_CACHE_HOME` 配下の `atcoder-tools/`) とは別軸。
+
+```toml
+# ~/.config/atcoder-daily-training/config.toml
+[test]
+side_by_side = true   # diff を常に side-by-side で表示 (-s 相当)
+```
+
+- 優先順位は **`flag > config > default`**。設定で `side_by_side = true` にしておけば `-s` 省略で side-by-side になり、その回だけ unified に戻したいときは `--side-by-side=false` を付ける。
+- 設定ファイルが無いのは正常 (全項目デフォルト = 現行挙動)。**TOML の文法エラーがあるときだけ** `exit 2` で停止する。
+- 未知のキー・セクションは無視される (前方/後方互換)。将来 `[test]` に他の既定値や `[run]` 等のセクションが増えても、古い・新しいバイナリ間で壊れない。
+
+| キー | 型 | 既定 | 対応フラグ | 用途 |
+|---|---|---|---|---|
+| `test.side_by_side` | bool | `false` | `-s` / `--side-by-side` | FAIL 時の diff を side-by-side でレンダリングする既定値 |
+
 ## 制約事項 (現時点)
 
 - 対応言語は Python のみ。

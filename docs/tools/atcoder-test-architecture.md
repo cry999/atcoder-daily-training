@@ -40,6 +40,9 @@ internal/runexec/
 internal/watch/
   watch.go       # 単一ファイルの mtime ポーリング監視 (Watcher + WaitForChange)。test の watch モードが使う
 
+internal/config/
+  config.go      # ユーザ設定 config.toml の XDG パス解決 + Load。flag のデフォルトに流し込む
+
 internal/cachepath/
   cachepath.go   # キャッシュ配置 (XDG_CACHE_HOME / ~/.cache / atcoder-tools 配下) の解決
 ```
@@ -52,10 +55,13 @@ internal/cachepath/
 cmd/atcoder  ──▶  internal/testexec  ──▶  internal/runner
         ├──────▶  internal/runner
         ├──────▶  internal/watch   (test --watch: 解答ファイルの変更検知)
+        ├──────▶  internal/config  (test: ユーザ設定の既定値読み込み)
         └──────▶  internal/ui  ──▶  internal/testexec  (CaseResult/CaseStatus 参照)
 ```
 
 > `internal/watch` は `testexec` / `ui` に依存しない単一ファイル監視の小さな層。watch ループ自体 (実行 → 待機 → 再実行) は composition root の `cmd/atcoder/test.go` が持ち、`testexec.Run` を反復呼び出しする。
+>
+> `internal/config` は `internal/cachepath` (キャッシュ配置) と対をなすユーザ設定の層。`config.Load()` の結果を composition root が flag のデフォルト値に流し込むことで `flag > config > default` の優先順位を実現する。`testexec` 等のドメイン層は config を知らない。
 
 - 矢印は import 方向。
 - `cmd/atcoder` (composition root) のみが全 internal パッケージを import し、結線する。
