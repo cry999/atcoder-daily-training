@@ -160,6 +160,7 @@ var subFlags = map[string][]Candidate{
 	},
 	"update": {
 		{"--check", "only check for a newer version; don't install"},
+		{"--local", "install from the local ./cmd/atcoder working tree"},
 	},
 }
 

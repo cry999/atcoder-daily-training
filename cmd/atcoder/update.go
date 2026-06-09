@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -16,13 +17,30 @@ import (
 func cmdUpdate(args []string) (int, error) {
 	flags := flag.NewFlagSet("update", flag.ContinueOnError)
 	check := flags.Bool("check", false, "Only check whether a newer version exists; do not install")
+	local := flags.Bool("local", false, "Install from the local ./cmd/atcoder working tree instead of @latest")
 	flags.SetOutput(os.Stderr)
 	if err := flags.Parse(args); err != nil {
 		return 2, err
 	}
+	if *local && *check {
+		return 2, errors.New("--local and --check cannot be combined")
+	}
 
 	cur := selfupdate.ReadCurrent()
 	ctx := context.Background()
+
+	// --local: cwd の作業ツリーから直接インストールする。最新解決・network 不要で、
+	// 未 push のローカルコミットもそのまま反映できる (cwd がリポジトリ内である前提)。
+	if *local {
+		fmt.Printf("  current  %s\n", describeCurrent(cur))
+		fmt.Println("  installing… go install ./cmd/atcoder")
+		if err := selfupdate.InstallLocal(ctx, os.Stderr); err != nil {
+			return 1, err
+		}
+		fmt.Println("  installed from local working tree ✓")
+		return 0, nil
+	}
+
 	latest, err := selfupdate.ResolveLatest(ctx, cur.Module)
 	if err != nil {
 		return 1, err

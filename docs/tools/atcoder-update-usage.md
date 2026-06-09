@@ -8,14 +8,33 @@
 
 ```
 atcoder version
-atcoder update [--check]
+atcoder update [--check | --local]
 ```
 
 | コマンド | 動作 |
 |---|---|
 | `atcoder version` | いま入っている版 (短縮コミット sha・コミット日時・dirty) を表示。**オフライン**で動き副作用なし |
-| `atcoder update` | 最新版を確認し、現在版と違えば `go install …@latest` で入れ替える |
+| `atcoder update` | 最新版を確認し、現在版と違えば `go install …@latest` で入れ替える (GitHub に push 済みの最新) |
 | `atcoder update --check` | 確認だけ行い、**インストールはしない** |
+| `atcoder update --local` | `@latest` ではなく **cwd の `./cmd/atcoder`** を `go install` する (手元の作業ツリーをそのまま入れる) |
+
+`--check` と `--local` は併用不可 (exit 2)。
+
+### `--local` (手元のソースから入れる)
+
+`atcoder update` (= `@latest`) は **GitHub に push 済みのコミットまで**しか取得できないので、ローカルで作業中・未 push のコミットは反映できない。`atcoder update --local` はその穴を埋め、**いまチェックアウトしている作業ツリーを直接インストール**する:
+
+```
+$ cd ~/path/to/atcoder-daily-training   # リポジトリ内で実行する
+$ atcoder update --local
+  current  abc1234abc12 (2026-06-05T09:00:00Z)
+  installing… go install ./cmd/atcoder
+  installed from local working tree ✓
+```
+
+- **リポジトリ内 (cwd が `./cmd/atcoder` を解決できる場所) で実行すること。** モジュール外で実行すると `go install ./cmd/atcoder` が失敗する (exit 1)。
+- 最新解決・proxy・ネットワークは不要 (手元のソースをビルドするだけ)。未コミットの変更もそのまま入る。
+- 作業ツリーからのビルドなので、入った版は VCS スタンプ付き (`atcoder version` がコミット sha を表示する)。
 
 ## 前提
 

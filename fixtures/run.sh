@@ -326,6 +326,11 @@ run_case "__complete (always exit 0)"    0 __complete -- te
 run_case "version (offline)"             0 version
 run_case "update --bogus (reject)"       2 update --bogus
 GOPROXY=off GONOPROXY=none run_case "update --check (proxy off → exit 1)" 1 update --check
+# --local は cwd の ./cmd/atcoder を入れる。--check との併用は排他で exit 2。
+# STAGE は module 外なので素の --local は go install が失敗して exit 1
+# (実際の GOBIN を汚さないよう throwaway を渡す)。
+run_case "update --local --check (reject)" 2 update --local --check
+GOBIN="$(mktemp -d)" run_case "update --local outside a module (exit 1)" 1 update --local
 
 echo
 if [[ "$failures" -gt 0 ]]; then

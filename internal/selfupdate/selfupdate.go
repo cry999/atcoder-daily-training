@@ -177,6 +177,23 @@ func Install(ctx context.Context, module string, out io.Writer) error {
 	return nil
 }
 
+// InstallLocal は cwd の作業ツリーから `go install ./cmd/atcoder` を実行する
+// (= atcoder update --local)。proxy も最新解決も伴わず、いま手元にあるソースを
+// そのままインストールするので、未 push のローカルコミットも反映できる。
+//
+// 中立 dir は使わない: 相対パス ./cmd/atcoder を解決するため、呼び出し時の cwd
+// (= リポジトリ内である前提) で実行する。cwd がモジュール外なら go がエラーを返す。
+func InstallLocal(ctx context.Context, out io.Writer) error {
+	cmd := exec.CommandContext(ctx, "go", "install", "./cmd/atcoder")
+	cmd.Env = os.Environ()
+	cmd.Stdout = out
+	cmd.Stderr = out
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("go install ./cmd/atcoder: %w", err)
+	}
+	return nil
+}
+
 // goEnv は os.Environ() に、自モジュールを GOPRIVATE に含めた環境を返す。
 //
 // proxy.golang.org は @latest を一定時間キャッシュするため、push 直後は古い

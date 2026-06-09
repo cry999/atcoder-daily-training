@@ -109,6 +109,6 @@ func usage() {
   atcoder config <show | get <key> | set <key> <value> | path>
   atcoder completion <bash|zsh|fish>
   atcoder commit
-  atcoder update [--check]
+  atcoder update [--check | --local]
   atcoder version`)
 }
