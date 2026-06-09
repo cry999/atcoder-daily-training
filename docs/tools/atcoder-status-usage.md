@@ -7,18 +7,28 @@
 ## はじめに (ログイン)
 
 ```
-atcoder login [--user <name>] [--password-stdin]
+atcoder login [--session-cookie <value> | --session-stdin] [--user <name>]
 atcoder logout
 ```
 
 | フラグ | 用途 |
 |---|---|
-| `--user <name>` | AtCoder のユーザ名。省略時は対話プロンプト (`Username:`) で尋ねる |
-| `--password-stdin` | パスワードを stdin から読む (CI / 自動化)。省略時は端末から**非表示入力** (`Password:`) |
+| `--session-cookie <value>` | `REVEL_SESSION` の値を直接指定 (ps / シェル履歴に残る点に注意) |
+| `--session-stdin` | `REVEL_SESSION` の値を stdin から読む (非対話) |
+| `--user <name>` | AtCoder のユーザ名。省略時はセッションから自動取得 |
 
-`atcoder login` は username / password で AtCoder にログインし、得られたセッション cookie を保存する。対話時はパスワードを**非表示入力**で受け取る。`--password-stdin` を使う場合は `--user` が必須。
+> **なぜ username / password ではないのか:** AtCoder のログインページは **Cloudflare Turnstile**（ボット対策）で保護されており、ブラウザが JS で生成する検証トークンが無いと、正しい username / password でも認証は拒否される。そのため CLI からの programmatic なログインはできない。代わりに、**ブラウザでログイン (Turnstile はブラウザが解決) し、その `REVEL_SESSION` cookie を取り込む**方式を採る。Turnstile はログイン**ページ**にのみあり、ログイン後の通常ページ (`/submissions/me` 等) は cookie だけでアクセスできる。
 
-**パスワードは保存しない。** ログイン時に cookie を取得するためだけに使い、取得後は破棄する。保存されるのはセッション cookie (`REVEL_SESSION`) と user 名のみで、次の `session.json` に置かれる。
+`atcoder login` を引数なしで実行すると、cookie の取得手順を表示し、`REVEL_SESSION` の値を**非表示入力**で受け取る。取り込んだ cookie は `/settings` で有効性を検証し、ユーザ名を自動取得してから保存する。
+
+### REVEL_SESSION の取り出し方
+
+1. ブラウザで <https://atcoder.jp> にログインする。
+2. DevTools を開く (F12) → Application / ストレージ → Cookies → `https://atcoder.jp`。
+3. 名前 `REVEL_SESSION` の**値**をコピーする。
+4. `atcoder login` のプロンプトに貼り付けて Enter。
+
+保存されるのはセッション cookie (`REVEL_SESSION`) と user 名のみで、次の `session.json` に置かれる。
 
 ```
 $XDG_CONFIG_HOME/atcoder-daily-training/session.json   (パーミッション 0600, 親 dir 0700)
@@ -51,8 +61,14 @@ atcoder status <contest> [--task <task>] [-w|--watch] [--interval <dur>] [--open
 ログイン:
 
 ```
-$ atcoder login --user takeharak999
-Password: (非表示入力)
+$ atcoder login
+AtCoder のログインは Cloudflare Turnstile で保護されているため、ブラウザの
+セッション cookie を取り込みます。手順:
+  1. ブラウザで https://atcoder.jp にログインする
+  2. DevTools を開く (F12) → Application/ストレージ → Cookies → https://atcoder.jp
+  3. 名前 "REVEL_SESSION" の値をコピーする
+  4. 下に貼り付けて Enter (入力は表示されません)
+REVEL_SESSION の値を貼り付け: (非表示入力)
 ログインしました: takeharak999
 ```
 
@@ -85,8 +101,8 @@ abc258_d  D - Trophy    # 確定したら最終表示して終了
 | code | 意味 |
 |---|---|
 | `0` | verdict 取得・表示に成功 (verdict が WA / TLE / RE / CE 等でも、`--watch` でも 0)。`Ctrl+C` での `--watch` 中断も 0 |
-| `1` | 未ログイン (`atcoder login を実行してください`) / セッション失効 (`セッションが失効しました。...`) / 該当提出なし (`提出が見つかりません`) / ネットワーク・パース失敗 / login 失敗 |
-| `2` | 引数不足・不正フラグ / `--watch` に `--task` 無し / 非 TTY で `login` を `--password-stdin` 無しに実行 (非表示入力できないため) |
+| `1` | 未ログイン (`atcoder login を実行してください`) / セッション失効 (`セッションが失効しました。...`) / 該当提出なし (`提出が見つかりません`) / ネットワーク・パース失敗 / cookie 無効 |
+| `2` | 引数不足・不正フラグ / `--watch` に `--task` 無し / 空の cookie / 非 TTY で `login` を `--session-cookie`・`--session-stdin` 無しに実行 (対話入力できないため) |
 
 `status` は照会コマンドなので、verdict が AC 以外でも成功扱い (verdict は判定結果ではなく取得したデータ)。
 

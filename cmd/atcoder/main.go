@@ -101,7 +101,7 @@ func usage() {
                  [sample: -c <N[,M,...]> | --refresh | -j <n> | -w | -s | --submit [--no-open]]
                  [ad-hoc: --in <path>|- | --out <path> | --interactive]
                  [-v] [-d] [--timeout <dur>] [--tolerance <eps>] [--layout <auto|abc|exercise>]
-  atcoder login  [--user <name>] [--password-stdin]
+  atcoder login  [--session-cookie <value> | --session-stdin] [--user <name>]
   atcoder logout
   atcoder status <contest> [--task <task>] [-w|--watch] [--interval <dur>] [--open]
   atcoder stats  [-w|--week | -m|--month | -y|--year | -l|--last <dur>] [-g|--graph]

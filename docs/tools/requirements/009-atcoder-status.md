@@ -1,5 +1,15 @@
 # `atcoder status` / `atcoder login` 要件定義
 
+> **更新 (実装後に判明): AtCoder ログインは Cloudflare Turnstile 保護に変わった。**
+> 当初は `atcoder login` を username / password の programmatic ログインで設計したが、
+> AtCoder のログインページは Cloudflare Turnstile (ボット対策) を導入しており、ブラウザが
+> JS で生成する検証トークン無しでは正しい資格情報でも拒否される。よって **`atcoder login`
+> はブラウザの `REVEL_SESSION` cookie を取り込む方式に変更**した (`--session-cookie` /
+> `--session-stdin` / 対話プロンプト)。Turnstile はログイン**ページ**のみで、ログイン後の
+> `/submissions/me` 等は cookie だけでアクセスできるため、`status` の設計は不変。以降の
+> username / password に関する記述は歴史的経緯として残す。利用手引は
+> `docs/tools/atcoder-status-usage.md` を参照。
+
 ## 概要
 
 提出したコードの**ジャッジ結果 (verdict)** をターミナルから確認できる `atcoder status` サブコマンドを追加する。AtCoder の提出一覧 (`/submissions/me`) は**ログイン必須**のため、併せて **`atcoder login` / `atcoder logout`** を追加し、セッション cookie を保存して認証付きで提出一覧を取得する。`atcoder status <contest> --task <task>` で当該タスクの**自分の最新提出の verdict** (AC / WA / TLE / WJ 等) を即時に表示する。
