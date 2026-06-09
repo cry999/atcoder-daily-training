@@ -22,7 +22,7 @@ atcoder update [--check]
 - **`go` コマンドが `PATH` 上にあること。** 更新は go ツールチェインに委譲する。
 - **ネットワークが要るのは `update` と `--check` のみ** (go module proxy / GitHub にアクセス)。`atcoder version` はオフラインで動く。
 - インストール先は `go install` の規定 (`$GOBIN` または `$GOPATH/bin`)。`atcoder` がそこから動いている前提 (= 既に `PATH` 上にある)。
-- AtCoder には一切アクセスしない (`login`/`status` とは無関係)。`GOPROXY`/`GOBIN` 等の go 環境変数はそのまま尊重する。
+- AtCoder には一切アクセスしない (`login`/`status` とは無関係)。`GOBIN` 等の go 環境変数は尊重する。ただし **このツール自身のモジュールだけは `GOPRIVATE` に入れて proxy を介さず git remote へ直接問い合わせる** (理由は下記)。依存モジュールは通常どおり proxy + sumdb 経由。
 
 ## 使用例
 
@@ -49,9 +49,19 @@ $ atcoder update            # 既に最新
 
 ## バージョン表示について
 
-- 版は Go の **buildvcs** (`go build`/`go install` が自動で埋め込む VCS 情報) を `runtime/debug.ReadBuildInfo()` で読む。`go install ./cmd/atcoder` した通常のチェックアウト由来のバイナリなら、コミット sha・日時・dirty フラグが出る。
-- `go run` で実行した場合や、git の linked worktree など VCS 情報が埋め込まれない状況では `unknown (no VCS build info)` と表示される (それでも `version` は exit 0、`update` は最新版を示して入れ替えを続行する)。
-- 最新版は module proxy が返す pseudo-version (`v0.0.0-<日時>-<短縮sha>`) で、その末尾 sha と現在の sha・コミット日時を比べて更新の要否を判定する。
+現在版は `runtime/debug.ReadBuildInfo()` から読む。出所はインストール方法で 2 通り:
+
+- **`go install ./cmd/atcoder`**(作業ツリーからのビルド): Go の **buildvcs** が埋め込む VCS 情報 (フルコミット sha・日時・dirty) を使う。
+- **`atcoder update`**(= `go install …@latest`): 作業ツリーではなくダウンロード済みモジュールからのビルドなので VCS 情報は付かない。代わりに **モジュール版 (pseudo-version `v0.0.0-<日時>-<短縮sha>`)** から sha と日時を取り出して表示・比較する。
+
+これにより、`update` で入れ替えた後も `version` がコミットを表示でき、`update --check` が「最新」を正しく判定する (毎回 update available にならない)。`go run` 実行や linked worktree など、どちらの情報も無い状況では `unknown (no VCS build info)` と表示される (それでも `version` は exit 0、`update` は最新版を示して入れ替えを続行)。
+
+### 最新版の解決 (proxy を介さない理由)
+
+最新版の解決・取得は **このツール自身のモジュールを `GOPRIVATE` に入れて行う** (= proxy.golang.org を介さず git remote へ直接問い合わせる)。proxy は `@latest` を一定時間キャッシュするため、push 直後は **古いコミットを最新として返す**ことがあり、それが原因で「最新のはずが古い版がインストールされる」不具合が起きた。直接解決にすることで、常に origin のデフォルトブランチ (main) の現在 HEAD を取得する。
+
+- 取得できるのは **GitHub に push 済みのコミットまで**。ローカルにしか無い未 push のコミットは `@latest` には現れない (push が前提)。
+- 依存モジュールは `GOPRIVATE` に含めないので、通常どおり proxy + sumdb 経由 (高速・検証あり)。
 
 ## exit code
 
