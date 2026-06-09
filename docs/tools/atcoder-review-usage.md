@@ -44,7 +44,7 @@ atcoder review <category> [-w | --week | -m | --month | -y | --year | -l | --las
   | マス | 意味 |
   |---|---|
   | `■` 緑の濃淡 | 解いた (日付あり)。色の濃淡で recency (≤7日=最も明るい → 90日超=暗い緑) |
-  | `■` 中立色 | 解いた (カテゴリツリー由来・**日付なし**) |
+  | `■` 黄色 | **本番** で解いた (カテゴリツリー由来・日付なし) |
   | `·` 薄灰 | 未着手 |
 
   緑ランプ・記号は `stats --graph` と揃えてある。**非 TTY (パイプ/テスト) では色が出ない**ため 3 状態は `■`/`·` の文字でしか区別できないが、行末の **last solved** が日付の有無を文字で残す。
@@ -52,21 +52,21 @@ atcoder review <category> [-w | --week | -m | --month | -y | --year | -l | --las
 
 ## 出力例
 
-`abc/` ツリーの回は a–f に幅広く `■` (中立色・日付なし) が立ち last solved は `—`、`exercise/` の D 埋めは recency 着色 + 日付:
+`abc/` ツリーの回は a–f に幅広く `■` (黄色・日付なし) が立ち last solved は `—`、`exercise/` の D 埋めは recency 着色 + 日付:
 
 ```
 $ atcoder review abc
 exercise abc review — 237 contests, 387 solves
 
   contest   a b c d e f g   last solved
-  abc461    ■ ■ ■ ■ ■ · ·   —            (abc/ 由来 = 日付なし・中立色)
+  abc461    ■ ■ ■ ■ ■ · ·   —            (abc/ 由来 = 日付なし・黄色)
   abc458    ■ ■ ■ ■ ■ · ·   —
   …
   abc331    · · · ■ · · ·   2026-06-09   (exercise 由来 = recency 着色)
   …
   abc125    · · · ■ · · ·   2026-05-16
 
-  older ■ ■ ■ ■ newer   ■=日付なし   ·=未着手
+  older ■ ■ ■ ■ newer   ■ 本番   · 未着手
   237 contests
 ```
 

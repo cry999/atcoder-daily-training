@@ -16,12 +16,12 @@ var (
 	revHeadStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("#7f849c"))
 	revContestSt  = lipgloss.NewStyle().Foreground(lipgloss.Color("#89b4fa"))
 	revInfoStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("#7f849c")).Italic(true)
-	// revUndatedSt は日付なし (カテゴリツリー由来) のマス ■ の色。recency の緑とも
-	// 未解の薄灰 · とも別の中立色にして 3 状態を見分けられるようにする。
-	revUndatedSt = lipgloss.NewStyle().Foreground(lipgloss.Color("#9399b2"))
+	// revUndatedSt は本番 (カテゴリツリー由来・日付なし) のマス ■ の色。recency の緑とも
+	// 未解の薄灰 · とも別の黄色にして 3 状態を見分けられるようにする。
+	revUndatedSt = lipgloss.NewStyle().Foreground(lipgloss.Color("#f9e2af"))
 )
 
-// undatedGlyph は日付なしで解いたマスの中立色 ■。
+// undatedGlyph は本番 (日付なし) で解いたマスの黄色 ■。
 func undatedGlyph() string { return revUndatedSt.Render("■") }
 
 // Render は Report を人間向けテーブルとして w に書き出す (非 TTY / 一括出力用)。
@@ -109,11 +109,11 @@ func (r Report) rowLines(contestW int) []string {
 	return lines
 }
 
-// legendLine は recency の凡例行 (recency / 日付なし / 未解 の 3 状態)。
+// legendLine は recency の凡例行 (recency / 本番 / 未解 の 3 状態)。
 func (r Report) legendLine() string {
 	return "  " + revInfoStyle.Render("older ") + recencyLegend() +
-		revInfoStyle.Render(" newer   ") + undatedGlyph() + revInfoStyle.Render("=日付なし   ") +
-		stats.ShadeGlyph(0) + revInfoStyle.Render("=未着手")
+		revInfoStyle.Render(" newer   ") + undatedGlyph() + revInfoStyle.Render(" 本番   ") +
+		stats.ShadeGlyph(0) + revInfoStyle.Render(" 未着手")
 }
 
 // footerLine は件数フッタ行。

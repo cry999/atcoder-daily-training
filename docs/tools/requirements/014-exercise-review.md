@@ -33,7 +33,7 @@ B の主な欠点 (データ重複) は、`Scan`/`Solve`/`Period` が `internal/
 | カテゴリ指定 | **必須の位置引数** `<category>` (`abc`/`arc`/`awc`/…)。`exercise/` の同カテゴリ solve と `<category>/` ツリーの両方を読む | デフォルト全カテゴリ・複数カテゴリ指定 |
 | 単位 | contest_id 単位のロールアップ (1 行 = 1 コンテスト)。両ツリーを contest_id でマージ | task 単位のフラット列挙 |
 | 列 | **ABC は a–g を固定列** (未着手の穴も `·` で見える)。それ以外のカテゴリは実際に解いた letter の和集合 (昇順) | 他カテゴリ (arc/agc/ahc) の全問セット定義を持って固定列化 |
-| マスの濃淡 | 解いたマス `■` を**色の濃淡で recency 表現** (最近=明るい緑・古い=暗い緑)。**日付なし (カテゴリツリー由来) は中立色の `■`**、未解は `·` | カテゴリツリーにも日付源 (git 等) を与えて recency 着色 |
+| マスの濃淡 | 解いたマス `■` を**色の濃淡で recency 表現** (最近=明るい緑・古い=暗い緑)。**日付なし (カテゴリツリー由来) は黄色の `■`**、未解は `·` | カテゴリツリーにも日付源 (git 等) を与えて recency 着色 |
 | 日付 | 各コンテストを**最後に解いた日** (その回の dated solve の最大日付) を行末に表示。日付が一切無い回は `—` | letter ごとの最終日・初回日 |
 | 期間フィルタ | (任意) `stats` と同じ `--week/--month/--year/--last` を流用 | `--since`/`--until` の任意範囲 |
 | 並び順 | contest 番号の降順 (新しい回が上) | `--sort contest\|date`、昇順切替 |
@@ -48,7 +48,7 @@ B の主な欠点 (データ重複) は、`Scan`/`Solve`/`Period` が `internal/
 - どちらも **contest_id** (`abc447`) と **letter** (`d`) を導き、`<category>` に一致する solve を **contest_id でマージ**して 1 行にまとめる。同じ contest_id に複数 letter があれば複数列に印が立つ。
 - **重複の解決**: 同じ (contest_id, letter) が両ツリーにあれば **日付ありを優先**する (exercise の日付で recency 着色)。実際には exercise (旧 D 埋め) とカテゴリツリー (新しい回) はほぼ範囲が分離しており重複は稀。
 - **列の決め方**: カテゴリが `abc` のときは **a–g を固定列**にする (解いていない letter も列として出し、`·` で穴を見せる)。その他のカテゴリは「実際に解いた letter の和集合」を列にする (回ごとに問題数が異なり全問セットが一定でないため)。どちらの場合も、固定列に無い letter を解いていれば追加列として末尾に足す (`?` は最末尾)。
-- **マスの濃淡 (recency)**: 日付のある solve は経過日数で色の濃淡を変える (最近=明るい緑、古い=暗い緑)。**日付のない (カテゴリツリー由来) solve は中立色の `■`** にして「解いたが日付不明」を表す。未解のマスは `·`。
+- **マスの濃淡 (recency)**: 日付のある solve は経過日数で色の濃淡を変える (最近=明るい緑、古い=暗い緑)。**日付のない (カテゴリツリー由来) solve は黄色の `■`** にして「解いたが日付不明」を表す。未解のマスは `·`。
 - 日付は `exercise/` のみパスから取る (mtime/git 非依存)。カテゴリツリーには日付が無いので recency も last solved も持たない (案 A: 分かることだけ正直に出す)。recency は「今日 (`Now`)」基準で決まり、`Now` 注入で決定的にできる。
 
 ### recency (濃淡) の決め方
@@ -61,7 +61,7 @@ B の主な欠点 (データ重複) は、`Scan`/`Solve`/`Period` が `internal/
 | ≤ 30 日 | 3 | 明るい緑 (`#26a641`) | この 1 ヶ月 |
 | ≤ 90 日 | 2 | 緑 (`#006d32`) | この四半期 |
 | 90 日超 | 1 | 暗い緑 (`#0e4429`) | それ以前 (古い) |
-| (日付なし) | — | 中立色 `■` (`#9399b2`) | カテゴリツリー由来。解いたが日付不明 |
+| (本番・日付なし) | — | 黄色 `■` (`#f9e2af`) | カテゴリツリー (本番) 由来。解いたが日付不明 |
 | (未解) | — | 薄灰 `·` | そのマスは未着手 |
 
 - 解いたマスは経過日数に関わらず**塗られた `■`** にして、薄灰の `·` (未解) と文字レベルで区別する。recency は色だけで表すので、`stats --graph` 同様 **非 TTY (パイプ/テスト) では recency の段階・日付有無は潰れる** (が、行末の「最終解答日」列が日付の有無を文字で残す: 日付なしは `—`)。
@@ -115,29 +115,29 @@ exercise abc review — this year (2026)
   …
   abc257    · · · ■ · · ·   2026-05-16   (■ = 暗い緑 / 古い)
 
-  older ■ ■ ■ ■ newer   ■=日付なし   ·=未着手
+  older ■ ■ ■ ■ newer   ■ 本番   · 未着手
   75 contests
 ```
 
-カテゴリツリー (`abc/<num>/<letter>.py`) は日付が無いので、その回は a–f に幅広く `■` が立ち、last solved は `—` になる (`■` は中立色):
+カテゴリツリー (`abc/<num>/<letter>.py`) は日付が無いので、その回は a–f に幅広く `■` が立ち、last solved は `—` になる (`■` は黄色):
 
 ```
 $ atcoder review abc
 exercise abc review — 237 contests, 387 solves
 
   contest   a b c d e f g   last solved
-  abc461    ■ ■ ■ ■ ■ ■ ·   —            (abc/ 由来 = 日付なし・中立色)
+  abc461    ■ ■ ■ ■ ■ ■ ·   —            (abc/ 由来 = 日付なし・黄色)
   abc458    ■ ■ ■ ■ ■ · ·   —
   …
   abc331    · · · ■ · · ·   2026-06-09   (exercise 由来 = recency 着色)
   …
   abc125    · · · ■ · · ·   2026-05-16
 
-  older ■ ■ ■ ■ newer   ■=日付なし   ·=未着手
+  older ■ ■ ■ ■ newer   ■ 本番   · 未着手
   237 contests
 ```
 
-- 解いたマスは `■`、未解のマスは `·`。日付のある solve は recency の緑で着色、日付のない (カテゴリツリー) solve は中立色の `■`。記号・緑ランプは `stats --graph` と揃える (上の例は色を出せないため一様に見える)。
+- 解いたマスは `■`、未解のマスは `·`。日付のある solve は recency の緑で着色、日付のない (カテゴリツリー) solve は黄色の `■`。記号・緑ランプは `stats --graph` と揃える (上の例は色を出せないため一様に見える)。
 - ABC 以外のカテゴリ (例 `atcoder review arc`) は固定列を持たず、実際に解いた letter の和集合だけを列にする。
 - 期間フィルタ (`--month` 等) を付けると**日付なしの solve は除外**され、exercise の dated solve だけが対象になる。
 - データ 0 件 (そのカテゴリの solve が両ツリーとも無い) のときは `no abc solves found in exercise/ (...)` を 1 行出して exit 0 (エラーにしない)。
@@ -153,7 +153,7 @@ exercise abc review — 237 contests, 387 solves
 | カテゴリが `abc` 以外 | 固定列なし。実際に解いた letter の和集合を列にする |
 | 同一 contest に複数 letter | 1 行にまとめ、複数列に `■` を立てる |
 | 同一 (contest, letter) が両ツリー | 日付ありを優先 (recency 着色)。日付なしで上書きしない |
-| カテゴリツリー由来 (日付なし) | マスは中立色の `■`、last solved は `—`。期間フィルタ時は除外 |
+| カテゴリツリー由来 (日付なし) | マスは黄色の `■`、last solved は `—`。期間フィルタ時は除外 |
 | マスの着色 | dated は経過日数で `■` を 4 段階の緑、undated は中立 `■`。非 TTY では色が潰れる |
 | レター不明 (`?`) | `?` 列に集計 (列の末尾) |
 | カテゴリツリーの非 letter ファイル | `generate_d_testcase.py` 等 (letter 形でない) は無視 |
@@ -169,7 +169,7 @@ exercise abc review — 237 contests, 387 solves
 | `cmd/atcoder/review.go` | `stats.Scan("exercise")` に加え `review.ScanCategoryTree(<category>)` を読んで結合してから `Build` に渡す |
 | `internal/review/scan.go` (新規) | `ScanCategoryTree(category string) ([]stats.Solve, error)` — `<category>/<num>/<letter>.py` を日付なし solve として列挙 |
 | `internal/review/review.go` | `Build` のマージで (contest, letter) ごとに日付ありを優先・undated を保持。期間フィルタは `stats.InWindow` がゼロ日付を全期間のみ通すのを利用 |
-| `internal/review/render.go` / `tui.go` | undated マスを中立色 `■`、last solved が無ければ `—`。凡例に `■=日付なし` を追加 |
+| `internal/review/render.go` / `tui.go` | undated マスを黄色 `■`、last solved が無ければ `—`。凡例に `■ 本番` を追加 |
 | `internal/review/*_test.go` | カテゴリツリー走査・マージ (日付優先)・undated 描画・期間除外のテストを追加 |
 | `fixtures/run.sh` | カテゴリツリーを stage した `review` の smoke を追加 |
 | `docs/tools/atcoder-review-usage.md` | 集計対象 (2 ツリー)・undated の見方を追記 |
@@ -272,7 +272,7 @@ func Render(w io.Writer, r Report) error
 - **letter**: 問題のレター (`a`..`g`)。不明は `?`。
 - **最終解答日 (last solved)**: あるコンテストの dated solve の最大日付。行末に表示。日付が一切無ければ `—`。
 - **カテゴリツリー**: `<category>/<num>/<letter>.py` 形式の解答ツリー (`abc/`, `arc/`, `awc/` …)。日付を持たない。
-- **日付なし solve (undated)**: カテゴリツリー由来の solve。`Date` ゼロ値。recency 着色されず中立色の `■` で描かれ、期間フィルタ時は除外される。
+- **日付なし solve (undated)**: カテゴリツリー由来の solve。`Date` ゼロ値。recency 着色されず黄色の `■` で描かれ、期間フィルタ時は除外される。
 - **固定列 (fixed columns)**: カテゴリに対して常に表示する letter 列。ABC は a–g。未解の列は `·` で穴として見える。
 - **recency (濃淡)**: 各マスを「解いた日から今日までの経過日数」で 4 段階に着色したもの。最近=明るい緑、古い=暗い緑。`stats --graph` の色ランプを流用。
 - (`contest_id` / `task_id` / `letter` は 002 / 005 要件に準拠)
