@@ -58,8 +58,9 @@ type ChatRunner func(spawn ChatSpawner, header ChatHeader) (*runner.ProcessResul
 type Options struct {
 	Contest     string
 	Task        string
-	InFile      string        // "" / "-" → 親プロセスの stdin、それ以外はそのファイルを読む
+	InFile      string        // "" / "-" → 親プロセスの stdin を read-all (batch)、それ以外はそのファイルを batch で読む
 	OutFile     string        // 非空のとき、stdout をこのファイルの内容と比較 (judge モード)
+	Interactive bool          // true なら子の stdin/stdout/stderr を親に直結する対話モード (TTY なら chat TUI)
 	Layout      layout.Layout // nil なら layout.Exercise{} 相当 (旧挙動)
 	Timeout     time.Duration // 0 → meta.toml.time_limit_ms か 2 秒のデフォルト
 	Tolerance   float64       // float トークン比較の誤差。0 以下なら testexec.DefaultTolerance
@@ -126,9 +127,11 @@ func Run(opts Options) (int, error) {
 		extraEnv = []string{"DEBUG=1"}
 	}
 
-	interactive := opts.InFile == "-"
+	// インタラクティブモードは --interactive を明示したときだけ。
+	// -in と -in - は等価 (どちらも親 stdin を read-all する batch)。
+	interactive := opts.Interactive
 
-	// chat モード: stdin が "-" かつ TTY、かつ ChatRunner が注入されているとき。
+	// chat モード: --interactive かつ TTY、かつ ChatRunner が注入されているとき。
 	// バブルティーの TUI を起動するため、ヘッダは TUI 側で描画する (ここでは何も
 	// 出さない — リポータの Header を呼ぶと TUI 起動前に行が漏れて混乱する)。
 	if interactive && opts.ChatRunner != nil && stdinIsTTY() {

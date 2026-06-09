@@ -121,12 +121,23 @@ run_case "run fixture_pass --in --out (FAIL)" 1 run fixture --task pass --in "$I
 # ABC layout: abc999_a is the same N→N*2 program. Test exercise run end-to-end on ABC layout.
 run_case "abc999/a run --in --out PASS"       0 run abc999 --task a --in "$INPUT_FILE" --out "$OK_OUT"
 
-# Interactive mode: --in - で fd を直結。piped 入力でも query/response の交互が成立することを確認。
-run_piped "run fixture_interactive --in -"  0 "3
+# --in - と --in 省略は等価 (どちらも親 stdin を read-all する batch)。
+run_piped "run fixture_pass --in - (batch stdin)"  0 "5
+" run fixture --task pass --in -
+run_piped "run fixture_pass (no --in, batch stdin)" 0 "5
+" run fixture --task pass
+
+# Interactive mode: --interactive で親 stdin に直結。piped 入力でも query/response の
+# 交互が成立することを確認 (非TTY では passthrough + tee)。
+run_piped "run fixture_interactive --interactive"  0 "3
 ok
 ok
 ok
-" run fixture --task interactive --in -
+" run fixture --task interactive --interactive
+
+# --interactive は --out / ファイル --in と併用不可 (引数エラー = exit 2)。
+run_case "run --interactive + --out (reject)"  2 run fixture --task pass --interactive --out "$OK_OUT"
+run_case "run --interactive + file --in (reject)" 2 run fixture --task pass --interactive --in "$INPUT_FILE"
 
 echo
 if [[ "$failures" -gt 0 ]]; then

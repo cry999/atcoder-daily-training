@@ -23,11 +23,14 @@ func cmdRun(args []string) (int, error) {
 	flags := flag.NewFlagSet("run", flag.ContinueOnError)
 	taskFlag := flags.String("task", "", `AtCoder task ID, or short form (e.g. "d" expands to "<contest>_d")`)
 	var inFile string
-	flags.StringVar(&inFile, "in", "", "Input file (use '-' or omit for parent stdin)")
-	flags.StringVar(&inFile, "i", "", "Input file (use '-' or omit for parent stdin)")
+	flags.StringVar(&inFile, "in", "", "Input file. Use '-' or omit for parent stdin (both read-all as a batch).")
+	flags.StringVar(&inFile, "i", "", "Input file. Use '-' or omit for parent stdin (both read-all as a batch).")
 	var outFile string
 	flags.StringVar(&outFile, "out", "", "Expected output file. When set, stdout is judged against this file.")
 	flags.StringVar(&outFile, "o", "", "Expected output file. When set, stdout is judged against this file.")
+	var interactive bool
+	flags.BoolVar(&interactive, "interactive", false, "Interactive mode: attach the child's stdin/stdout/stderr to the parent (live). On a TTY this launches a chat TUI. Reads from parent stdin; cannot be combined with --out or a file --in.")
+	flags.BoolVar(&interactive, "I", false, "Interactive mode: attach the child's stdin/stdout/stderr to the parent (live). On a TTY this launches a chat TUI. Reads from parent stdin; cannot be combined with --out or a file --in.")
 	timeoutFlag := flags.Duration("timeout", 0, "Override time limit (e.g. 5s, 500ms). Defaults to the problem's time limit or 2s if no meta.toml.")
 	tolFlag := flags.Float64("tolerance", 0, "Absolute/relative tolerance for float token comparison in --out judge mode (e.g. 1e-9). 0 or unset → use default 1e-6.")
 	var verbose bool
@@ -50,6 +53,17 @@ func cmdRun(args []string) (int, error) {
 		task = contest + "_" + task
 	}
 
+	// インタラクティブモードは親 stdin に直結し出力もキャプチャしないので、
+	// judge (--out) ともファイル入力 (--in <path>) とも併用できない。
+	if interactive {
+		if outFile != "" {
+			return 2, errors.New("--interactive cannot be combined with --out (judging needs batch-captured output)")
+		}
+		if inFile != "" && inFile != "-" {
+			return 2, errors.New("--interactive reads from the parent stdin; do not pass a file with --in (pipe the file instead)")
+		}
+	}
+
 	lay, err := layout.Parse(*layoutFlag, contest)
 	if err != nil {
 		return 2, err
@@ -61,6 +75,7 @@ func cmdRun(args []string) (int, error) {
 		Layout:      lay,
 		InFile:      inFile,
 		OutFile:     outFile,
+		Interactive: interactive,
 		Timeout:     *timeoutFlag,
 		Tolerance:   *tolFlag,
 		Debug:       debug,
