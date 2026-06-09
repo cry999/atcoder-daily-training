@@ -300,7 +300,7 @@ func (m *chatModel) View() string {
 	if len(m.msgs) > 0 {
 		parts = append(parts, m.viewport.View())
 	}
-	parts = append(parts, m.renderInputLine())
+	parts = append(parts, m.renderInputBox())
 	return strings.Join(parts, "\n")
 }
 
@@ -317,6 +317,17 @@ func (m *chatModel) renderHeader() string {
 func (m *chatModel) renderInputLine() string {
 	prompt := chatInputPromptStyle.Render("» ")
 	return prompt + m.input.View()
+}
+
+// renderInputBox は入力行を上下の罫線 (─) で挟んで返す (3 行)。
+// Claude Code 風の subtle なボーダーで入力エリアを視覚的に区切る。
+func (m *chatModel) renderInputBox() string {
+	w := m.width
+	if w < 1 {
+		w = 1
+	}
+	rule := chatInputBorderStyle.Render(strings.Repeat("─", w))
+	return rule + "\n" + m.renderInputLine() + "\n" + rule
 }
 
 func (m *chatModel) refreshViewport() {
@@ -362,13 +373,13 @@ func (m *chatModel) refreshViewport() {
 }
 
 // maxViewportHeight は scrollback (viewport) に割ける最大行数。
-// 端末高 - header 行数 - 入力行 (1) を返す。下限は 1。
+// 端末高 - header 行数 - 入力エリア (上罫線 + 入力 + 下罫線 = 3 行) を返す。下限は 1。
 func (m *chatModel) maxViewportHeight() int {
 	if m.height <= 0 {
 		return 1
 	}
 	headerH := strings.Count(m.renderHeader(), "\n") + 1
-	inputH := 1
+	inputH := 3 // top rule + input line + bottom rule
 	h := m.height - headerH - inputH
 	if h < 1 {
 		h = 1
@@ -385,8 +396,9 @@ func (m *chatModel) maxViewportHeight() int {
 // 入力 vs 出力 を色 (Blue vs Green) だけで分けようとすると、寒色同士で輪郭が
 // 鈍るので、明暗差で組み合わせる。
 var (
-	chatInputPromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaSapphire)).Bold(true)
-	chatInPromptStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaBlue)).Bold(true)
+	chatInputPromptStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaSapphire)).Bold(true)
+	chatInputBorderStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay0)) // 入力欄を上下から挟む subtle な罫線
+	chatInPromptStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaBlue)).Bold(true)
 	chatInTextStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay1)).Italic(true)
 	chatOutPromptStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaGreen)).Bold(true)
 	chatOutTextStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaText))
