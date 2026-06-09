@@ -80,7 +80,27 @@ func passwordErrCode(err error) int {
 // readPassword はユーザ名 (未指定なら対話で補完) とパスワードを取得する。
 // --password-stdin 時は stdin からパスワードを読み、ユーザ名は --user 必須。
 // showPw 時は端末からパスワードを表示しながら読み、入力値を確認表示する (デバッグ用)。
+// いずれの経路でも端末のブラケットペースト由来の制御列を除去し、ATCODER_DEBUG
+// または showPw 時は受け取ったバイト列を hex で確認表示する。
 func readPassword(pwStdin, showPw bool, user *string) (string, error) {
+	raw, err := readRawPassword(pwStdin, showPw, user)
+	if err != nil {
+		return "", err
+	}
+
+	pw := sanitizePassword(raw)
+	if os.Getenv("ATCODER_DEBUG") != "" || showPw {
+		fmt.Fprintf(os.Stderr, "[debug] user=%q password=%q (len=%d)\n", *user, pw, len(pw))
+		fmt.Fprintf(os.Stderr, "[debug] password bytes (hex): % x\n", []byte(raw))
+		if pw != raw {
+			fmt.Fprintln(os.Stderr, "[debug] ※ ブラケットペースト/制御列を除去しました (端末由来でパスワードの一部ではありません)")
+		}
+	}
+	return pw, nil
+}
+
+// readRawPassword は加工前のパスワード文字列を読む。
+func readRawPassword(pwStdin, showPw bool, user *string) (string, error) {
 	if pwStdin {
 		if *user == "" {
 			return "", errNeedUser
@@ -109,14 +129,12 @@ func readPassword(pwStdin, showPw bool, user *string) (string, error) {
 	}
 
 	if showPw {
-		// デバッグ用: パスワードを画面に表示しながら入力し、入力値を確認表示する。
+		// デバッグ用: パスワードを画面に表示しながら入力する。
 		fmt.Fprint(os.Stderr, "Password (※画面に表示されます): ")
-		pw := ""
 		if sc.Scan() {
-			pw = sc.Text()
+			return sc.Text(), nil
 		}
-		fmt.Fprintf(os.Stderr, "[debug] user=%q password=%q (len=%d)\n", *user, pw, len(pw))
-		return pw, nil
+		return "", nil
 	}
 
 	fmt.Fprint(os.Stderr, "Password: ")
@@ -126,4 +144,25 @@ func readPassword(pwStdin, showPw bool, user *string) (string, error) {
 		return "", err
 	}
 	return string(b), nil
+}
+
+// sanitizePassword は端末のブラケットペースト (\x1b[200~ … \x1b[201~) のラッパや、
+// 紛れ込んだ ESC 制御列を除去する。これらは端末由来でパスワードの一部ではなく、
+// 含まれていると AtCoder 認証が「資格情報誤り」で弾かれる。通常のパスワード文字
+// (記号含む) は一切変更しない。
+func sanitizePassword(s string) string {
+	// ブラケットペーストのラッパを除去。
+	s = strings.ReplaceAll(s, "\x1b[200~", "")
+	s = strings.ReplaceAll(s, "\x1b[201~", "")
+	// 念のため残った C0 制御文字 (TAB を除く) を除去。印字可能文字のみ残す。
+	s = strings.Map(func(r rune) rune {
+		if r == '\t' {
+			return r
+		}
+		if r < 0x20 || r == 0x7f {
+			return -1
+		}
+		return r
+	}, s)
+	return s
 }
