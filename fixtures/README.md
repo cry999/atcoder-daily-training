@@ -26,6 +26,8 @@
 | `fixture_interactive` | 任意 | 任意 | 簡易インタラクティブ (query/response loop) — `run --stdin -` 用 |
 | `fixture_diff` | `1` | 3 行 (`1 2 3 4 5` / `hello world` / `last line`) | 複数行 + 行内 1 token 違いの誤答。`delta` 風の intra-line token highlight を視覚確認するため |
 
+> フラグ単位の経路も `run.sh` で smoke する。例: `fixture_pass --watch` は run.sh の出力が非 TTY のため `exit 2` で拒否されることを確認 (watch ループ本体は常駐してブロックするため fixture では回さない)。
+
 ## ディレクトリ構造
 
 解答ファイルとキャッシュは別軸に分かれる:

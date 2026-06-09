@@ -13,27 +13,32 @@
 cmd/exercise/
   main.go        # サブコマンドの dispatch + usage
   new.go         # cmdNew: 当日の演習ディレクトリを作成
-  test.go        # cmdTest: 引数パース + selectExecutor (composition root)
+  test.go        # cmdTest: 引数パース + selectExecutor (composition root) + watch ループ
 
 internal/runner/
   runner.go      # ProcessResult + ProcessStatus (実行結果の低レベル型)
   python.go      # Python 具象実装 (Python 型 + NewPython + Run)
 
 internal/testexec/
-  test.go        # Run(Options) + Executor interface + orchestration
+  test.go        # Run(Options) + Executor interface + orchestration (ケースを並列実行)
   judge.go       # CaseResult + CaseStatus + judge() + normalizeOutput()
-  reporter.go    # Reporter interface (UI 抽象)
+  reporter.go    # Reporter interface (UI 抽象。Begin/CaseStarted/CaseFinished/End のライフサイクル)
   meta.go        # meta 型 + load/save (meta.toml の I/O)
   fetch.go       # AtCoder fetch + HTML パース (xpath via htmlquery)
 
 internal/ui/
   reporter.go    # TestReporter / RunReporter: Reporter 実装 (case/result 出力、stderr 表示、summary)
+  progress.go    # bubbletea ライブ進捗 (ケース一覧のスピナー + プログレスバー。TTY 時)
+  watch.go       # watch モードの画面クリア・ヘッダ/フッタ・TTY 判定ヘルパー
   diff.go        # delta 風 unified diff (LCS + intra-line token highlight)
   chat.go        # bubbletea ベース chat TUI (`exercise run --stdin -` の TTY モード)
   style.go       # lipgloss スタイル定義
 
 internal/runexec/
   runexec.go     # Run(Options) + Executor/Reporter/ChatRunner interface (ad-hoc 実行: 任意 stdin → 出力表示)
+
+internal/watch/
+  watch.go       # 単一ファイルの mtime ポーリング監視 (Watcher + WaitForChange)。test の watch モードが使う
 
 internal/cachepath/
   cachepath.go   # キャッシュ配置 (XDG_CACHE_HOME / ~/.cache / atcoder-tools 配下) の解決
@@ -46,8 +51,11 @@ internal/cachepath/
 ```
 cmd/exercise  ──▶  internal/testexec  ──▶  internal/runner
         ├──────▶  internal/runner
+        ├──────▶  internal/watch   (test --watch: 解答ファイルの変更検知)
         └──────▶  internal/ui  ──▶  internal/testexec  (CaseResult/CaseStatus 参照)
 ```
+
+> `internal/watch` は `testexec` / `ui` に依存しない単一ファイル監視の小さな層。watch ループ自体 (実行 → 待機 → 再実行) は composition root の `cmd/exercise/test.go` が持ち、`testexec.Run` を反復呼び出しする。
 
 - 矢印は import 方向。
 - `cmd/exercise` (composition root) のみが全 internal パッケージを import し、結線する。

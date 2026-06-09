@@ -51,7 +51,7 @@ exercise/YYYY/MM/DD/
 ## コマンド
 
 ```
-exercise test <contest> --task <task> [-v] [-d] [--case <N[,M,...]>] [--refresh] [--timeout <dur>]
+exercise test <contest> --task <task> [-v] [-d] [--case <N[,M,...]>] [--refresh] [--timeout <dur>] [-j <n>] [-w]
 ```
 
 ### 引数
@@ -65,6 +65,8 @@ exercise test <contest> --task <task> [-v] [-d] [--case <N[,M,...]>] [--refresh]
 | `-c` / `--case <N>` | | 指定したケース番号のみ実行。カンマ区切りで複数可 (`-c 1,3`)。数値は `01`, `03` のように 2 桁ゼロ埋めへ正規化。該当無しはエラー終了 |
 | `--refresh` | | テストキャッシュを無視して AtCoder から再取得 |
 | `--timeout <dur>` | | 1 ケースあたりの実行制限時間を上書き。Go の duration 記法 (例: `5s`, `500ms`)。未指定なら `meta.toml.time_limit_ms` の値を使う |
+| `-j` / `--jobs <n>` | | テストケースを並列実行する数。`0` (既定) は CPU 数 (ケース数で頭打ち)。`-j 1` で逐次 |
+| `-w` / `--watch` | | 解答ファイルの保存を監視し、変更のたびにテストを自動再実行。`Ctrl+C` で終了。**端末 (TTY) が必要** |
 
 ### 解答ファイルの特定
 
@@ -148,6 +150,19 @@ go run ./cmd/exercise test abc325 --task abc325_d --refresh
 # 解答を編集して保存後
 go run ./cmd/exercise test abc325 --task abc325_d
 ```
+
+### 編集ループを回したい (watch モード)
+
+`-w` / `--watch` を付けると常駐し、解答ファイルを保存するたびにテストを自動再実行する。エディタとターミナルを往復せず、保存だけで判定が回る。`Ctrl+C` で終了。
+
+```sh
+go run ./cmd/exercise test abc325 --task abc325_d --watch
+```
+
+- 監視対象は**解答ファイル 1 つ**。保存 (mtime 変化) を検知するたびに画面をクリアして最新結果だけを描き直す。
+- `--watch` は**端末 (TTY) が必要**。パイプやリダイレクト先では `exit 2` で拒否される (画面クリア前提のため)。
+- `--refresh` と併用すると**初回のみ**再 fetch する (毎保存でネットワークを叩いて rate limit を踏むのを防ぐ)。`-c` / `-j` などの絞り込み・並列指定はそのまま各実行に効く。
+- FAIL/RE/TLE でもループは止まらない。watch の終了コードは判定結果に依存せず、`Ctrl+C` での正常終了は `exit 0`。
 
 ### 解答コードにデバッグ出力を仕込みたい
 

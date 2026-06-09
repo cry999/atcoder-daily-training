@@ -36,3 +36,34 @@ ABC 本番対応に限定されない、`exercise` ツール全般の改善 TODO
 ### 関連項目
 
 - `abc-todo.md` の B (コンテストメタの取り扱い): contest prepare の中で全タスクのスケルトンを一括生成する。テンプレート機構をそこから呼べるようにしておく。
+
+## I. `test` watch モード ✅ DONE (1105a67)
+
+### 解きたい問題
+
+- 編集ループ中は「コードを直して保存 → ターミナルにフォーカスを戻して `exercise test ...` を再度叩く」を何十回もくり返す。往復のたびに編集リズムが切れる。
+- サンプルは初回 fetch 後はキャッシュにあり、2 回目以降の再実行はネットワーク不要で速い。再実行の起動コストが小さいので、保存検知で自動再実行する watch ループに向いている。
+
+### 決まったこと
+
+> 要件詳細は `docs/tools/requirements/004-exercise-test-watch.md`。
+
+- `exercise test <contest> --task <task> --watch` (`-w`) で常駐し、解答ファイルの保存を検知して自動再実行する。`Ctrl+C` で終了。
+- **監視対象は解答ファイル 1 つだけ** (サンプルや自作ライブラリは将来の拡張)。「保存=再実行」を直感的かつ誤爆なしにするため。
+- **検知方式は mtime ポーリング** (200ms, 外部依存なし)。単一ファイル監視には十分で、最小依存方針に合う。atomic save (一旦削除して書き直す) でも再出現時の mtime 変化で拾える。
+- **TTY 必須**。画面をクリアして最新結果だけを再描画するため、非 TTY (パイプ/リダイレクト) では exit 2。
+- 既存の並列実行 + ライブ進捗表示 (`internal/ui` の bubbletea Reporter) をそのまま各実行に再利用する。
+- `--watch` + `--refresh` は**初回のみ** refresh (毎保存での再 fetch を避け rate limit を踏まない)。
+- watch の終了コードはループ結果に依存しない (`Ctrl+C` = exit 0)。FAIL/RE/TLE でもループは止めない。
+
+### 影響範囲
+
+- `cmd/exercise/test.go` (`--watch` 分岐), `cmd/exercise/main.go` (usage)
+- 新規 `internal/watch/` (単一ファイルの mtime ポーリング)
+- `internal/ui/` (画面クリア・watch ヘッダ/フッタ)
+- `fixtures/run.sh` (非 TTY 拒否 = exit 2 の smoke)
+
+### 関連項目
+
+- ライブ進捗表示・並列実行 (前段の `exercise test` 改善) の上に乗る。watch は「同じ 1 回実行をループで呼ぶ」薄い層。
+- 将来 `exercise run --watch` へ展開する余地あり (対話/judge モードの再実行)。
