@@ -23,12 +23,6 @@ func main() {
 			fmt.Fprintln(os.Stderr, "atcoder test:", err)
 		}
 		os.Exit(code)
-	case "run":
-		code, err := cmdRun(os.Args[2:])
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "atcoder run:", err)
-		}
-		os.Exit(code)
 	case "submit":
 		code, err := cmdSubmit(os.Args[2:])
 		if err != nil {
@@ -91,8 +85,10 @@ func usage() {
 	fmt.Fprintln(os.Stderr, `Usage:
   atcoder new
   atcoder new abc <contest> [--tasks <list>] [--refresh] [--no-skeleton] [--no-fetch]
-  atcoder test   <contest> --task <task> [-v] [-d] [-s] [-c <N[,M,...]>] [--refresh] [--timeout <dur>] [--tolerance <eps>] [--layout <auto|abc|exercise>] [-j <n>] [-w]
-  atcoder run    <contest> --task <task> [-v] [-d] [--in <path>|-] [--out <path>] [--tolerance <eps>] [--timeout <dur>] [--layout <auto|abc|exercise>]
+  atcoder test   <contest> --task <task>   # default: judge downloaded samples
+                 [sample: -c <N[,M,...]> | --refresh | -j <n> | -w | -s]
+                 [ad-hoc: --in <path>|- | --out <path> | --interactive]
+                 [-v] [-d] [--timeout <dur>] [--tolerance <eps>] [--layout <auto|abc|exercise>]
   atcoder submit <contest> --task <task> [--refresh] [--tolerance <eps>] [--no-open] [--layout <auto|abc|exercise>]
   atcoder login  [--user <name>] [--password-stdin]
   atcoder logout

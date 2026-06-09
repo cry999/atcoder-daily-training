@@ -56,8 +56,7 @@ var configSubCands = []Candidate{
 // subcommandCands は補完対象のサブコマンド名 (説明付き)。__complete は隠すので含めない。
 var subcommandCands = []Candidate{
 	{"new", "scaffold today's exercise dir (or an abc contest)"},
-	{"test", "run a solution against downloaded samples"},
-	{"run", "run a solution on ad-hoc stdin"},
+	{"test", "run a solution (samples by default; --in/--out/--interactive for ad-hoc)"},
 	{"submit", "open the AtCoder submission page"},
 	{"login", "log in to AtCoder and save a session"},
 	{"logout", "delete the saved AtCoder session"},
@@ -105,22 +104,12 @@ var subFlags = map[string][]Candidate{
 		{"-s", "show diff side-by-side"},
 		{"--side-by-side", "show diff side-by-side"},
 		{"--tolerance", "float comparison tolerance (e.g. 1e-9)"},
-	},
-	"run": {
-		{"--task", "task ID or short letter (e.g. d)"},
-		{"--in", "input file ('-' or omit = stdin)"},
-		{"-i", "input file ('-' or omit = stdin)"},
-		{"--out", "expected output file to judge against"},
-		{"-o", "expected output file to judge against"},
+		{"--in", "ad-hoc input file ('-' = stdin); switches to ad-hoc mode"},
+		{"-i", "ad-hoc input file ('-' = stdin); switches to ad-hoc mode"},
+		{"--out", "judge a single ad-hoc run against this expected output"},
+		{"-o", "judge a single ad-hoc run against this expected output"},
 		{"--interactive", "interactive mode (live I/O; chat TUI on a TTY)"},
 		{"-I", "interactive mode (live I/O; chat TUI on a TTY)"},
-		{"--timeout", "override time limit (e.g. 5s)"},
-		{"-v", "also show the fed input"},
-		{"--verbose", "also show the fed input"},
-		{"-d", "run with DEBUG=1, split [DEBUG] lines"},
-		{"--debug", "run with DEBUG=1, split [DEBUG] lines"},
-		{"--layout", "solution file layout"},
-		{"--tolerance", "float comparison tolerance (e.g. 1e-9)"},
 	},
 	"submit": {
 		{"--task", "task ID or short letter (e.g. d)"},
@@ -155,7 +144,7 @@ var subFlags = map[string][]Candidate{
 }
 
 // takesContest はそのサブコマンドが <contest> 位置引数を取るか。
-var takesContest = map[string]bool{"test": true, "run": true, "submit": true, "status": true}
+var takesContest = map[string]bool{"test": true, "submit": true, "status": true}
 
 // Subcommands は補完対象のサブコマンド名を返す (__complete は隠すので含めない)。
 func Subcommands() []string {
@@ -317,7 +306,7 @@ func contestOf(sub string, pos []string) string {
 		if len(pos) >= 2 && pos[0] == "abc" {
 			return pos[1]
 		}
-	case "test", "run", "submit":
+	case "test", "submit":
 		if len(pos) >= 1 {
 			return pos[0]
 		}

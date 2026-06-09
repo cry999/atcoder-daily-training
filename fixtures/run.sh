@@ -180,41 +180,49 @@ test -f "$CACHE_HOME/atcoder-tools/abc998/contest.toml" \
 # Invalid contest ID is rejected.
 run_case "new abc arc100 (bad id)"          1 new abc arc100 --no-fetch --tasks a
 
-# `atcoder run` (ad-hoc stdin) smoke tests
+# ad-hoc モード (旧 run): `atcoder test --in/--out/--interactive` で 1 件実行。
 INPUT_FILE="$STAGE/run-input.txt"
 echo "5" > "$INPUT_FILE"
-run_case "run fixture_pass --in"      0 run fixture --task pass --in "$INPUT_FILE"
-run_case "run fixture_re   --in"      1 run fixture --task re   --in "$INPUT_FILE"
-run_case "run fixture_tle  --in"      1 run fixture --task tle  --in "$INPUT_FILE"
+run_case "test --in (ad-hoc OK)"      0 test fixture --task pass --in "$INPUT_FILE"
+run_case "test --in (ad-hoc RE)"      1 test fixture --task re   --in "$INPUT_FILE"
+run_case "test --in (ad-hoc TLE)"     1 test fixture --task tle  --in "$INPUT_FILE"
 
 # --out judge: fixture_pass は 5 → 10 を出すので、 expected=10 で PASS、99 で FAIL。
 OK_OUT="$STAGE/run-expected-ok.txt"
 NG_OUT="$STAGE/run-expected-ng.txt"
 echo "10" > "$OK_OUT"
 echo "99" > "$NG_OUT"
-run_case "run fixture_pass --in --out (PASS)" 0 run fixture --task pass --in "$INPUT_FILE" --out "$OK_OUT"
-run_case "run fixture_pass --in --out (FAIL)" 1 run fixture --task pass --in "$INPUT_FILE" --out "$NG_OUT"
+run_case "test --in --out (PASS)" 0 test fixture --task pass --in "$INPUT_FILE" --out "$OK_OUT"
+run_case "test --in --out (FAIL)" 1 test fixture --task pass --in "$INPUT_FILE" --out "$NG_OUT"
 
-# ABC layout: abc999_a is the same N→N*2 program. Test atcoder run end-to-end on ABC layout.
-run_case "abc999/a run --in --out PASS"       0 run abc999 --task a --in "$INPUT_FILE" --out "$OK_OUT"
+# ABC layout: abc999_a is the same N→N*2 program. ad-hoc を ABC レイアウトで end-to-end。
+run_case "abc999/a test --in --out PASS"      0 test abc999 --task a --in "$INPUT_FILE" --out "$OK_OUT"
 
-# --in - と --in 省略は等価 (どちらも親 stdin を read-all する batch)。
-run_piped "run fixture_pass --in - (batch stdin)"  0 "5
-" run fixture --task pass --in -
-run_piped "run fixture_pass (no --in, batch stdin)" 0 "5
-" run fixture --task pass
+# stdin から ad-hoc は `--in -` を明示する (統一後の仕様)。
+run_piped "test --in - (ad-hoc stdin)"  0 "5
+" test fixture --task pass --in -
+
+# ad-hoc フラグ無しなら、stdin がパイプされていても既定のサンプル判定 (stdin 無視)。
+run_piped "test no ad-hoc flags ignores stdin -> samples" 0 "5
+" test fixture --task pass
+
+# サンプル専用フラグ (-c 等) と ad-hoc フラグの併用は exit 2 (モード混在)。
+run_case "test --in + -c (mode mix reject)" 2 test fixture --task pass --in "$INPUT_FILE" -c 01
 
 # Interactive mode: --interactive で親 stdin に直結。piped 入力でも query/response の
 # 交互が成立することを確認 (非TTY では passthrough + tee)。
-run_piped "run fixture_interactive --interactive"  0 "3
+run_piped "test --interactive (non-TTY passthrough)"  0 "3
 ok
 ok
 ok
-" run fixture --task interactive --interactive
+" test fixture --task interactive --interactive
 
 # --interactive は --out / ファイル --in と併用不可 (引数エラー = exit 2)。
-run_case "run --interactive + --out (reject)"  2 run fixture --task pass --interactive --out "$OK_OUT"
-run_case "run --interactive + file --in (reject)" 2 run fixture --task pass --interactive --in "$INPUT_FILE"
+run_case "test --interactive + --out (reject)"  2 test fixture --task pass --interactive --out "$OK_OUT"
+run_case "test --interactive + file --in (reject)" 2 test fixture --task pass --interactive --in "$INPUT_FILE"
+
+# 旧 `run` サブコマンドは削除済み → 未知サブコマンドで exit 2。
+run_case "run subcommand removed" 2 run fixture --task pass
 
 # `atcoder submit` smoke: 全テスト通過なら exit 0、未通過なら中止して exit 1。
 # --no-open でブラウザは開かないが、通過ケースは OS のクリップボードを書き換える点に注意。

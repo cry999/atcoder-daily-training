@@ -41,23 +41,35 @@ func cmdTest(args []string) (int, error) {
 	flags := flag.NewFlagSet("test", flag.ContinueOnError)
 	taskFlag := addTaskFlag(flags)
 	refresh := flags.Bool("refresh", false, "Force refetch sample cases")
-	timeoutFlag := flags.Duration("timeout", 0, "Override time limit (e.g. 5s, 500ms). Defaults to the problem's time limit.")
+	timeoutFlag := flags.Duration("timeout", 0, "Override time limit (e.g. 5s, 500ms). Defaults to the problem's time limit (2s if unknown).")
 	var verbose bool
-	flags.BoolVar(&verbose, "v", false, "Show input/output content for each case")
-	flags.BoolVar(&verbose, "verbose", false, "Show input/output content for each case")
+	flags.BoolVar(&verbose, "v", false, "Show the input fed to the solution (and per-case I/O in sample mode)")
+	flags.BoolVar(&verbose, "verbose", false, "Show the input fed to the solution (and per-case I/O in sample mode)")
 	var debug bool
-	flags.BoolVar(&debug, "d", false, "Run with DEBUG=1 and filter [DEBUG]-prefixed lines from comparison")
-	flags.BoolVar(&debug, "debug", false, "Run with DEBUG=1 and filter [DEBUG]-prefixed lines from comparison")
+	flags.BoolVar(&debug, "d", false, "Run with DEBUG=1 and special-case [DEBUG]-prefixed output lines")
+	flags.BoolVar(&debug, "debug", false, "Run with DEBUG=1 and special-case [DEBUG]-prefixed output lines")
 	var caseStr string
 	flags.StringVar(&caseStr, "case", "", `Run only the specified case(s); comma-separated (e.g. "01" or "1,3")`)
 	flags.StringVar(&caseStr, "c", "", `Run only the specified case(s); comma-separated (e.g. "01" or "1,3")`)
-	tolFlag := flags.Float64("tolerance", 0, "Absolute/relative tolerance for float token comparison (e.g. 1e-9). 0 or unset → use default 1e-6.")
+	tolFlag := flags.Float64("tolerance", 0, "Float token comparison tolerance for sample judging or --out (e.g. 1e-9). 0 or unset → default 1e-6.")
 	// side-by-side のデフォルトは config から取る (flag > config > default)。
 	// 設定で true でも `--side-by-side=false` でその回だけ unified に戻せる。
 	var sideBySide bool
 	flags.BoolVar(&sideBySide, "s", cfg.Test.SideBySide, "Show diff side-by-side (expected on left, actual on right)")
 	flags.BoolVar(&sideBySide, "side-by-side", cfg.Test.SideBySide, "Show diff side-by-side (expected on left, actual on right)")
 	layoutFlag := addLayoutFlag(flags)
+	// ad-hoc / 対話モード (旧 run コマンド)。これらを明示したときだけ、サンプル判定
+	// (testexec) ではなく ad-hoc 実行 (runexec) に振り分ける。明示しなければ既定は
+	// サンプル判定で、stdin がパイプされていてもモードは変わらない (魔法なし)。
+	var inFile string
+	flags.StringVar(&inFile, "in", "", "Ad-hoc input file ('-' = stdin). Switches to ad-hoc run mode (no sample judging).")
+	flags.StringVar(&inFile, "i", "", "Ad-hoc input file ('-' = stdin). Switches to ad-hoc run mode (no sample judging).")
+	var outFile string
+	flags.StringVar(&outFile, "out", "", "Judge a single ad-hoc run against this expected output (ad-hoc mode; reads stdin if no --in).")
+	flags.StringVar(&outFile, "o", "", "Judge a single ad-hoc run against this expected output (ad-hoc mode; reads stdin if no --in).")
+	var interactive bool
+	flags.BoolVar(&interactive, "interactive", false, "Interactive mode: wire the solution's stdin/stdout to the parent (live). chat TUI on a TTY.")
+	flags.BoolVar(&interactive, "I", false, "Interactive mode: wire the solution's stdin/stdout to the parent (live). chat TUI on a TTY.")
 	var jobs int
 	flags.IntVar(&jobs, "jobs", 0, "Number of test cases to run in parallel. 0 → number of CPUs (capped at the case count).")
 	flags.IntVar(&jobs, "j", 0, "Number of test cases to run in parallel. 0 → number of CPUs (capped at the case count).")
@@ -81,6 +93,26 @@ func cmdTest(args []string) (int, error) {
 	lay, err := layout.Parse(*layoutFlag, contest)
 	if err != nil {
 		return 2, err
+	}
+
+	// モード判定: --in/--out/--interactive を明示したら ad-hoc / 対話 (runexec)、
+	// それ以外は既定のサンプル判定 (testexec)。判定は「明示指定されたフラグ」基準で
+	// 行う (--side-by-side は config 既定で true になりうるため値では判定しない)。
+	set := map[string]bool{}
+	flags.Visit(func(f *flag.Flag) { set[f.Name] = true })
+	setAny := func(names ...string) bool {
+		for _, n := range names {
+			if set[n] {
+				return true
+			}
+		}
+		return false
+	}
+	if interactive || inFile != "" || outFile != "" {
+		if setAny("refresh", "case", "c", "jobs", "j", "watch", "w", "s", "side-by-side") {
+			return 2, errors.New("--refresh/--case/--jobs/--watch/--side-by-side are sample-mode flags and cannot be combined with --in/--out/--interactive")
+		}
+		return runAdHoc(contest, task, lay, inFile, outFile, interactive, debug, verbose, *timeoutFlag, *tolFlag)
 	}
 
 	var cases []string
