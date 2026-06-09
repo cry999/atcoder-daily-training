@@ -23,63 +23,72 @@ atcoder review <category> [-w | --week | -m | --month | -y | --year | -l | --las
 
 ## 集計対象
 
-- `stats` と同じく `exercise/<YYYY>/<MM>/<DD>/` 直下の **`.py` ファイル 1 つを 1 問**として数える (中身は問わない)。
-- ファイル名から **contest_id** (`abc457`) と **letter** (`d`) を導き、`<category>` に一致する solve を contest_id でグルーピングする。
-- 日付はファイルの**パス**から取る (mtime/git 非依存)。
-- `exercise/` 以外のツリー (`abc/`, `adt/`, `dp/` …) は対象外。
+**2 つのツリーを横断**して 1 問 = `.py` 1 ファイルと数える (中身は問わない):
+
+| ツリー | 形 | 日付 |
+|---|---|---|
+| `exercise/<YYYY>/<MM>/<DD>/<contest>_<letter>.py` | 日付がパスにある | **あり** |
+| `<category>/<num>/<letter>.py` (`abc/447/d.py` 等) | 練習問題を 1 問 1 ファイルで置くツリー | **なし** |
+
+- 位置引数の `<category>` に対し、`exercise/` の同カテゴリ solve と `<category>/` ツリーの両方を読み、**contest_id** (`abc447`) でグルーピングする。
+- 同じ (contest, letter) が両方にあれば**日付ありを優先**する。実際には exercise (旧 D 埋め) とカテゴリツリー (新しい回) はほぼ範囲が分離していて重複は稀。
+- 日付は `exercise/` のみパスから取る (mtime/git 非依存)。カテゴリツリーは日付を持たない。
+- `<category>/<num>/` の `<num>` は数字を含む dir のみ (`447`, `0001-beta`)。`generate_d_testcase.py` のような letter 形でない補助ファイルは無視する。
 
 ## テーブルの見方
 
 - **行** = 1 コンテスト (contest 番号の降順、新しい回が上)。
 - **列** = 問題レター。**ABC は a–g を固定列**にするので、解いていないレターも `·` (穴) として並ぶ。ABC 以外のカテゴリは、実際に解いたレターの和集合だけを列にする。
-- **マス** = 解いていれば `■`、未解は `·`。`■` の**色の濃淡で recency (最近解いたか / 古いか)** を表す:
+- **マス** = 3 状態を色と文字で表す:
 
-  | 経過日数 (今日 − 解答日) | 色 (TTY) |
+  | マス | 意味 |
   |---|---|
-  | ≤ 7 日 | 最も明るい緑 (ごく最近) |
-  | ≤ 30 日 | 明るい緑 |
-  | ≤ 90 日 | 緑 |
-  | 90 日超 | 暗い緑 (古い) |
+  | `■` 緑の濃淡 | 解いた (日付あり)。色の濃淡で recency (≤7日=最も明るい → 90日超=暗い緑) |
+  | `■` 中立色 | 解いた (カテゴリツリー由来・**日付なし**) |
+  | `·` 薄灰 | 未着手 |
 
-  色ランプ・記号は `stats --graph` と揃えてある。**非 TTY (パイプ/テスト) では色が出ない**ため濃淡は一様に見えるが、行末の **last solved (最終解答日)** が recency を文字で残す。
-- **last solved** = その回を最後に解いた日。
+  緑ランプ・記号は `stats --graph` と揃えてある。**非 TTY (パイプ/テスト) では色が出ない**ため 3 状態は `■`/`·` の文字でしか区別できないが、行末の **last solved** が日付の有無を文字で残す。
+- **last solved** = その回を最後に解いた日 (日付ありの solve の最大日付)。日付が一切無い回 (カテゴリツリーのみ) は `—`。
 
 ## 出力例
 
+`abc/` ツリーの回は a–f に幅広く `■` (中立色・日付なし) が立ち last solved は `—`、`exercise/` の D 埋めは recency 着色 + 日付:
+
 ```
 $ atcoder review abc
-exercise abc review — 181 contests, 181 solves
+exercise abc review — 237 contests, 387 solves
 
   contest   a b c d e f g   last solved
-  abc458    · · · ■ · · ·   2026-06-09
-  abc457    · · · ■ · · ·   2026-06-08
+  abc461    ■ ■ ■ ■ ■ · ·   —            (abc/ 由来 = 日付なし・中立色)
+  abc458    ■ ■ ■ ■ ■ · ·   —
+  …
+  abc331    · · · ■ · · ·   2026-06-09   (exercise 由来 = recency 着色)
   …
   abc125    · · · ■ · · ·   2026-05-16
 
-  older ■ ■ ■ ■ newer   ·=未着手
-  181 contests
+  older ■ ■ ■ ■ newer   ■=日付なし   ·=未着手
+  237 contests
 ```
 
-期間で絞ると、ヘッダが期間ラベルに変わる:
+期間で絞ると、ヘッダが期間ラベルに変わり、**日付なし (カテゴリツリー) の回は除外**される:
 
 ```
 $ atcoder review abc --month
 exercise abc review — this month (2026-06)
 
   contest   a b c d e f g   last solved
-  abc458    · · · ■ ■ · ·   2026-06-09
-  abc457    · · · ■ · · ·   2026-06-08
+  abc331    · · · ■ · · ·   2026-06-09
   …
 ```
 
-該当カテゴリの solve が 0 件のときは "no `<category>` solves found ..." を 1 行出して正常終了する。
+`arc`/`awc` など他カテゴリも同じ要領 (`atcoder review awc` は `awc/` を読む)。該当カテゴリの solve が両ツリーとも 0 件のときは "no `<category>` solves found ..." を 1 行出して正常終了する。
 
 ## exit code
 
 | code | 意味 |
 |---|---|
 | `0` | 一覧表示成功 (0 件でも成功扱い) |
-| `1` | `exercise/` の読み取り I/O エラー |
+| `1` | `exercise/` または `<category>/` ツリーの読み取り I/O エラー |
 | `2` | 引数誤り (`<category>` 省略、未知フラグ、期間フラグの重複指定、不正な `--last` 値) |
 
 ## 注意
