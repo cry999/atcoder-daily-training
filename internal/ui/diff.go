@@ -223,18 +223,20 @@ func renderTokenLine(ops []diffOp, n int, minus bool) string {
 //
 // レイアウト (1 行):
 //
-//	<indent><左 content padded> │ <expN> │-+│ <actN> │ <右 content>
+//	<indent><左 content padded> │ <expN> │-┊+│ <actN> │ <右 content>
 //
 // 期待値ライン (左) と実際のライン (右) を直接並べ、中央には両方の行番号
 // を "│" で囲って出す。行番号自体は前景を dim neutral に保ち、minus/plus
-// の識別は背景色 (薄い赤 / 緑) で示す。中央 sigil "│-+│" は行番号囲いの
-// "│" を共有する形になっており、左の "-" は期待値側 (minus) の sign、右の
-// "+" は実際値側 (plus) の sign。active な sign だけ色付きで出す:
+// の識別は背景色 (薄い赤 / 緑) で示す。中央 sigil "│-┊+│" は行番号囲いの
+// "│" を共有し、左の "-" は期待値側 (minus)、右の "+" は実際値側 (plus)、
+// 中央の "┊" は左右半の境界を示す点線。"-" には minus bg、"+" には plus bg
+// が当たり (active 時は fg=red/green Bold、非 active 時は空白)、"┊" だけは
+// bg を持たないので左右の bg の継ぎ目になる:
 //
-//	paired :  │ N │-+│ N │   (-=red / +=green)
-//	solo - :  │ N │- │   │
-//	solo + :  │   │ +│ N │
-//	context:  │ N │  │ N │
+//	paired :  │ N │-┊+│ N │   (-=red / +=green / ┊=gutter)
+//	solo - :  │ N │-┊ │   │
+//	solo + :  │   │ ┊+│ N │
+//	context:  │ N │ ┊ │ N │
 
 type sbRowKind int
 
@@ -247,9 +249,9 @@ const (
 
 const (
 	diffSBIndent = "  "
-	// 中央ブロックの幅: " │ <3d> │<2-char sigil>│ <3d> │ "
-	//   = 1+1+1+3+1+1+2+1+1+3+1+1+1 = 18
-	diffSBCenterWidth = 18
+	// 中央ブロックの幅: " │ <3d> │<3-char sigil>│ <3d> │ "
+	//   = 1+1+1+3+1+1+3+1+1+3+1+1+1 = 19
+	diffSBCenterWidth = 19
 )
 
 // renderDiffSideBySide は expected を左、actual を右、中央に両方の行番号 +
@@ -323,19 +325,19 @@ func renderDiffSideBySide(expected, actual string, full bool) string {
 	return sb.String()
 }
 
-// renderSBCenter は中央ブロック " │ <expN> │<-><+> │ <actN> │ " (18 桁) を返す。
-// 行番号は "│" で囲われ、kind に応じて行番号の背景色 (minus/plus bg) と
-// sigil の +/- の active 状態を決める。前景色は dim neutral で統一。
-// 左半 (" │ <es> │") は paired/soloDel で minus の薄い行 bg、右半
-// ("│ <as> │ ") は paired/soloAdd で plus の薄い行 bg を持つ。中央 sigil の
-// "-+" 2 文字は bg を持たず、左右 bg の継ぎ目になる。左の "-" は左側
-// (expected) の sign、右の "+" は右側 (actual) の sign。
+// renderSBCenter は中央ブロック " │ <expN> │<-><┊><+> │ <actN> │ " (19 桁)
+// を返す。行番号は "│" で囲われ、kind に応じて行番号の背景色 (minus/plus
+// bg) と sigil の +/- の active 状態を決める。前景色は dim neutral で統一。
+// 左半 (" │ <es> │") + 中央 sigil の "-" 位置は paired/soloDel で minus bg、
+// 右半 ("│ <as> │ ") + 中央 sigil の "+" 位置は paired/soloAdd で plus bg。
+// 中央点線 "┊" だけは bg を持たず、左右 bg の継ぎ目を視覚化する。
 //
 // 実装上の注意: lipgloss の nested Render は内側 reset ("\033[0m") の後に
 // 外側 bg を再適用しないため、`diffMinusLineStyle.Render(" │ <es> │")` と
 // 一括ラップすると bar や padding の bg が抜けて見える (左右で揃わない)。
-// よって各セグメント (bar / padding / 行番号) を個別に bg 付きスタイルで
-// 描画してから連結する。
+// よって各セグメント (bar / padding / 行番号 / sigil) を個別に bg 付き
+// スタイルで描画してから連結する。詳細は
+// docs/knowledge/lipgloss-nested-render-background.md。
 func renderSBCenter(expN, actN int, kind sbRowKind) string {
 	// 行番号スタイル: 前景は dim、背景で minus/plus を識別
 	expStyle := diffLineNumStyle
@@ -359,19 +361,29 @@ func renderSBCenter(expN, actN int, kind sbRowKind) string {
 		as = actStyle.Render(fmt.Sprintf("%3d", actN))
 	}
 
-	// sigil "│<plus><minus>│" — active な sign だけ色付き、それ以外は空白。
-	// "+"/"-" 自体は bg を持たないので、左右 bg の中間の "通路" として機能する。
-	plusCh := " "
-	minusCh := " "
+	// sigil minus 側 ("-" / " ", bg=minusBg or なし)
+	var minusCh string
 	switch kind {
-	case sbRowPaired:
-		plusCh = diffPlusSignFgStyle.Render("+")
-		minusCh = diffMinusSignFgStyle.Render("-")
-	case sbRowSoloAdd:
-		plusCh = diffPlusSignFgStyle.Render("+")
-	case sbRowSoloDel:
-		minusCh = diffMinusSignFgStyle.Render("-")
+	case sbRowPaired, sbRowSoloDel:
+		// active: bg=minusBg, fg=red Bold
+		minusCh = diffMinusSignStyle.Render("-")
+	default:
+		// 非 active: bg なし、空白
+		minusCh = " "
 	}
+	// soloAdd は左半 bg なしだが、minus 位置は空白 (上の default で OK)。
+
+	// sigil plus 側 ("+" / " ", bg=plusBg or なし)
+	var plusCh string
+	switch kind {
+	case sbRowPaired, sbRowSoloAdd:
+		plusCh = diffPlusSignStyle.Render("+")
+	default:
+		plusCh = " "
+	}
+
+	// 中央の点線 "┊" は bg を持たず、左右半の境界を視覚化する。
+	dottedBar := diffGutterStyle.Render("┊")
 
 	// 左 chunk: " │ <es> │" の各セグメントを kind に応じて bg 付きで作る。
 	leftSpace := " "
@@ -391,8 +403,8 @@ func renderSBCenter(expN, actN int, kind sbRowKind) string {
 	}
 	rightChunk := rightBar + rightSpace + as + rightSpace + rightBar + rightSpace
 
-	// 左に "-" (期待値側 = minus)、右に "+" (実際値側 = plus)。
-	return leftChunk + minusCh + plusCh + rightChunk
+	// 左に "-" (期待値側 = minus)、中央に "┊" (点線)、右に "+" (実際値側 = plus)。
+	return leftChunk + minusCh + dottedBar + plusCh + rightChunk
 }
 
 // renderSBContextSide は match 行の半側を返す (dim 本文を width に pad)。

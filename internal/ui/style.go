@@ -72,18 +72,14 @@ var (
 	diffPlusGutterStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaSurface2)).Background(lipgloss.Color(diffPlusBg))
 	diffMinusLineStyle = lipgloss.NewStyle().Background(lipgloss.Color(diffMinusBg)).Foreground(lipgloss.Color(mochaText))
 	diffPlusLineStyle  = lipgloss.NewStyle().Background(lipgloss.Color(diffPlusBg)).Foreground(lipgloss.Color(mochaText))
-	// intra-line emph: 差分のあった token を「文字色」で強調する。
-	// unified diff は行全体に lineBg が乗っているので、その上で fg だけ
-	// red/green に上書きする。SBS は行 bg を持たないので *FgStyle を使う。
-	diffMinusEmphStyle   = lipgloss.NewStyle().Background(lipgloss.Color(diffMinusBg)).Foreground(lipgloss.Color(mochaRed)).Bold(true)
-	diffPlusEmphStyle    = lipgloss.NewStyle().Background(lipgloss.Color(diffPlusBg)).Foreground(lipgloss.Color(mochaGreen)).Bold(true)
-	diffMinusEmphFgStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaRed)).Bold(true)
-	diffPlusEmphFgStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaGreen)).Bold(true)
-	diffMinusSignStyle   = lipgloss.NewStyle().Background(lipgloss.Color(diffMinusBg)).Foreground(lipgloss.Color(mochaRed)).Bold(true)
-	diffPlusSignStyle    = lipgloss.NewStyle().Background(lipgloss.Color(diffPlusBg)).Foreground(lipgloss.Color(mochaGreen)).Bold(true)
-	diffMinusSignFgStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaRed)).Bold(true)   // SBS 中央 sigil の "-" 用 (背景なし)
-	diffPlusSignFgStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaGreen)).Bold(true) // SBS 中央 sigil の "+" 用
-	diffContextStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay1)) // -v 時の context (マッチ行)。背景なし dim foreground
+	// intra-line emph: 差分のあった token を「文字色」で強調する (bg は行 bg
+	// と同じ、fg だけ red/green に上書き)。
+	diffMinusEmphStyle = lipgloss.NewStyle().Background(lipgloss.Color(diffMinusBg)).Foreground(lipgloss.Color(mochaRed)).Bold(true)
+	diffPlusEmphStyle  = lipgloss.NewStyle().Background(lipgloss.Color(diffPlusBg)).Foreground(lipgloss.Color(mochaGreen)).Bold(true)
+	// sign: 行頭 "-" / "+" 用 (unified diff) と SBS 中央 sigil 用に共通利用。
+	diffMinusSignStyle = lipgloss.NewStyle().Background(lipgloss.Color(diffMinusBg)).Foreground(lipgloss.Color(mochaRed)).Bold(true)
+	diffPlusSignStyle  = lipgloss.NewStyle().Background(lipgloss.Color(diffPlusBg)).Foreground(lipgloss.Color(mochaGreen)).Bold(true)
+	diffContextStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay1)) // -v 時の context (マッチ行)。背景なし dim foreground
 
 	// override / over-limit を強調するためのスタイル
 	overrideStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaRed)).Bold(true)
