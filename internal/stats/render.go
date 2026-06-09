@@ -130,17 +130,19 @@ func barString(n, max, maxBar int) string {
 	return strings.Repeat("█", w)
 }
 
-// shadeGlyphs は濃淡レベル 0..4 のマス文字。色に依存せず段階が判別できるよう
-// 文字自体を変える (非 TTY/色覚配慮)。
-var shadeGlyphs = [5]string{"·", "░", "▒", "▓", "█"}
+// shadeGlyphs は濃淡レベル 0..4 のマス文字。縦長に見える陰影ブロック (░▒▓█) は
+// 読みづらいので、活動あり (1..4) は GitHub 同様の四角 ■ で揃え、濃淡は色で表す。
+// 空 (level 0) だけは小さな · にして、色が出ない非 TTY でも「活動した日/しない日」が
+// 判別できるようにする。
+var shadeGlyphs = [5]string{"·", "■", "■", "■", "■"}
 
-// grassStyles はレベル別の着色 (Catppuccin 系の緑グラデーション)。TTY のみ効く。
+// grassStyles はレベル別の着色 (緑のグラデーション、暗→明で濃さを表す)。TTY のみ効く。
 var grassStyles = [5]lipgloss.Style{
 	lipgloss.NewStyle().Foreground(lipgloss.Color("#45475a")), // 0: 空 (薄灰)
-	lipgloss.NewStyle().Foreground(lipgloss.Color("#40a02b")), // 1
-	lipgloss.NewStyle().Foreground(lipgloss.Color("#a6e3a1")), // 2
-	lipgloss.NewStyle().Foreground(lipgloss.Color("#94e2d5")), // 3
-	lipgloss.NewStyle().Foreground(lipgloss.Color("#a6e3ff")), // 4 (濃) — 明度を上げて強調
+	lipgloss.NewStyle().Foreground(lipgloss.Color("#2e5b2a")), // 1: 暗い緑
+	lipgloss.NewStyle().Foreground(lipgloss.Color("#40a02b")), // 2
+	lipgloss.NewStyle().Foreground(lipgloss.Color("#6fd66f")), // 3
+	lipgloss.NewStyle().Foreground(lipgloss.Color("#a6e3a1")), // 4: 明るい緑 (最も濃い活動)
 }
 
 // weekdayLabels は左端の曜日ラベル (Mon..Sun)。
@@ -172,9 +174,12 @@ func writeGraph(b *strings.Builder, cols []GraphColumn) {
 		b.WriteString("\n")
 	}
 
-	// 凡例。
+	// 凡例。各レベルを 1 マスずつ離して 0..4 の 5 段階が読めるようにする。
 	var legend strings.Builder
 	for lvl := 0; lvl < 5; lvl++ {
+		if lvl > 0 {
+			legend.WriteString(" ")
+		}
 		legend.WriteString(grassStyles[lvl].Render(shadeGlyphs[lvl]))
 	}
 	b.WriteString("\n  " + statInfoStyle.Render("less ") + legend.String() + statInfoStyle.Render(" more") + "\n")
