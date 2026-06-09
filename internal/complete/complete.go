@@ -66,9 +66,6 @@ var configSubCands = []Candidate{
 var subcommandCands = []Candidate{
 	{"new", "scaffold today's exercise dir (or an abc contest)"},
 	{"test", "run a solution (samples by default; --in/--out/--interactive for ad-hoc; --submit to submit)"},
-	{"login", "log in to AtCoder and save a session"},
-	{"logout", "delete the saved AtCoder session"},
-	{"status", "show the judge verdict of your submission"},
 	{"stats", "show daily practice statistics"},
 	{"review", "list practiced contests of a category"},
 	{"config", "show or change tool settings"},
@@ -85,7 +82,6 @@ var valueFlags = map[string]bool{
 	"--case": true, "-c": true, "--in": true, "-i": true,
 	"--out": true, "-o": true, "--jobs": true, "-j": true,
 	"--tolerance": true, "--last": true, "-l": true,
-	"--user": true, "--interval": true, "--session-cookie": true,
 }
 
 // subFlags は各サブコマンドのフラグ候補 (説明付き)。cmd/atcoder/*.go の実フラグ・
@@ -146,19 +142,6 @@ var subFlags = map[string][]Candidate{
 		{"--last", "rolling window from today (e.g. 7d, 1m)"},
 		{"-l", "rolling window from today (e.g. 7d, 1m)"},
 	},
-	"login": {
-		{"--session-cookie", "REVEL_SESSION value copied from your browser"},
-		{"--session-stdin", "read the REVEL_SESSION value from stdin"},
-		{"--user", "AtCoder username (auto-detected if omitted)"},
-	},
-	"logout": nil,
-	"status": {
-		{"--task", "task ID or short letter (e.g. d)"},
-		{"--watch", "poll until the verdict is final (needs a TTY)"},
-		{"-w", "poll until the verdict is final (needs a TTY)"},
-		{"--interval", "polling interval for --watch (min 2s)"},
-		{"--open", "open the submission page in a browser"},
-	},
 	"update": {
 		{"--check", "only check for a newer version; don't install"},
 		{"--local", "install from the local ./cmd/atcoder working tree"},
@@ -166,7 +149,7 @@ var subFlags = map[string][]Candidate{
 }
 
 // takesContest はそのサブコマンドが <contest> 位置引数を取るか。
-var takesContest = map[string]bool{"test": true, "status": true}
+var takesContest = map[string]bool{"test": true}
 
 // Subcommands は補完対象のサブコマンド名を返す (__complete は隠すので含めない)。
 func Subcommands() []string {

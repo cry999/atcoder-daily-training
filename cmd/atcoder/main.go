@@ -23,24 +23,6 @@ func main() {
 			fmt.Fprintln(os.Stderr, "atcoder test:", err)
 		}
 		os.Exit(code)
-	case "login":
-		code, err := cmdLogin(os.Args[2:])
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "atcoder login:", err)
-		}
-		os.Exit(code)
-	case "logout":
-		code, err := cmdLogout(os.Args[2:])
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "atcoder logout:", err)
-		}
-		os.Exit(code)
-	case "status":
-		code, err := cmdStatus(os.Args[2:])
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "atcoder status:", err)
-		}
-		os.Exit(code)
 	case "stats":
 		code, err := cmdStats(os.Args[2:])
 		if err != nil {
@@ -101,9 +83,6 @@ func usage() {
                  [sample: -c <N[,M,...]> | --refresh | -j <n> | -w | -s | --submit [--no-open]]
                  [ad-hoc: --in <path>|- | --out <path> | --interactive]
                  [-v] [-d] [--timeout <dur>] [--tolerance <eps>] [--layout <auto|abc|exercise>]
-  atcoder login  [--session-cookie <value> | --session-stdin] [--user <name>]
-  atcoder logout
-  atcoder status <contest> [--task <task>] [-w|--watch] [--interval <dur>] [--open]
   atcoder stats  [-w|--week | -m|--month | -y|--year | -l|--last <dur>] [-g|--graph]
   atcoder review <category> [-w|--week | -m|--month | -y|--year | -l|--last <dur>]
   atcoder config <show | get <key> | set <key> <value> | path>

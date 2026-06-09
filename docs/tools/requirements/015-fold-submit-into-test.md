@@ -4,7 +4,7 @@
 
 `atcoder submit` は現状「サンプル全通過を確認 → 解答をクリップボードへコピー → 提出ページをブラウザで開く」という薄い前準備でしかなく、独立コマンドとしての価値が薄い。これを **`atcoder test --submit` フラグに畳み**、`submit` サブコマンドを**削除**する。`--submit` は「サンプルが全通過したら、続けて提出準備 (コピー + ブラウザ起動) を行う」フラグとして振る舞う。
 
-認証付きの実提出 (POST) は `internal/atcoder` のセッション基盤が整えば可能だが、**認証機能がまだ安定していない**ため今回は実装しない。実提出は auth 安定後に別途 (decisions に保留として記録)。
+認証付きの実提出 (POST) は実装しない。AtCoder のログインは Cloudflare Turnstile 保護で programmatic ログインができず、認証機能は撤去された (todo.md「K」参照)。`--submit` はあくまでブラウザ起動による前準備に留める。
 
 設計判断の記録は [ADR 0006](../decisions/0006-fold-submit-into-test.md)。
 
@@ -121,8 +121,9 @@ func prepareSubmission(contest, task string, lay layout.Layout, noOpen bool) (in
 
 ## 将来の拡張ポイント
 
-- **認証付き実提出**: auth (`internal/atcoder`) 安定後、`--submit` をブラウザ起動から実 POST へ。`status` で verdict を追う導線 (ADR 0006 案 A)。
 - ad-hoc モードでの提出準備 (現状はサンプルモード専用)。
+
+> ~~認証付き実提出~~: AtCoder ログインの Cloudflare Turnstile 保護により programmatic ログインが不可で、認証機能は撤去済み (todo.md「K」)。実提出は当面ブラウザ任せ。
 
 ## 用語
 
@@ -134,4 +135,3 @@ func prepareSubmission(contest, task string, lay layout.Layout, noOpen bool) (in
 - [ADR 0006](../decisions/0006-fold-submit-into-test.md) (本決定)
 - [013-unify-test-run.md](./013-unify-test-run.md) / [ADR 0005](../decisions/0005-unify-test-run-into-test.md) (run を test に畳んだ前例)
 - `docs/tools/atcoder-test-usage.md` (統一後の test 利用手引)
-- `docs/tools/requirements/009-atcoder-status.md` (認証・status。実提出の将来連携先)

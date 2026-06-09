@@ -3,7 +3,9 @@
 - ステータス: Accepted
 - 日付: 2026-06-09
 - 要件: [requirements/015-fold-submit-into-test.md](../requirements/015-fold-submit-into-test.md)
-- 関連: [0005](0005-unify-test-run-into-test.md) (run→test の前例) / [requirements/009-atcoder-status.md](../requirements/009-atcoder-status.md) (認証/status)
+- 関連: [0005](0005-unify-test-run-into-test.md) (run→test の前例)
+
+> **追記 (後日):** ここで参照していた `login`/`status` の認証基盤は、AtCoder ログインが Cloudflare Turnstile 保護で programmatic ログイン不可と判明したため**撤去された** (todo.md「K」)。submit を `test --submit` に畳む本決定自体は有効で、実提出 (認証 POST) への格上げ案 (案 A) は実現不可として打ち切り。
 
 ## コンテキスト
 
@@ -17,7 +19,7 @@
 
 - `--submit` は「サンプルが全通過したら、続けてコピー + ブラウザ起動」を行うサンプルモードの修飾フラグ。`--no-open` は維持。
 - **実提出 (認証 POST) はしない**。認証が安定するまではブラウザ起動に委ねる現行方針を保つ。
-- `openBrowser` は `status --open` も使うため共有関数として残す (submit.go から移設)。
+- `openBrowser` は `test --submit` の提出ページ起動に使う共有関数として残す (submit.go から移設)。
 
 ## 代替案 (却下)
 

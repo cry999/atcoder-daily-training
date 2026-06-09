@@ -66,18 +66,6 @@ func Path() string {
 	return filepath.Join(Base(), AppName, FileName)
 }
 
-// SessionFileName は認証セッション (REVEL_SESSION cookie) を保存する
-// 機械管理ファイルの名前。config.toml (手編集する設定) とは別物で、
-// atcoder login が 0600 で書き、atcoder logout が削除する。
-const SessionFileName = "session.json"
-
-// SessionPath は session.json の絶対パスを返す。存在するとは限らない。
-// config.toml と同じ app dir 配下に置くが中身は秘匿情報なので、書き込み側は
-// パーミッション 0600 / 親 dir 0700 を厳守すること。
-func SessionPath() string {
-	return filepath.Join(Base(), AppName, SessionFileName)
-}
-
 // Load は config.toml を読む。ファイルが無いのは正常で、ゼロ値 Config と nil を
 // 返す (全項目デフォルト)。パースに失敗したときだけ error を返す。
 func Load() (*Config, error) {

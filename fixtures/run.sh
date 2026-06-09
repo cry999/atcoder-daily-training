@@ -309,19 +309,6 @@ check_output "review undated row shows dash"   0 has "—"      -- review abc
 # 期間フィルタ (--year) では日付なしの abc/999 は必ず落ちる (時刻に依存しない不変則)。
 check_output "review --year drops undated abc999" 0 hasnot "abc999" -- review abc --year
 
-# `atcoder status` / `login` / `logout` smoke (ネットワーク非依存)。
-# XDG_CONFIG_HOME は空隔離 dir なので session.json は存在せず、status は
-# LoadSession で「未ログイン」となり exit 1 (HTTP を一切叩かない)。引数誤りは
-# exit 2。login は非対話入力経路 (run_piped で非 TTY) を踏ませて検証する。
-run_case  "status (not logged in)"            1 status fixture --task pass
-run_case  "status (no contest, arg err)"      2 status
-run_case  "status --watch w/o --task"         2 status fixture --watch
-run_case  "logout (no session, noop)"         0 logout
-# login は cookie 取り込み式 (AtCoder ログインは Cloudflare Turnstile 保護のため)。
-# 非 TTY かつ --session-cookie/--session-stdin 無し → 対話不可で exit 2。
-run_piped "login (non-TTY, no cookie flag)"   2 "" login
-# --session-stdin に空入力 → cookie 空で exit 2 (検証ネットワークに到達しない)。
-run_piped "login --session-stdin (empty)"     2 "" login --session-stdin
 
 # `atcoder completion` smoke: 各シェルのスクリプト出力と、隠し __complete ヘルパ。
 # completion の引数エラーは exit 2。__complete は常に exit 0 で候補を吐く。
@@ -389,7 +376,7 @@ zsh_cands_for() {
 echo
 echo "=== zsh completion: empty current word must not offer subcommands / repeat flags ==="
 if command -v zsh >/dev/null 2>&1; then
-    sub_re="new|test|login|logout|status|stats|config|commit|completion|update|version|review"
+    sub_re="new|test|stats|config|commit|completion|update|version|review"
     # (1) `atcoder test <TAB>` (位置引数) はサブコマンドを出してはいけない。
     pos=$(zsh_cands_for 'words=(atcoder test ""); CURRENT=3')
     # (2) `atcoder test --refresh <TAB>` は --refresh を再提案してはいけない。
