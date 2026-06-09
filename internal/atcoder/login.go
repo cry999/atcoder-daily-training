@@ -56,11 +56,22 @@ func Login(user, password string) (*Session, error) {
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("User-Agent", userAgent)
+	// AtCoder の CSRF フィルタは Referer / Origin を要求する。これが無いと
+	// POST /login は 403 で弾かれ、後段の成否判定が「資格情報誤り」と誤報告する。
+	req.Header.Set("Referer", loginURL)
+	req.Header.Set("Origin", baseURL)
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("ログインリクエストに失敗: %w", err)
 	}
 	resp.Body.Close()
+
+	// 成功/失敗いずれも AtCoder は 302 を返す (成功は / へ、失敗は /login へ)。
+	// 4xx/5xx が返るのは資格情報以前の拒否 (CSRF/ヘッダ不備・レート制限等) なので、
+	// 「資格情報誤り」と取り違えないよう区別して返す。
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("ログインに失敗しました (リクエストが拒否されました: HTTP %d)", resp.StatusCode)
+	}
 
 	// 成否判定: ログイン必須ページが 200 で返れば成功、/login へ 302 なら失敗。
 	if ok, err := loggedIn(client); err != nil {
