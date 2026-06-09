@@ -137,12 +137,14 @@ func barString(n, max, maxBar int) string {
 var shadeGlyphs = [5]string{"·", "■", "■", "■", "■"}
 
 // grassStyles はレベル別の着色 (緑のグラデーション、暗→明で濃さを表す)。TTY のみ効く。
+// 1..4 は GitHub のダークモード contribution graph と同じ緑ランプ。暗背景で知覚的に
+// 均等に段階が上がるよう調整されている。0 (空) は周辺 UI に馴染む Catppuccin の薄灰。
 var grassStyles = [5]lipgloss.Style{
 	lipgloss.NewStyle().Foreground(lipgloss.Color("#45475a")), // 0: 空 (薄灰)
-	lipgloss.NewStyle().Foreground(lipgloss.Color("#2e5b2a")), // 1: 暗い緑
-	lipgloss.NewStyle().Foreground(lipgloss.Color("#40a02b")), // 2
-	lipgloss.NewStyle().Foreground(lipgloss.Color("#6fd66f")), // 3
-	lipgloss.NewStyle().Foreground(lipgloss.Color("#a6e3a1")), // 4: 明るい緑 (最も濃い活動)
+	lipgloss.NewStyle().Foreground(lipgloss.Color("#0e4429")), // 1: 最も暗い緑
+	lipgloss.NewStyle().Foreground(lipgloss.Color("#006d32")), // 2
+	lipgloss.NewStyle().Foreground(lipgloss.Color("#26a641")), // 3
+	lipgloss.NewStyle().Foreground(lipgloss.Color("#39d353")), // 4: 最も明るい緑 (最も濃い活動)
 }
 
 // weekdayLabels は左端の曜日ラベル (Mon..Sun)。
