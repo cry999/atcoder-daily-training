@@ -1,9 +1,9 @@
 ---
-name: exercise-feature
+name: feature
 description: exercise CLI (cmd/exercise + internal/) に新機能 (サブコマンド・フラグ・言語サポート・本番対応機能など) を追加するときの確立済みワークフローを案内する。worktree を切り、要件定義 (docs/tools/requirements/NNN-*.md) → ロードマップ更新 → 実装 → fixture スモークテスト (test-tool) → 利用ドキュメント → Conventional Commits → main へマージ、の順で進める。練習問題の解答 (exercise/・abc/・adt/・dp/ 等) を書くだけの作業や、ツールに無関係なドキュメント整理では使わない。
 ---
 
-# exercise-feature
+# feature
 
 `exercise` CLI に機能を足すときの開発ワークフロー手順書。この repo は「要件定義を文章化してから実装し、fixture で振る舞いを固定し、利用ドキュメントとロードマップを揃える」流儀で育てている。新機能をその流儀に乗せるための順序とチェックリストをここにまとめる。
 

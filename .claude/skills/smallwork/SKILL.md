@@ -1,11 +1,11 @@
 ---
 name: smallwork
-description: 簡単な修正 (typo・コメント・小さなバグ直し・1〜数ファイルの軽微な変更・ドキュメントの細かい修正・練習問題の解答追加など) を最小手順で進める軽量ワークフロー。CLAUDE.md どおり worktree は切るが、要件定義 (docs/tools/requirements/) や fixture・利用ドキュメント一式といった重い手順は省き、worktree → 編集 → 最小限の検証 → Conventional Commits → main へ ff-merge、だけで回す。新サブコマンド/フラグ追加など仕様を伴う変更は使わず exercise-feature を使う。
+description: 簡単な修正 (typo・コメント・小さなバグ直し・1〜数ファイルの軽微な変更・ドキュメントの細かい修正・練習問題の解答追加など) を最小手順で進める軽量ワークフロー。CLAUDE.md どおり worktree は切るが、要件定義 (docs/tools/requirements/) や fixture・利用ドキュメント一式といった重い手順は省き、worktree → 編集 → 最小限の検証 → Conventional Commits → main へ ff-merge、だけで回す。新サブコマンド/フラグ追加など仕様を伴う変更は使わず feature を使う。
 ---
 
 # smallwork
 
-軽い変更を素早く片付けるための最小ワークフロー。`exercise-feature` のフルセレモニー (要件定義 → ロードマップ → 実装 → fixture → 利用ドキュメント → コミット → マージ) は、typo 直し 1 行のような作業には重すぎる。smallwork はそれを「worktree → 編集 → 最小検証 → コミット → マージ」に削ぎ落とす。**worktree を切る点は CLAUDE.md どおり守る** (緩めるのは worktree 以降の重い手順だけ)。
+軽い変更を素早く片付けるための最小ワークフロー。`feature` のフルセレモニー (要件定義 → ロードマップ → 実装 → fixture → 利用ドキュメント → コミット → マージ) は、typo 直し 1 行のような作業には重すぎる。smallwork はそれを「worktree → 編集 → 最小検証 → コミット → マージ」に削ぎ落とす。**worktree を切る点は CLAUDE.md どおり守る** (緩めるのは worktree 以降の重い手順だけ)。
 
 ## いつ使うか (smallwork の目安)
 
@@ -17,9 +17,9 @@ description: 簡単な修正 (typo・コメント・小さなバグ直し・1〜
 
 ## いつ使わないか (→ 別の道)
 
-- `exercise` CLI に**新しい挙動**を足す (新サブコマンド・新フラグ・新モード・新言語 Runner)。仕様を伴うので **`exercise-feature`** を使う。
-- 影響範囲が読みきれない / 複数パッケージにまたがる / 設計判断が要る変更。重いと感じたら smallwork をやめて `exercise-feature` に切り替える。
-- 判断に迷う中間サイズは、安全側に倒して `exercise-feature` (要件を文章化する) 側へ。
+- `exercise` CLI に**新しい挙動**を足す (新サブコマンド・新フラグ・新モード・新言語 Runner)。仕様を伴うので **`feature`** を使う。
+- 影響範囲が読みきれない / 複数パッケージにまたがる / 設計判断が要る変更。重いと感じたら smallwork をやめて `feature` に切り替える。
+- 判断に迷う中間サイズは、安全側に倒して `feature` (要件を文章化する) 側へ。
 
 ## ワークフロー
 
@@ -45,7 +45,7 @@ git worktree add ../atcoder-daily-training.worktrees/<branch> -b <branch>
 - **練習解答** → サンプルがあれば実行して照合: `python <path>/main.py < <path>/input-00.txt` を `output-00.txt` と比べる。フラット配置 (`abc/`, `exercise/` 等) でサンプルが無い問題は、自分で 1 ケース流して目視。
 - **`docs/` だけ** → 検証不要 (リンク先の存在だけ確認)。
 
-新しい fixture を足したり利用ドキュメントを書き直したりは smallwork の範囲外 — それが要るならその時点で `exercise-feature` 案件。
+新しい fixture を足したり利用ドキュメントを書き直したりは smallwork の範囲外 — それが要るならその時点で `feature` 案件。
 
 ### 4. コミットする
 
@@ -63,10 +63,10 @@ git branch -d <branch>
 
 - worktree は省かない。緩めるのは「要件定義・fixture・利用ドキュメント・ロードマップ」といった重い付帯作業だけ。
 - 解答ファイル (ユーザの提出コード) を壊さない。
-- 着手後に「思ったより大きい / 仕様判断が要る」と分かったら、その worktree のまま `exercise-feature` の手順に格上げする。smallwork で押し切らない。
+- 着手後に「思ったより大きい / 仕様判断が要る」と分かったら、その worktree のまま `feature` の手順に格上げする。smallwork で押し切らない。
 
 ## 関連
 
-- 重い機能追加: `exercise-feature` スキル
+- 重い機能追加: `feature` スキル
 - ツールのスモークテスト: `test-tool` スキル
 - ルート規約: `CLAUDE.md` (worktree 必須・ディレクトリ規約・解答スタイル)
