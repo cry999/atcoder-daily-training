@@ -340,26 +340,36 @@ GOPROXY=off GONOPROXY=none run_case "update --check (proxy off → exit 1)" 1 up
 run_case "update --local --check (reject)" 2 update --local --check
 GOBIN="$(mktemp -d)" run_case "update --local outside a module (exit 1)" 1 update --local
 
-# zsh 補完の regression: サブコマンドの次の位置引数 (例 `atcoder test <TAB>`) で、
-# 補完中の空トークンが __complete に渡るか。旧 `${words[2,$CURRENT]}` (unquoted) は
-# 空要素を落とし、位置をサブコマンド位置と誤判定してサブコマンドを候補にしていた。
-# 修正は `"${(@)words[2,$CURRENT]}"` で空要素を保持すること。
-echo
-echo "=== zsh completion: positional after a subcommand must not offer subcommands ==="
-if command -v zsh >/dev/null 2>&1; then
-    zsh_cands=$(BIN="$BIN" zsh -c '
+# zsh 補完の regression: 補完中の空トークン (何も入力していない位置) を __complete に
+# 渡せているか。旧 `${words[2,$CURRENT]}` (unquoted) は空要素を落とし、位置を誤判定して
+#   - サブコマンドの次の位置引数 → サブコマンドを候補に (例 `atcoder test <TAB>`)
+#   - フラグ指定後 → 直前と同じフラグを再提案 (例 `atcoder test --refresh <TAB>`)
+# してしまっていた。修正は `"${(@)words[2,$CURRENT]}"` で空要素を保持すること。
+# zsh の _atcoder を stub した compadd/_describe で駆動し、出した候補 (値のみ) を表示する。
+zsh_cands_for() {
+    BIN="$BIN" zsh -c '
         compdef(){ : }
         compadd(){ while (( $# )); do [[ $1 == "--" ]] && { shift; break }; [[ $1 == -* ]] || break; shift; done; print -rl -- "$@" }
         _describe(){ shift; local -a a; eval "a=(\"\${${1}[@]}\")"; print -rl -- "${a[@]%%:*}" }
         source <($BIN completion zsh)
-        words=(atcoder test ""); CURRENT=3
+        '"$1"'
         _atcoder
-    ' 2>/dev/null) || true
-    if printf "%s\n" "$zsh_cands" | grep -qxE "new|test|login|logout|status|stats|config|commit|completion|update|version|review"; then
-        echo "  ✗ subcommand offered at the <contest> position (empty current word dropped)"
-        failures=$((failures + 1))
+    ' 2>/dev/null || true
+}
+echo
+echo "=== zsh completion: empty current word must not offer subcommands / repeat flags ==="
+if command -v zsh >/dev/null 2>&1; then
+    sub_re="new|test|login|logout|status|stats|config|commit|completion|update|version|review"
+    # (1) `atcoder test <TAB>` (位置引数) はサブコマンドを出してはいけない。
+    pos=$(zsh_cands_for 'words=(atcoder test ""); CURRENT=3')
+    # (2) `atcoder test --refresh <TAB>` は --refresh を再提案してはいけない。
+    flag=$(zsh_cands_for 'words=(atcoder test --refresh ""); CURRENT=4')
+    if printf "%s\n" "$pos" | grep -qxE "$sub_re"; then
+        echo "  ✗ subcommand offered at the <contest> position (empty current dropped)"; failures=$((failures + 1))
+    elif printf "%s\n" "$flag" | grep -qxE "\-\-refresh"; then
+        echo "  ✗ flag --refresh re-offered after it was already given (empty current dropped)"; failures=$((failures + 1))
     else
-        echo "  ✓ no subcommand leak (offered: $(printf "%s " $zsh_cands | head -c 50))"
+        echo "  ✓ positional → $(printf "%s " $pos | head -c 30); after --refresh → $(printf "%s " $flag | head -c 30)"
     fi
 else
     echo "  (zsh not installed; skipping)"
