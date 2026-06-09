@@ -43,6 +43,19 @@ func ReadCurrent() Current {
 	if !ok {
 		return Current{Module: DefaultModule}
 	}
+	return currentFromBuildInfo(bi)
+}
+
+// currentFromBuildInfo は BuildInfo から現在版を取り出す (ReadCurrent の中身、
+// テスト用に分離)。
+//
+// 版の出所は 2 通り:
+//   - `go install ./cmd/atcoder` など作業ツリーからのビルド → vcs.* スタンプ
+//     (revision はフル sha、time/modified も付く)。
+//   - `go install <module>@latest` (= atcoder update) → 作業ツリーではなく
+//     ダウンロード済みモジュールからのビルドなので vcs.* は付かず、代わりに
+//     Main.Version が pseudo-version になる。ここから sha と日時を補う。
+func currentFromBuildInfo(bi *debug.BuildInfo) Current {
 	c := Current{Module: bi.Main.Path}
 	if c.Module == "" {
 		c.Module = DefaultModule
@@ -57,6 +70,15 @@ func ReadCurrent() Current {
 			}
 		case "vcs.modified":
 			c.Modified = s.Value == "true"
+		}
+	}
+	// VCS スタンプが無い (update でインストールされた) 場合は pseudo-version で補う。
+	if c.Revision == "" {
+		if sha := pseudoSha(bi.Main.Version); sha != "" {
+			c.Revision = sha
+			if t, ok := pseudoTime(bi.Main.Version); ok {
+				c.Time = t
+			}
 		}
 	}
 	c.Known = c.Revision != ""
@@ -98,7 +120,7 @@ func ResolveLatest(ctx context.Context, module string) (Latest, error) {
 
 	cmd := exec.CommandContext(ctx, "go", "list", "-m", "-json", module+"@latest")
 	cmd.Dir = dir
-	cmd.Env = os.Environ()
+	cmd.Env = goEnv(module)
 	var stdout, stderr strings.Builder
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -146,13 +168,51 @@ func Install(ctx context.Context, module string, out io.Writer) error {
 
 	cmd := exec.CommandContext(ctx, "go", "install", module+cmdSubpath+"@latest")
 	cmd.Dir = dir
-	cmd.Env = os.Environ()
+	cmd.Env = goEnv(module)
 	cmd.Stdout = out
 	cmd.Stderr = out
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("go install %s%s@latest: %w", module, cmdSubpath, err)
 	}
 	return nil
+}
+
+// goEnv は os.Environ() に、自モジュールを GOPRIVATE に含めた環境を返す。
+//
+// proxy.golang.org は @latest を一定時間キャッシュするため、push 直後は古い
+// コミットを返すことがある (実際に「最新のはずが古い main tip がインストール
+// される」不具合の原因になった)。GOPRIVATE に自モジュールを入れると、go は
+// proxy を介さず git remote へ直接問い合わせ、常に origin デフォルトブランチの
+// 現在 HEAD を解決する。あわせて sumdb 検証もこのモジュールについてはスキップ
+// される (自分のリポジトリなので可)。依存モジュールは GOPRIVATE に含めないので
+// 通常どおり proxy + sumdb 経由のまま。既存の GOPRIVATE は保全して追記する。
+func goEnv(module string) []string {
+	env := os.Environ()
+	const key = "GOPRIVATE="
+	for i, kv := range env {
+		if !strings.HasPrefix(kv, key) {
+			continue
+		}
+		existing := strings.TrimPrefix(kv, key)
+		switch {
+		case existing == "":
+			env[i] = key + module
+		case !privateContains(existing, module):
+			env[i] = key + existing + "," + module
+		}
+		return env
+	}
+	return append(env, key+module)
+}
+
+// privateContains は GOPRIVATE のカンマ区切りリストに module が既に含まれるか。
+func privateContains(list, module string) bool {
+	for _, p := range strings.Split(list, ",") {
+		if p == module {
+			return true
+		}
+	}
+	return false
 }
 
 // neutralDir はどのモジュールにも属さない一時 dir を作る。`go list -m @latest` は
@@ -196,4 +256,20 @@ func pseudoSha(version string) string {
 		return tail
 	}
 	return ""
+}
+
+// pseudoTime は pseudo-version 中の 14 桁タイムスタンプ (yyyymmddhhmmss, UTC) を
+// 取り出す。形式が合わなければ ok=false。
+//
+//	"v0.0.0-20260609101134-4c7e3b9c0d74" → 2026-06-09T10:11:34Z
+func pseudoTime(version string) (time.Time, bool) {
+	parts := strings.Split(version, "-")
+	if len(parts) < 3 {
+		return time.Time{}, false
+	}
+	t, err := time.Parse("20060102150405", parts[len(parts)-2])
+	if err != nil {
+		return time.Time{}, false
+	}
+	return t.UTC(), true
 }

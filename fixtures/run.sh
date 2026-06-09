@@ -319,10 +319,13 @@ run_case "__complete (always exit 0)"    0 __complete -- te
 
 # `atcoder version` / `atcoder update`: 自己更新。version はオフラインで動き常に exit 0。
 # update の引数誤りは exit 2。ネットワーク経路 (最新解決・install) は run.sh では叩かず、
-# GOPROXY=off で最新解決が決定的に失敗する経路 (exit 1) だけ固定する。
+# 最新解決が決定的に失敗する経路 (exit 1) だけ固定する。update は自モジュールを
+# GOPRIVATE に入れて proxy をバイパスするので、GOPROXY=off だけでは止まらない。
+# GONOPROXY=none で「どのモジュールも proxy をバイパスしない」を強制し、off の proxy に
+# 確実に当てて失敗させる。
 run_case "version (offline)"             0 version
 run_case "update --bogus (reject)"       2 update --bogus
-GOPROXY=off run_case "update --check (GOPROXY=off → exit 1)" 1 update --check
+GOPROXY=off GONOPROXY=none run_case "update --check (proxy off → exit 1)" 1 update --check
 
 echo
 if [[ "$failures" -gt 0 ]]; then
