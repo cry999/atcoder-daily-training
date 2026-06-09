@@ -1,11 +1,11 @@
 ---
 name: test-tool
-description: Run the fixture-based smoke test for the `exercise test` CLI by invoking ./fixtures/run.sh. Use after refactoring or extending cmd/exercise, internal/runner, internal/testexec, or internal/ui — it asserts expected exit codes across PASS/FAIL/RE/TLE and the DEBUG-filter paths. Do NOT use for changes confined to docs, practice solutions (exercise/, abc/, adt/, dp/, …), or unrelated tooling.
+description: Run the fixture-based smoke test for the `atcoder test` CLI by invoking ./fixtures/run.sh. Use after refactoring or extending cmd/atcoder, internal/runner, internal/testexec, or internal/ui — it asserts expected exit codes across PASS/FAIL/RE/TLE and the DEBUG-filter paths. Do NOT use for changes confined to docs, practice solutions (exercise/, abc/, adt/, dp/, …), or unrelated tooling.
 ---
 
 # test-tool
 
-Smoke-test the `exercise test` CLI by running every fixture under `fixtures/` and asserting its expected exit code.
+Smoke-test the `atcoder test` CLI by running every fixture under `fixtures/` and asserting its expected exit code.
 
 ## How to invoke
 
@@ -25,7 +25,7 @@ The script:
 
 Use this skill after edits to any of:
 
-- `cmd/exercise/` — argument parsing, dispatch, runner factory.
+- `cmd/atcoder/` — argument parsing, dispatch, runner factory.
 - `internal/runner/` — process execution.
 - `internal/testexec/` — `test` orchestration, judge, meta cache, AtCoder fetch.
 - `internal/runexec/` — `run` orchestration (ad-hoc stdin).
@@ -46,4 +46,4 @@ Skip this skill when only the following changed:
 
 The tool's own output for each fixture is printed before the assertion line. Scroll up to find the offending case and investigate. Re-run after fixing.
 
-For adding a new fixture (when a new behavior is introduced), see `docs/tools/exercise-test-testing.md`.
+For adding a new fixture (when a new behavior is introduced), see `docs/tools/atcoder-test-testing.md`.

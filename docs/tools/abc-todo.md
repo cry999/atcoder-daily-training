@@ -1,12 +1,12 @@
-# `exercise` ツールの ABC 本番対応 TODO
+# `atcoder` ツールの ABC 本番対応 TODO
 
 ## 概要
 
-現状の `exercise` は日々の練習 (`exercise/YYYY/MM/DD/<task>.py`) を前提にしたディレクトリ規約と CLI 体系になっている。これを ABC (AtCoder Beginner Contest) **本番中** にもストレスなく使えるようにするためのロードマップ。
+現状の `atcoder` は日々の練習 (`exercise/YYYY/MM/DD/<task>.py`) を前提にしたディレクトリ規約と CLI 体系になっている。これを ABC (AtCoder Beginner Contest) **本番中** にもストレスなく使えるようにするためのロードマップ。
 
 ## 背景・狙い
 
-- 本番中は **コンテスト開始直後の準備フリクション** と **WA 後の挙動修正サイクル** が体感に大きく効く。練習用ワークフローのままだと、`exercise new` が当日 dir を作る、`--task` ごとに 1 回ずつ fetch、…と毎回手数が増える。
+- 本番中は **コンテスト開始直後の準備フリクション** と **WA 後の挙動修正サイクル** が体感に大きく効く。練習用ワークフローのままだと、`atcoder new` が当日 dir を作る、`--task` ごとに 1 回ずつ fetch、…と毎回手数が増える。
 - 提出 (submit) や認証は `oj` / `atcoder-cli` などの既存ツールに任せれば足りるので、当面ローカル側のフリクション削減に集中する。
 - 本ドキュメントは設計の道標であって、各項目の細部仕様は別途要件定義に落とす (`docs/tools/exercise-test-requirements.md` のような形)。
 
@@ -31,7 +31,7 @@
 
 #### 解きたい問題
 
-- 今は `exercise test` / `exercise run` ともに、解答ファイルを **当日の `exercise/YYYY/MM/DD/<task>.py`** に決め打ちで探している (`internal/testexec/test.go`, `internal/runexec/runexec.go`)。本番中は `abc/<contest>/<letter>.py` に置きたい。
+- 今は `atcoder test` / `atcoder run` ともに、解答ファイルを **当日の `exercise/YYYY/MM/DD/<task>.py`** に決め打ちで探している (`internal/testexec/test.go`, `internal/runexec/runexec.go`)。本番中は `abc/<contest>/<letter>.py` に置きたい。
 - 解答ファイルパスの解決ロジックを差し替え可能にする必要がある。
 
 #### 決めること
@@ -51,15 +51,15 @@
 
 - `internal/testexec/test.go` の `solutionPath` 計算
 - `internal/runexec/runexec.go` の同等部分
-- `cmd/exercise/{test,run}.go` のフラグ追加
-- `cmd/exercise/new.go` に `abc <contest>` モード追加 (B と統合して扱う)
+- `cmd/atcoder/{test,run}.go` のフラグ追加
+- `cmd/atcoder/new.go` に `abc <contest>` モード追加 (B と統合して扱う)
 
 ### B. コンテストメタの取り扱い
 
 > 要件詳細: `docs/tools/exercise-abc-contest-meta-requirements.md` (`new abc <contest>` 一括準備として設計済み)
 >
-> **✅ 実装済み (0596725)** — `exercise new abc <contest>` として実装。下記「決めること」は次のように決着した:
-> - **コマンド表面**: `contest prepare` 新設ではなく、既存 `exercise new` を拡張して `new abc <contest>` モードにした (引数なしは従来の当日 dir 作成のまま)。
+> **✅ 実装済み (0596725)** — `atcoder new abc <contest>` として実装。下記「決めること」は次のように決着した:
+> - **コマンド表面**: `contest prepare` 新設ではなく、既存 `atcoder new` を拡張して `new abc <contest>` モードにした (引数なしは従来の当日 dir 作成のまま)。
 > - **保存場所 / スキーマ**: 候補どおり `$XDG_CACHE_HOME/atcoder-tools/<contest>/contest.toml`。`title` / `fetched_at` を追加し、`start_at` / `end_at` は TOML ネイティブ datetime で保存。
 > - **時刻取得元**: `/contests/<contest>` トップページの `contest-duration` 内 `<time class="fixtime">` 2 要素から取得 (`duration_ms` は差分から算出)。タスクリストは `/contests/<contest>/tasks` から。
 > - **進捗表示**: `[i/N] <task_id>  ok (fetched/cached)` を 1 行ずつ。ネットワーク取得が起きたタスクの後だけ 300ms 待って rate limit を回避。
@@ -71,13 +71,13 @@
 
 #### 解きたい問題
 
-- 本番では A〜G の問題が一斉に必要になる。今は問題ごとに `exercise test` で都度 fetch するため、開始直後の準備が問題数 × fetch 回数分の手作業になる。
+- 本番では A〜G の問題が一斉に必要になる。今は問題ごとに `atcoder test` で都度 fetch するため、開始直後の準備が問題数 × fetch 回数分の手作業になる。
 - コンテストの開始 / 終了時刻、参加対象のタスクリストを 1 つの場所に保存しておけば、E (本番モード判定) や G (タイマー) の前提が揃う。
 
 #### 決めること
 
 - 新サブコマンド or 既存拡張
-  - 候補: `exercise contest prepare <contest>` を新設。`abc357` を渡すと:
+  - 候補: `atcoder contest prepare <contest>` を新設。`abc357` を渡すと:
     1. AtCoder の `/contests/<contest>/tasks` を fetch しタスクリスト取得
     2. 各タスクページを fetch しサンプル + meta を cache (= 既存 ensureTests 流用)
     3. `abc/<contest>/<letter>.py` のスケルトンを生成 (H と連動)
@@ -99,9 +99,9 @@
 
 #### 影響範囲
 
-- 新規 `cmd/exercise/contest.go`
+- 新規 `cmd/atcoder/contest.go`
 - 新規 `internal/contestmeta/` または `internal/testexec` 拡張
-- `cmd/exercise/main.go` の usage 更新
+- `cmd/atcoder/main.go` の usage 更新
 
 ---
 
@@ -123,7 +123,7 @@
   - `run --out`: judge mode で FAIL したケースを「WA 候補」として F のストアに保存
   - `submit` (C 実装後): 全 PASS gate
   - TUI (G): モード表示
-- ユーザがどこからモード状態を見られるか (`exercise contest status <contest>` のような diagnostic コマンド)
+- ユーザがどこからモード状態を見られるか (`atcoder contest status <contest>` のような diagnostic コマンド)
 
 ### F. WA / penalty 後のワークフロー
 
@@ -139,11 +139,11 @@
   - 第一候補は cache 配下に専用 dir。`--refresh` で消さない。
 - 命名規則: 公式は `01.in` 始まり。ユーザ追加は `e01.in` のように prefix 付け or 別 dir 内で `01.in` 始まり。
 - 追加ケースの作り方
-  - `exercise test <contest> --task <task> --add-case` でインタラクティブに stdin/expected を入力?
+  - `atcoder test <contest> --task <task> --add-case` でインタラクティブに stdin/expected を入力?
   - シンプルに `tests-extra/` にユーザが直接ファイルを置くだけにする?
-  - `exercise run --in foo.in --out foo.out --save-as <name>` で追加保存?
+  - `atcoder run --in foo.in --out foo.out --save-as <name>` で追加保存?
 - 追加ケースは公式ケースと同じ判定ループに入れるか、別セクションで表示するか。
-- 既存の `exercise test` 出力にユーザ追加ケースをどう混ぜるか (順序、識別子)。
+- 既存の `atcoder test` 出力にユーザ追加ケースをどう混ぜるか (順序、識別子)。
 
 ### G. タイマー / コンテスト状態の TUI
 
@@ -154,7 +154,7 @@
 #### 決めること
 
 - スコープ
-  - 候補 1: シンプルな `exercise contest status <contest>` 1-shot コマンド (残り時間と AC 済みタスクを 1 度だけ表示)
+  - 候補 1: シンプルな `atcoder contest status <contest>` 1-shot コマンド (残り時間と AC 済みタスクを 1 度だけ表示)
   - 候補 2: bubbletea ベースの live TUI (1 秒ごとに refresh)
   - MVP は **候補 1**。bubbletea はすでに chat TUI で導入しているので Phase 2.5 で候補 2 に拡張可能。
 - 表示する情報
@@ -171,7 +171,7 @@
 
 `oj` (online-judge-tools) を直接叩けば足りるので困っていない。将来やるなら以下を決める。
 
-- thin wrapper としての `exercise submit <contest> --task d`
+- thin wrapper としての `atcoder submit <contest> --task d`
   - 内部で `oj submit https://atcoder.jp/contests/<contest>/tasks/<task> <file>` を shell-out
   - `--lang` の上書き、`--yes` で確認スキップ
 - 自前実装 (Cookie + CSRF + 言語 ID テーブル) は当面実装しない。`oj` 依存で十分。

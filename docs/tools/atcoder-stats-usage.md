@@ -1,4 +1,4 @@
-# `exercise stats` 利用手引
+# `atcoder stats` 利用手引
 
 日々の練習 (`exercise/YYYY/MM/DD/<task>.py`) の積み上がりを 1 コマンドで振り返る。解答数・連続練習日数 (ストリーク)・コンテスト種別/問題レター別の内訳・最近の推移をテーブル表示する。読み取り専用で、リポジトリには一切書き込まない。
 
@@ -7,7 +7,7 @@
 ## コマンド
 
 ```
-exercise stats [--week | --month | --year]
+atcoder stats [--week | --month | --year]
 ```
 
 | フラグ | 集計範囲 |
@@ -43,7 +43,7 @@ exercise stats [--week | --month | --year]
 ## 出力例
 
 ```
-$ exercise stats --month
+$ atcoder stats --month
 practice stats — this month (2026-06)
 
   total solves   112

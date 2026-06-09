@@ -1,12 +1,12 @@
-# `exercise test` のテスト戦略
+# `atcoder test` のテスト戦略
 
-ツール本体 (`cmd/exercise` + `internal/runner` / `internal/testexec` / `internal/ui`) の振る舞いをローカルで検証する方法をまとめる。
+ツール本体 (`cmd/atcoder` + `internal/runner` / `internal/testexec` / `internal/ui`) の振る舞いをローカルで検証する方法をまとめる。
 
 仕様・利用方法・内部設計は別ドキュメント:
 
 - 要件定義: [exercise-test-requirements.md](./exercise-test-requirements.md)
-- 利用手引: [exercise-test-usage.md](./exercise-test-usage.md)
-- アーキテクチャ: [exercise-test-architecture.md](./exercise-test-architecture.md)
+- 利用手引: [atcoder-test-usage.md](./atcoder-test-usage.md)
+- アーキテクチャ: [atcoder-test-architecture.md](./atcoder-test-architecture.md)
 
 ## 方針
 
@@ -53,7 +53,7 @@
 
 リファクタリングや機能追加で以下を触ったときに走らせる:
 
-- `cmd/exercise/` — 引数パース・dispatch・factory
+- `cmd/atcoder/` — 引数パース・dispatch・factory
 - `internal/runner/` — プロセス実行
 - `internal/testexec/` — `test` の orchestration・judge・meta・fetch
 - `internal/runexec/` — `run` の orchestration
@@ -77,6 +77,6 @@
 ## 制約と非対象
 
 - 表示の見た目 (色や配置) はスモークテストで検証できない。`CLICOLOR_FORCE=1` で手動目視を推奨。
-- `exercise run --stdin -` の **chat TUI** は TTY を要するため `fixtures/run.sh` ではカバーされない (スクリプト内の interactive ケースは非TTY passthrough のみ試験する)。手動確認は端末から `exercise run fixture --task interactive --stdin -` を直接叩く。
+- `atcoder run --stdin -` の **chat TUI** は TTY を要するため `fixtures/run.sh` ではカバーされない (スクリプト内の interactive ケースは非TTY passthrough のみ試験する)。手動確認は端末から `atcoder run fixture --task interactive --stdin -` を直接叩く。
 - 並列実行や HTTP fetch の挙動は対象外 (fixtures は事前生成済みのキャッシュを使う想定)。
 - Python 以外の言語の Runner はまだ存在しないので未対象。追加されたら言語ごとの fixture を増やす。

@@ -1,4 +1,4 @@
-// Package cachepath は `exercise` 系コマンドが保持するキャッシュ
+// Package cachepath は `atcoder` 系コマンドが保持するキャッシュ
 // (meta.toml, tests/NN.in NN.out 等) の配置場所を解決する。
 //
 // XDG Base Directory Specification (https://specifications.freedesktop.org/basedir-spec/)
@@ -23,7 +23,7 @@ import (
 	"path/filepath"
 )
 
-// AppName はキャッシュ階層における本リポジトリ全体の名前。複数の `exercise`
+// AppName はキャッシュ階層における本リポジトリ全体の名前。複数の `atcoder`
 // クローン (自宅 / 職場 等) や、将来この階層を共有する別ツールから見ても識別
 // しやすい中立な名前にしている。
 const AppName = "atcoder-tools"

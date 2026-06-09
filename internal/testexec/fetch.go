@@ -29,7 +29,7 @@ func fetchProblem(contest, task string) (*problem, error) {
 		return nil, err
 	}
 	req.Header.Set("Accept-Language", "ja,en-US;q=0.9,en;q=0.8")
-	req.Header.Set("User-Agent", "exercise-test/0.1 (+https://github.com/cry999/atcoder-daily-training)")
+	req.Header.Set("User-Agent", "atcoder-test/0.1 (+https://github.com/cry999/atcoder-daily-training)")
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

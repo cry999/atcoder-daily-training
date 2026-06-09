@@ -1,11 +1,11 @@
-# `exercise commit` 利用手引
+# `atcoder commit` 利用手引
 
 当日 (`exercise/YYYY/MM/DD/`) の演習成果をひとまとめにコミットするためのショートカット。普段「解いて、テストして、コミット」の流れを 1 コマンドで締められる。
 
 ## コマンド
 
 ```
-exercise commit
+atcoder commit
 ```
 
 引数・フラグは無い。常に **当日のローカル日付** 配下のディレクトリを対象とする。
@@ -38,12 +38,12 @@ exercise commit
 
 ```sh
 # 1日の演習を書く
-go run ./cmd/exercise new              # 当日の exercise/YYYY/MM/DD/ を作成
+go run ./cmd/atcoder new              # 当日の exercise/YYYY/MM/DD/ を作成
 vim exercise/2026/06/06/abc330_d.py    # 解く
-go run ./cmd/exercise test abc330 -c d # サンプルを fetch + 動作確認
+go run ./cmd/atcoder test abc330 -c d # サンプルを fetch + 動作確認
 
 # まとめてコミット
-go run ./cmd/exercise commit
+go run ./cmd/atcoder commit
 # → exercise: 2026-06-06
 ```
 

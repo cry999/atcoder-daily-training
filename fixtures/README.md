@@ -1,4 +1,4 @@
-# Test fixtures for `exercise test` / `exercise run`
+# Test fixtures for `atcoder test` / `atcoder run`
 
 ツール自身の挙動をスモークテストするための fixture 一式と、それを走らせるスクリプト。
 

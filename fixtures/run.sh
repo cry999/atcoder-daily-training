@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# fixtures/run.sh -- `exercise test` / `exercise run` のスモークテスト
+# fixtures/run.sh -- `atcoder test` / `atcoder run` のスモークテスト
 #
 # fixtures/<task>.py を一時ディレクトリの exercise/YYYY/MM/DD/ に置き、
 # fixtures/cache/ を XDG_CACHE_HOME に指定することで、ツール本体に
@@ -14,9 +14,9 @@ FIXTURES="$REPO_ROOT/fixtures"
 # Build the tool.
 TOOL_DIR="$(mktemp -d)"
 trap 'rm -rf "$TOOL_DIR" "$STAGE" "$CACHE_HOME"' EXIT
-BIN="$TOOL_DIR/exercise"
+BIN="$TOOL_DIR/atcoder"
 echo "Building $BIN ..."
-go build -o "$BIN" ./cmd/exercise
+go build -o "$BIN" ./cmd/atcoder
 
 # Stage solutions under <stage>/exercise/YYYY/MM/DD/.
 STAGE="$(mktemp -d)"
@@ -96,7 +96,7 @@ run_case "fixture_pass --watch (non-TTY reject)" 2 test fixture --task pass --wa
 run_case "abc999/a test (--layout auto)"    0 test abc999 --task a
 run_case "abc999/a test (--layout abc)"     0 test abc999 --task a --layout abc
 
-# `exercise new abc` (contest prepare) smoke, offline via --no-fetch so no network.
+# `atcoder new abc` (contest prepare) smoke, offline via --no-fetch so no network.
 # abc998 has no pre-populated cache; --no-fetch + --tasks builds a minimal contest.toml
 # and generates empty abc/998/{a,b}.py skeletons.
 run_case "new abc abc998 --no-fetch"        0 new abc abc998 --no-fetch --tasks a,b
@@ -107,7 +107,7 @@ test -f "$CACHE_HOME/atcoder-tools/abc998/contest.toml" \
 # Invalid contest ID is rejected.
 run_case "new abc arc100 (bad id)"          1 new abc arc100 --no-fetch --tasks a
 
-# `exercise run` (ad-hoc stdin) smoke tests
+# `atcoder run` (ad-hoc stdin) smoke tests
 INPUT_FILE="$STAGE/run-input.txt"
 echo "5" > "$INPUT_FILE"
 run_case "run fixture_pass --in"      0 run fixture --task pass --in "$INPUT_FILE"
@@ -122,7 +122,7 @@ echo "99" > "$NG_OUT"
 run_case "run fixture_pass --in --out (PASS)" 0 run fixture --task pass --in "$INPUT_FILE" --out "$OK_OUT"
 run_case "run fixture_pass --in --out (FAIL)" 1 run fixture --task pass --in "$INPUT_FILE" --out "$NG_OUT"
 
-# ABC layout: abc999_a is the same N→N*2 program. Test exercise run end-to-end on ABC layout.
+# ABC layout: abc999_a is the same N→N*2 program. Test atcoder run end-to-end on ABC layout.
 run_case "abc999/a run --in --out PASS"       0 run abc999 --task a --in "$INPUT_FILE" --out "$OK_OUT"
 
 # --in - と --in 省略は等価 (どちらも親 stdin を read-all する batch)。
@@ -143,12 +143,12 @@ ok
 run_case "run --interactive + --out (reject)"  2 run fixture --task pass --interactive --out "$OK_OUT"
 run_case "run --interactive + file --in (reject)" 2 run fixture --task pass --interactive --in "$INPUT_FILE"
 
-# `exercise submit` smoke: 全テスト通過なら exit 0、未通過なら中止して exit 1。
+# `atcoder submit` smoke: 全テスト通過なら exit 0、未通過なら中止して exit 1。
 # --no-open でブラウザは開かないが、通過ケースは OS のクリップボードを書き換える点に注意。
 run_case "submit fixture pass --no-open"  0 submit fixture --task pass --no-open
 run_case "submit fixture fail --no-open"  1 submit fixture --task fail --no-open
 
-# `exercise stats` smoke: exercise/ ツリーを集計する読み取り専用コマンド。
+# `atcoder stats` smoke: exercise/ ツリーを集計する読み取り専用コマンド。
 # STAGE には当日 dir の fixture_*.py が居るので集計対象がある。過去日も足して
 # 複数日・週別時系列の経路を踏ませる。期間フラグ排他違反は exit 2。
 mkdir -p "$STAGE/exercise/2026/05/20" "$STAGE/exercise/2026/06/01"

@@ -1,16 +1,16 @@
-# `exercise test` アーキテクチャ
+# `atcoder test` アーキテクチャ
 
 要件 / 利用手引はそれぞれ以下を参照:
 
 - 要件定義: [exercise-test-requirements.md](./exercise-test-requirements.md)
-- 利用手引: [exercise-test-usage.md](./exercise-test-usage.md)
+- 利用手引: [atcoder-test-usage.md](./atcoder-test-usage.md)
 
-このドキュメントは `cmd/exercise` ツールの内部設計、特に `test` サブコマンドのパッケージ構成・依存方向・型設計を扱う。
+このドキュメントは `cmd/atcoder` ツールの内部設計、特に `test` サブコマンドのパッケージ構成・依存方向・型設計を扱う。
 
 ## パッケージ構成
 
 ```
-cmd/exercise/
+cmd/atcoder/
   main.go        # サブコマンドの dispatch + usage
   new.go         # cmdNew: 当日の演習ディレクトリを作成
   test.go        # cmdTest: 引数パース + selectExecutor (composition root) + watch ループ
@@ -31,7 +31,7 @@ internal/ui/
   progress.go    # bubbletea ライブ進捗 (ケース一覧のスピナー + プログレスバー。TTY 時)
   watch.go       # watch モードの画面クリア・ヘッダ/フッタ・TTY 判定ヘルパー
   diff.go        # delta 風 unified diff (LCS + intra-line token highlight)
-  chat.go        # bubbletea ベース chat TUI (`exercise run --stdin -` の TTY モード)
+  chat.go        # bubbletea ベース chat TUI (`atcoder run --stdin -` の TTY モード)
   style.go       # lipgloss スタイル定義
 
 internal/runexec/
@@ -44,21 +44,21 @@ internal/cachepath/
   cachepath.go   # キャッシュ配置 (XDG_CACHE_HOME / ~/.cache / atcoder-tools 配下) の解決
 ```
 
-> 補足: `internal/runexec` は `exercise run` サブコマンドの実装。`testexec` と並列の位置付けで、判定 (PASS/FAIL) を行わず単発実行に特化する。詳細は [exercise-run-usage.md](./exercise-run-usage.md)。
+> 補足: `internal/runexec` は `atcoder run` サブコマンドの実装。`testexec` と並列の位置付けで、判定 (PASS/FAIL) を行わず単発実行に特化する。詳細は [atcoder-run-usage.md](./atcoder-run-usage.md)。
 
 ## 依存方向
 
 ```
-cmd/exercise  ──▶  internal/testexec  ──▶  internal/runner
+cmd/atcoder  ──▶  internal/testexec  ──▶  internal/runner
         ├──────▶  internal/runner
         ├──────▶  internal/watch   (test --watch: 解答ファイルの変更検知)
         └──────▶  internal/ui  ──▶  internal/testexec  (CaseResult/CaseStatus 参照)
 ```
 
-> `internal/watch` は `testexec` / `ui` に依存しない単一ファイル監視の小さな層。watch ループ自体 (実行 → 待機 → 再実行) は composition root の `cmd/exercise/test.go` が持ち、`testexec.Run` を反復呼び出しする。
+> `internal/watch` は `testexec` / `ui` に依存しない単一ファイル監視の小さな層。watch ループ自体 (実行 → 待機 → 再実行) は composition root の `cmd/atcoder/test.go` が持ち、`testexec.Run` を反復呼び出しする。
 
 - 矢印は import 方向。
-- `cmd/exercise` (composition root) のみが全 internal パッケージを import し、結線する。
+- `cmd/atcoder` (composition root) のみが全 internal パッケージを import し、結線する。
 - `testexec` は `runner.ProcessResult` を import するが、具象実装 (Python, …) は import しない。
 - `ui` は `testexec` を import (CaseResult や CaseStatus を扱うため) するが、`testexec` 側は `ui` を import しない (consumer-side interface)。
 - `runner` はどこにも依存しない (末端)。
@@ -192,7 +192,7 @@ func (r *TestReporter) Summary(passed, total int)
 - **lipgloss は `ui` 内に閉じ込められている**。スタイリングを差し替えたい (別ライブラリ、HTML 出力、JSON 出力など) ときは ui の置き換えで完結する。
 - 非 TTY 環境では lipgloss が自動でエスケープを除去するため、CI やパイプ経由でも素直なテキストが流れる。
 
-### Layer 4: `cmd/exercise` — composition root
+### Layer 4: `cmd/atcoder` — composition root
 
 役割: コマンドの dispatch、引数のパース、ファクトリの定義 (拡張子 → 具象 runner)、Reporter の生成、`testexec.Run` への注入。
 
@@ -228,7 +228,7 @@ func selectExecutor(sourcePath string) (testexec.Executor, error) {
 例: Go (`.go`) を対応する場合。
 
 1. `internal/runner/golang.go` を新規作成し、`Golang` 型と `NewGolang() (*Golang, error)`、`Run(...)` を実装する。
-2. `cmd/exercise/test.go` の `selectExecutor` に `case ".go": return runner.NewGolang()` を追加する。
+2. `cmd/atcoder/test.go` の `selectExecutor` に `case ".go": return runner.NewGolang()` を追加する。
 
 `internal/testexec` は無改修。`Executor` interface のシグネチャを満たす型を runner 側に1つ追加し、composition root の switch に 1 行追加するだけで完了する。
 
@@ -261,7 +261,7 @@ testexec.Run
 
 | 判断 | 理由 |
 |---|---|
-| testexec を `cmd/exercise` から切り離した | 言語ファクトリの注入点 (composition root) を main に集中させ、test 実行ロジック自体を pure に保つため。テスト可能性も向上 (モック Executor を渡せる)。 |
+| testexec を `cmd/atcoder` から切り離した | 言語ファクトリの注入点 (composition root) を main に集中させ、test 実行ロジック自体を pure に保つため。テスト可能性も向上 (モック Executor を渡せる)。 |
 | `Executor` を testexec 側で定義 | Go のイディオム: interface は consumer 側。runner は自分が誰に使われるか知らない。 |
 | `ProcessResult` を runner 側に置いた | import 方向の制約。具象 runner の戻り値型なので runner に置く。testexec は import する側に回る。 |
 | TLE を `ProcessStatus` enum で表現 | sentinel error より明示的な状態遷移。RE (非ゼロ終了) との性質の違い (殺された vs 自走で失敗) を型で区別できる。 |

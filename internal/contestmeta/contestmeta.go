@@ -2,7 +2,7 @@
 // タイトル・URL) を扱う。タスク単位の meta.toml (internal/testexec) と対になる層で、
 // `$XDG_CACHE_HOME/atcoder-tools/<contest>/contest.toml` に保存する。
 //
-// 主な利用者は `exercise new abc <contest>` の一括準備で、保存したメタは将来の
+// 主な利用者は `atcoder new abc <contest>` の一括準備で、保存したメタは将来の
 // 本番モード判定 (E) やタイマー (G) の入力になる。
 package contestmeta
 

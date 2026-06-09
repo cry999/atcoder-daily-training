@@ -131,7 +131,7 @@ func runTestWatch(contest, task string, lay layout.Layout, refresh bool, buildOp
 
 		// 初回だけ --refresh を効かせる (毎保存での再 fetch を避ける)。
 		if _, err := testexec.Run(buildOpts(refresh && firstRun)); err != nil {
-			fmt.Fprintln(os.Stderr, "exercise test:", err)
+			fmt.Fprintln(os.Stderr, "atcoder test:", err)
 		}
 		firstRun = false
 

@@ -9,14 +9,14 @@ Personal AtCoder competitive programming practice. Almost all solutions are Pyth
 ## Languages & tooling
 
 - **Python 3.13+**, managed by Poetry (`pyproject.toml`). Runtime deps: `sortedcontainers`, `ac-library-python`. Dev: `flake8`.
-- **Go 1.25** module `github.com/cry999/atcoder-daily-training` for the `exercise` helper CLI under `cmd/exercise/`.
+- **Go 1.25** module `github.com/cry999/atcoder-daily-training` for the `atcoder` helper CLI under `cmd/atcoder/`.
 - A `.venv/` is checked in locally; the user runs Python from that venv.
 
 ## Common commands
 
 - Run a solution against a sample: `python <path>/main.py < <path>/input-00.txt` (compare to `output-00.txt`).
-- Create today's exercise directory (`exercise/YYYY/MM/DD/`): `go run ./cmd/exercise new`.
-- The `exercise test <contest> [<task>]` subcommand in `cmd/exercise/main.go` is a work-in-progress AtCoder problem fetcher (currently only parses the response, does not write tests).
+- Create today's exercise directory (`exercise/YYYY/MM/DD/`): `go run ./cmd/atcoder new`.
+- The `atcoder test <contest> [<task>]` subcommand in `cmd/atcoder/main.go` is a work-in-progress AtCoder problem fetcher (currently only parses the response, does not write tests).
 - Lint Python: `flake8 <path>` (configured as a dev dep, no project-specific config).
 
 There is no project-wide test runner — each problem stands alone, validated by running it against its own sample I/O files when present.

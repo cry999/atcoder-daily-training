@@ -58,7 +58,7 @@ func newToday() error {
 // タスク一覧 + サンプルの fetch、コンテストメタ保存、解答スケルトン生成。
 func newABC(args []string) error {
 	if len(args) < 1 {
-		return errors.New("contest is required (e.g. `exercise new abc abc457`)")
+		return errors.New("contest is required (e.g. `atcoder new abc abc457`)")
 	}
 	contest := args[0]
 
@@ -114,7 +114,7 @@ func newABC(args []string) error {
 	if fetchErr != nil {
 		return fetchErr
 	}
-	fmt.Printf("ready. run: exercise test %s --task %s\n", contest, firstLetter(tasks))
+	fmt.Printf("ready. run: atcoder test %s --task %s\n", contest, firstLetter(tasks))
 	return nil
 }
 

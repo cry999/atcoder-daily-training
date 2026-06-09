@@ -1,13 +1,13 @@
-# `exercise` ツールの一般 TODO
+# `atcoder` ツールの一般 TODO
 
-ABC 本番対応に限定されない、`exercise` ツール全般の改善 TODO。ABC 本番対応のロードマップは `abc-todo.md` を参照。
+ABC 本番対応に限定されない、`atcoder` ツール全般の改善 TODO。ABC 本番対応のロードマップは `abc-todo.md` を参照。
 
 ## H. エディタ・テンプレート連携
 
 ### 解きたい問題
 
 - 練習でも本番でも、新規問題ファイルを開いた直後はいつも同じ boilerplate (`import sys; input=sys.stdin.readline`、`from collections import defaultdict` 等) を書くことになり、書き始めまでの摩擦が大きい。
-- 練習用の `exercise new` は当日 dir を mkdir するだけで、ファイルは生成していない。
+- 練習用の `atcoder new` は当日 dir を mkdir するだけで、ファイルは生成していない。
 
 ### 決めること
 
@@ -16,12 +16,12 @@ ABC 本番対応に限定されない、`exercise` ツール全般の改善 TODO
   - 候補 2: `$XDG_CONFIG_HOME/atcoder-daily-training/templates/python.py` (個人設定として分離)
   - 第一候補は **リポジトリ内**。1 人のリポジトリなので個人設定と区別する利得は薄い。
 - テンプレート選択方法
-  - 候補: `exercise new --task d --template default` のように名前指定。デフォルトは "default"。
+  - 候補: `atcoder new --task d --template default` のように名前指定。デフォルトは "default"。
   - 言語ごとに複数テンプレート (`python_basic.py`, `python_io_fast.py` 等) を持てるようにする。
 - 既存ファイルとの衝突
   - 既にファイルがある場合は上書きしない (確認プロンプトもしくは `--force` で上書き)。
 - どのコマンドから生成されるか
-  - `exercise new --task d`: 当日 dir に `<task>.py` を生成 (現状は dir のみ作成)
+  - `atcoder new --task d`: 当日 dir に `<task>.py` を生成 (現状は dir のみ作成)
   - ABC 本番対応 (`abc-todo.md` の B) の `contest prepare` でも内部的にこのテンプレート生成を呼ぶ
 - テンプレート内の変数展開 (`{{task}}`, `{{contest}}`, `{{date}}` 等を埋め込むか、純粋なテキストか)
 - テンプレートの形式 (Go の `text/template` 等を使うか、単純文字列か)
@@ -30,7 +30,7 @@ ABC 本番対応に限定されない、`exercise` ツール全般の改善 TODO
 
 - 新規 `templates/` ディレクトリ
 - 新規 `internal/template/` パッケージ
-- `cmd/exercise/new.go` の拡張
+- `cmd/atcoder/new.go` の拡張
 - ABC ロードマップの B (contest prepare) と接続
 
 ### 関連項目
@@ -41,14 +41,14 @@ ABC 本番対応に限定されない、`exercise` ツール全般の改善 TODO
 
 ### 解きたい問題
 
-- 編集ループ中は「コードを直して保存 → ターミナルにフォーカスを戻して `exercise test ...` を再度叩く」を何十回もくり返す。往復のたびに編集リズムが切れる。
+- 編集ループ中は「コードを直して保存 → ターミナルにフォーカスを戻して `atcoder test ...` を再度叩く」を何十回もくり返す。往復のたびに編集リズムが切れる。
 - サンプルは初回 fetch 後はキャッシュにあり、2 回目以降の再実行はネットワーク不要で速い。再実行の起動コストが小さいので、保存検知で自動再実行する watch ループに向いている。
 
 ### 決まったこと
 
 > 要件詳細は `docs/tools/requirements/004-exercise-test-watch.md`。
 
-- `exercise test <contest> --task <task> --watch` (`-w`) で常駐し、解答ファイルの保存を検知して自動再実行する。`Ctrl+C` で終了。
+- `atcoder test <contest> --task <task> --watch` (`-w`) で常駐し、解答ファイルの保存を検知して自動再実行する。`Ctrl+C` で終了。
 - **監視対象は解答ファイル 1 つだけ** (サンプルや自作ライブラリは将来の拡張)。「保存=再実行」を直感的かつ誤爆なしにするため。
 - **検知方式は mtime ポーリング** (200ms, 外部依存なし)。単一ファイル監視には十分で、最小依存方針に合う。atomic save (一旦削除して書き直す) でも再出現時の mtime 変化で拾える。
 - **TTY 必須**。画面をクリアして最新結果だけを再描画するため、非 TTY (パイプ/リダイレクト) では exit 2。
@@ -58,17 +58,17 @@ ABC 本番対応に限定されない、`exercise` ツール全般の改善 TODO
 
 ### 影響範囲
 
-- `cmd/exercise/test.go` (`--watch` 分岐), `cmd/exercise/main.go` (usage)
+- `cmd/atcoder/test.go` (`--watch` 分岐), `cmd/atcoder/main.go` (usage)
 - 新規 `internal/watch/` (単一ファイルの mtime ポーリング)
 - `internal/ui/` (画面クリア・watch ヘッダ/フッタ)
 - `fixtures/run.sh` (非 TTY 拒否 = exit 2 の smoke)
 
 ### 関連項目
 
-- ライブ進捗表示・並列実行 (前段の `exercise test` 改善) の上に乗る。watch は「同じ 1 回実行をループで呼ぶ」薄い層。
-- 将来 `exercise run --watch` へ展開する余地あり (対話/judge モードの再実行)。
+- ライブ進捗表示・並列実行 (前段の `atcoder test` 改善) の上に乗る。watch は「同じ 1 回実行をループで呼ぶ」薄い層。
+- 将来 `atcoder run --watch` へ展開する余地あり (対話/judge モードの再実行)。
 
-## J. 練習統計 (`exercise stats`) ✅ DONE (dd3c3a8)
+## J. 練習統計 (`atcoder stats`) ✅ DONE (dd3c3a8)
 
 ### 解きたい問題
 
@@ -77,9 +77,9 @@ ABC 本番対応に限定されない、`exercise` ツール全般の改善 TODO
 
 ### 決まったこと
 
-> 要件詳細は `docs/tools/requirements/005-exercise-stats.md`、利用手引は `docs/tools/exercise-stats-usage.md`。
+> 要件詳細は `docs/tools/requirements/005-exercise-stats.md`、利用手引は `docs/tools/atcoder-stats-usage.md`。
 
-- `exercise stats [--week | --month | --year]`。デフォルトは全期間、フラグで今週/今月/今年に絞る (相対指定のみ。任意日付範囲は将来の `--since`/`--until`)。
+- `atcoder stats [--week | --month | --year]`。デフォルトは全期間、フラグで今週/今月/今年に絞る (相対指定のみ。任意日付範囲は将来の `--since`/`--until`)。
 - **集計対象は `exercise/YYYY/MM/DD/*.py` のみ** (1 ファイル = 1 問、日付はパス由来)。他ツリー横断は将来拡張。
 - 統計は解答数・アクティブ日数・current/longest ストリーク・カテゴリ別 (コンテスト種別/レター)・時系列 (週/月は日別、年/全期間は週別)。
 - **読み取り専用・オフライン**。ネットワーク・認証・キャッシュ・解答ファイルに一切触れない。
@@ -87,10 +87,10 @@ ABC 本番対応に限定されない、`exercise` ツール全般の改善 TODO
 
 ### 影響範囲
 
-- 新規 `cmd/exercise/stats.go`, `internal/stats/` (集計 + レンダリング + テスト)
-- `cmd/exercise/main.go` (dispatch + usage)
+- 新規 `cmd/atcoder/stats.go`, `internal/stats/` (集計 + レンダリング + テスト)
+- `cmd/atcoder/main.go` (dispatch + usage)
 - `fixtures/run.sh` (exit 0 / 期間フラグ排他 = exit 2 の smoke)
-- `docs/tools/exercise-stats-usage.md` (利用手引)
+- `docs/tools/atcoder-stats-usage.md` (利用手引)
 
 ### 関連項目
 

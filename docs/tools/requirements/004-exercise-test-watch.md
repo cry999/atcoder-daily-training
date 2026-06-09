@@ -1,10 +1,10 @@
-# `exercise test` watch モード 要件定義
+# `atcoder test` watch モード 要件定義
 
 ## 概要
 
-`exercise test` に **watch モード** (`--watch` / `-w`) を足し、起動したまま解答ファイルの保存を検知して**自動でテストを再実行**できるようにする。「コードを書く → ターミナルに戻って `exercise test ...` を叩く」の往復をなくし、エディタで保存するだけでサンプル判定が回る編集ループを作る。
+`atcoder test` に **watch モード** (`--watch` / `-w`) を足し、起動したまま解答ファイルの保存を検知して**自動でテストを再実行**できるようにする。「コードを書く → ターミナルに戻って `atcoder test ...` を叩く」の往復をなくし、エディタで保存するだけでサンプル判定が回る編集ループを作る。
 
-`docs/tools/todo.md` の「I. `test` watch モード」の要件詳細。既存の `exercise test` (サンプル fetch / cache / judge) と、並列実行 + ライブ進捗表示 (`internal/ui` の bubbletea Reporter) の上に薄く乗せる。
+`docs/tools/todo.md` の「I. `test` watch モード」の要件詳細。既存の `atcoder test` (サンプル fetch / cache / judge) と、並列実行 + ライブ進捗表示 (`internal/ui` の bubbletea Reporter) の上に薄く乗せる。
 
 ## 背景・目的
 
@@ -16,7 +16,7 @@
 
 | 項目 | 当面のスコープ | 将来の拡張余地 |
 |---|---|---|
-| 対象コマンド | `exercise test <contest> --task <task> --watch` | `exercise run --watch` (対話/judge モードの再実行) |
+| 対象コマンド | `atcoder test <contest> --task <task> --watch` | `atcoder run --watch` (対話/judge モードの再実行) |
 | 監視対象 | **解答ファイル 1 つ** (`layout` が解決する `.py`) | サンプル (`tests/`)・include する自作ライブラリ・複数ファイル |
 | 検知方式 | **mtime ポーリング** (200ms 間隔, 外部依存なし) | fsnotify 等のイベント駆動 |
 | 動作環境 | **TTY 必須** (画面クリアして再描画するため) | 非 TTY 向けの追記モード |
@@ -37,10 +37,10 @@
 
 ## CLI 仕様
 
-既存 `exercise test` にフラグを 1 つ足すだけ。他のフラグ (`-v` / `-d` / `-s` / `-c` / `--timeout` / `--tolerance` / `--layout` / `-j`) は watch 中の各実行にそのまま適用される。
+既存 `atcoder test` にフラグを 1 つ足すだけ。他のフラグ (`-v` / `-d` / `-s` / `-c` / `--timeout` / `--tolerance` / `--layout` / `-j`) は watch 中の各実行にそのまま適用される。
 
 ```
-exercise test <contest> --task <task> [既存フラグ...] [--watch|-w]
+atcoder test <contest> --task <task> [既存フラグ...] [--watch|-w]
 ```
 
 | フラグ | 説明 |
@@ -58,14 +58,14 @@ exercise test <contest> --task <task> [既存フラグ...] [--watch|-w]
 
 ### 処理ステップ
 
-`exercise test abc457 --task d --watch` 実行時:
+`atcoder test abc457 --task d --watch` 実行時:
 
 1. **TTY 検証**: stdout が端末でなければ exit 2 (フラグ誤用)。画面クリア前提のため。
 2. **監視パス解決**: `layout` で解答パス (`abc/457/d.py` 等) を求める。解決できなければ exit 2。
 3. **シグナル待受**: `SIGINT` (`Ctrl+C`) を捕捉する context を張る。
 4. **編集ループ** (context が生きている間くり返す):
    1. 画面をクリアし、watch ヘッダ (監視パス) を出す。
-   2. `exercise test` の 1 回分を実行する (既存 `testexec.Run`)。FAIL/RE/TLE でもループは止めない。実行時エラー (解答ファイル無し等) は表示して継続。
+   2. `atcoder test` の 1 回分を実行する (既存 `testexec.Run`)。FAIL/RE/TLE でもループは止めない。実行時エラー (解答ファイル無し等) は表示して継続。
    3. 初回の `--refresh` は消費済みにする (以降の実行は refresh=false)。
    4. フッタ (「保存で再実行 / Ctrl+C で終了」) を出す。
    5. 解答ファイルの mtime が変わるまで待つ。`Ctrl+C` が来たら待機を抜けてループ終了。
@@ -74,7 +74,7 @@ exercise test <contest> --task <task> [既存フラグ...] [--watch|-w]
 ### 出力イメージ
 
 ```
-$ exercise test abc457 --task d --watch
+$ atcoder test abc457 --task d --watch
 ▸ watch  abc/457/d.py
 
 abc457_d  contest=abc457  time_limit=2000ms  tolerance=1e-6  tests=3
@@ -109,13 +109,13 @@ watching abc/457/d.py — save to re-run, Ctrl+C to quit
 
 | ファイル | 変更内容 |
 |---|---|
-| `cmd/exercise/test.go` | `--watch` / `-w` フラグ追加。watch 指定時は TTY 検証 → 監視パス解決 → 編集ループ (`testexec.Run` を反復呼び出し) に分岐。非 watch は従来パス |
-| `cmd/exercise/main.go` | usage 文字列に `[--watch]` を追記 |
+| `cmd/atcoder/test.go` | `--watch` / `-w` フラグ追加。watch 指定時は TTY 検証 → 監視パス解決 → 編集ループ (`testexec.Run` を反復呼び出し) に分岐。非 watch は従来パス |
+| `cmd/atcoder/main.go` | usage 文字列に `[--watch]` を追記 |
 | 新規 `internal/watch/` | 単一ファイルの mtime ポーリング監視。`Ctrl+C` (context) で抜けられる `WaitForChange` を提供 |
 | `internal/ui/` | 画面クリア・watch ヘッダ / フッタの描画ヘルパーを追加 (既存 style に合わせる) |
 | `fixtures/run.sh` | 非 TTY での `--watch` 拒否 (exit 2) を smoke。watch ループ自体はブロックするため fixture では回さない (下記) |
-| `docs/tools/exercise-test-usage.md` | `--watch` の説明・サンプル出力を追記 |
-| `docs/tools/exercise-test-architecture.md` | watch ループと `internal/watch` の位置づけを追記 |
+| `docs/tools/atcoder-test-usage.md` | `--watch` の説明・サンプル出力を追記 |
+| `docs/tools/atcoder-test-architecture.md` | watch ループと `internal/watch` の位置づけを追記 |
 | `docs/tools/todo.md` | 「I. `test` watch モード」を `✅ DONE` でマーク |
 
 ### 新規 `internal/watch/` パッケージの責務
@@ -151,7 +151,7 @@ func (w *Watcher) WaitForChange(ctx context.Context) bool
 
 ## 非機能要件
 
-- **既存ワークフロー非破壊**: `--watch` 無しの `exercise test` は挙動・出力・終了コードとも一切変わらない。
+- **既存ワークフロー非破壊**: `--watch` 無しの `atcoder test` は挙動・出力・終了コードとも一切変わらない。
 - **低オーバーヘッド**: 監視は単一ファイルの 200ms ポーリング。常駐しても CPU・I/O 負荷は無視できる。
 - **rate limit 配慮**: watch 中の再 fetch は初回 `--refresh` のみ。毎保存でネットワークを叩かない。
 - **最小依存**: 監視に外部ライブラリを足さない (標準ライブラリの `os.Stat` ベース)。
@@ -160,7 +160,7 @@ func (w *Watcher) WaitForChange(ctx context.Context) bool
 ## 将来の拡張ポイント
 
 - **監視パスのリスト化**: 解答に加えてサンプル (`tests/`) や include する自作ライブラリも監視対象にする (`Watcher` を複数パス対応に)。
-- **`exercise run --watch`**: 対話 / judge モードの再実行。watch ループを `run` 側にも展開。
+- **`atcoder run --watch`**: 対話 / judge モードの再実行。watch ループを `run` 側にも展開。
 - **イベント駆動への差し替え**: ポーリングがボトルネックになる規模になれば `fsnotify` に置き換え (`internal/watch` のインタフェースは維持)。
 - **キー操作**: 待機中に `r` で手動再実行、`q` で終了などの簡易 TUI 操作。
 - **実行履歴 / サマリ**: 直近 N 回の PASS/FAIL 推移を表示する。
@@ -177,5 +177,5 @@ func (w *Watcher) WaitForChange(ctx context.Context) bool
 
 - `docs/tools/todo.md` (上位ロードマップ。「I. `test` watch モード」の要件詳細が本書)
 - `docs/tools/requirements/001-exercise-test.md` (test サブコマンドの基盤要件)
-- `docs/tools/exercise-test-usage.md` (利用手引。`--watch` を追記)
-- `docs/tools/exercise-test-architecture.md` (内部設計。watch ループの位置づけを追記)
+- `docs/tools/atcoder-test-usage.md` (利用手引。`--watch` を追記)
+- `docs/tools/atcoder-test-architecture.md` (内部設計。watch ループの位置づけを追記)

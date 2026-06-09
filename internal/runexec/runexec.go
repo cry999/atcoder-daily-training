@@ -1,4 +1,4 @@
-// Package runexec implements the `exercise run` subcommand: execute a solution
+// Package runexec implements the `atcoder run` subcommand: execute a solution
 // against an arbitrary stdin (file or pipe), optionally comparing the stdout
 // against an expected-output file (--out). Without --out, this is purely a
 // "feed a custom input and see what comes back" tool for debugging or manual
@@ -51,7 +51,7 @@ type ChatHeader struct {
 type ChatSpawner func() (*runner.ChatHandle, error)
 
 // ChatRunner は chat-style TUI を駆動するコールバック。
-// composition root (cmd/exercise) が ui.RunChat を注入する。
+// composition root (cmd/atcoder) が ui.RunChat を注入する。
 // 最終的に最後のセッションの ProcessResult を返す。
 type ChatRunner func(spawn ChatSpawner, header ChatHeader) (*runner.ProcessResult, error)
 

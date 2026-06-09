@@ -38,7 +38,7 @@ type CaseResult struct {
 }
 
 // Judge は実行結果の stdout (生) を expected (生) と比較する公開 API。
-// `exercise run --out <file>` のように、testexec のフル test ループに乗らない
+// `atcoder run --out <file>` のように、testexec のフル test ループに乗らない
 // ad-hoc な judge 用途で再利用する。
 //   - expected / actual は normalize 前 (改行や末尾空白そのまま) で渡してよい
 //   - debug=true なら actual から [DEBUG] 行を取り除いて比較する

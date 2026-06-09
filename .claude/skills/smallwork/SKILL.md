@@ -17,7 +17,7 @@ description: 簡単な修正 (typo・コメント・小さなバグ直し・1〜
 
 ## いつ使わないか (→ 別の道)
 
-- `exercise` CLI に**新しい挙動**を足す (新サブコマンド・新フラグ・新モード・新言語 Runner)。仕様を伴うので **`feature`** を使う。
+- `atcoder` CLI に**新しい挙動**を足す (新サブコマンド・新フラグ・新モード・新言語 Runner)。仕様を伴うので **`feature`** を使う。
 - 影響範囲が読みきれない / 複数パッケージにまたがる / 設計判断が要る変更。重いと感じたら smallwork をやめて `feature` に切り替える。
 - 判断に迷う中間サイズは、安全側に倒して `feature` (要件を文章化する) 側へ。
 
@@ -41,7 +41,7 @@ git worktree add ../atcoder-daily-training.worktrees/<branch> -b <branch>
 
 触ったものに応じて、必要な分だけ:
 
-- **ツールコード** (`cmd/exercise/`, `internal/runner|testexec|runexec|cachepath|ui/`) を触った → `test-tool` スキル (`./fixtures/run.sh`) を回す。スモークが緑なら十分。Go の変更は `go build ./...` も通す。
+- **ツールコード** (`cmd/atcoder/`, `internal/runner|testexec|runexec|cachepath|ui/`) を触った → `test-tool` スキル (`./fixtures/run.sh`) を回す。スモークが緑なら十分。Go の変更は `go build ./...` も通す。
 - **練習解答** → サンプルがあれば実行して照合: `python <path>/main.py < <path>/input-00.txt` を `output-00.txt` と比べる。フラット配置 (`abc/`, `exercise/` 等) でサンプルが無い問題は、自分で 1 ケース流して目視。
 - **`docs/` だけ** → 検証不要 (リンク先の存在だけ確認)。
 

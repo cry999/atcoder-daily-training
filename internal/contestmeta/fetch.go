@@ -11,7 +11,7 @@ import (
 	"golang.org/x/net/html"
 )
 
-const userAgent = "exercise-test/0.1 (+https://github.com/cry999/atcoder-daily-training)"
+const userAgent = "atcoder-test/0.1 (+https://github.com/cry999/atcoder-daily-training)"
 
 // fixtime のフォーマット例: "2024-06-15 21:00:00+0900"
 const fixtimeLayout = "2006-01-02 15:04:05-0700"

@@ -61,7 +61,7 @@ ANSI を強制出力 (`CLICOLOR_FORCE=1`) して `od -c` で見ると、子の
 直接わかる:
 
 ```sh
-CLICOLOR_FORCE=1 exercise test ... -s 2>&1 | sed -n '...' | od -c -An
+CLICOLOR_FORCE=1 atcoder test ... -s 2>&1 | sed -n '...' | od -c -An
 ```
 
 修正後は各セグメントが自分の `\033[<fg>;<bg>m … \033[0m` を持つので、

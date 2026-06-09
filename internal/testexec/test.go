@@ -186,7 +186,7 @@ type EnsureResult struct {
 
 // EnsureTests は単一タスクのサンプル + meta をキャッシュに揃える。
 // キャッシュ済みなら何もせず、未取得 (または refresh) なら AtCoder から取得する。
-// `exercise new abc` のような一括準備から呼ぶための公開ラッパー。
+// `atcoder new abc` のような一括準備から呼ぶための公開ラッパー。
 func EnsureTests(reporter Reporter, contest, task string, refresh bool) (EnsureResult, error) {
 	taskDir := cachepath.Task(contest, task)
 	testsDir := filepath.Join(taskDir, "tests")

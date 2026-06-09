@@ -1,8 +1,8 @@
-# `exercise stats` 日々の練習統計 要件定義
+# `atcoder stats` 日々の練習統計 要件定義
 
 ## 概要
 
-日々の練習 (`exercise/YYYY/MM/DD/<task>.py`) の積み上がりを **1 コマンド** で振り返れるようにする。`exercise stats` で「これまで何問解いたか・連続して練習できているか・どのコンテスト/レターに偏っているか・最近の推移」を 1 画面のテーブルで出す。`--week` / `--month` / `--year` で「今週 / 今月 / 今年」に手軽に絞れる。
+日々の練習 (`exercise/YYYY/MM/DD/<task>.py`) の積み上がりを **1 コマンド** で振り返れるようにする。`atcoder stats` で「これまで何問解いたか・連続して練習できているか・どのコンテスト/レターに偏っているか・最近の推移」を 1 画面のテーブルで出す。`--week` / `--month` / `--year` で「今週 / 今月 / 今年」に手軽に絞れる。
 
 `docs/tools/todo.md` の一般 TODO 項目。既存の fetch / cache / 本番対応とは独立した、純粋にローカルのファイルツリーを集計する読み取り専用コマンド。
 
@@ -47,7 +47,7 @@ exercise/
 ## CLI 仕様
 
 ```
-exercise stats [--week | --month | --year]
+atcoder stats [--week | --month | --year]
 ```
 
 | フラグ | 説明 |
@@ -88,7 +88,7 @@ exercise stats [--week | --month | --year]
 ### 出力イメージ
 
 ```
-$ exercise stats --month
+$ atcoder stats --month
 practice stats — this month (2026-06)
 
   total solves      12
@@ -133,12 +133,12 @@ by day
 
 | ファイル | 変更内容 |
 |---|---|
-| `cmd/exercise/stats.go` | 新規。`cmdStats(args []string) (int, error)`。フラグ解析・期間決定・`stats` パッケージ呼び出し・レンダリング呼び出し |
-| `cmd/exercise/main.go` | `case "stats"` 追加。`usage()` 文字列更新 |
+| `cmd/atcoder/stats.go` | 新規。`cmdStats(args []string) (int, error)`。フラグ解析・期間決定・`stats` パッケージ呼び出し・レンダリング呼び出し |
+| `cmd/atcoder/main.go` | `case "stats"` 追加。`usage()` 文字列更新 |
 | 新規 `internal/stats/` | 集計ロジック (純粋関数) + テーブルレンダリング |
 | `fixtures/run.sh` | `stats` の smoke (exit 0 / 排他フラグ exit 2) を追加 |
 | `internal/stats/stats_test.go` | 集計ロジックのユニットテスト (Now 注入で決定的に) |
-| `docs/tools/exercise-stats-usage.md` | 利用手引 (新規) |
+| `docs/tools/atcoder-stats-usage.md` | 利用手引 (新規) |
 | `docs/tools/todo.md` | ロードマップに本項目を ✅ DONE で記載 |
 
 ### 新規 `internal/stats/` パッケージの責務
@@ -238,4 +238,4 @@ func Render(w io.Writer, r Report) error
 
 - `docs/tools/todo.md` (上位ロードマップ。本項目を記載)
 - `docs/tools/requirements/002-exercise-abc-layout.md` (`layout.Letter` 等 ID 抽出の定義元)
-- `docs/tools/exercise-stats-usage.md` (利用手引)
+- `docs/tools/atcoder-stats-usage.md` (利用手引)
