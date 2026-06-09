@@ -30,8 +30,9 @@ func cmdCompletion(args []string) (int, error) {
 }
 
 // cmdComplete は隠しヘルパ `atcoder __complete -- <words...>` を処理する。補完
-// スクリプトからのみ呼ばれ、次単語の候補を 1 行 1 件で出力する。補完を壊さない
-// ため常に exit 0 で終える (error は返さない)。
+// スクリプトからのみ呼ばれ、次単語の候補を 1 行 1 件で出力する。説明があれば
+// `値<TAB>説明` 形式で出す (説明を解釈できる zsh/fish だけが表示し、bash は値列
+// のみ使う)。補完を壊さないため常に exit 0 で終える (error は返さない)。
 func cmdComplete(args []string) (int, error) {
 	words := args
 	if len(words) > 0 && words[0] == "--" {
@@ -42,7 +43,11 @@ func cmdComplete(args []string) (int, error) {
 		root = "."
 	}
 	for _, c := range complete.Complete(root, words) {
-		fmt.Println(c)
+		if c.Desc != "" {
+			fmt.Printf("%s\t%s\n", c.Value, c.Desc)
+		} else {
+			fmt.Println(c.Value)
+		}
 	}
 	return 0, nil
 }
@@ -51,21 +56,40 @@ func cmdComplete(args []string) (int, error) {
 // 現在のトークン列を渡して結果を並べるだけに保つ (シェル間でロジックを重複させない)。
 
 const bashCompletion = `# bash completion for atcoder. Load with: source <(atcoder completion bash)
+# Candidates arrive as "value<TAB>description"; bash cannot show per-item
+# descriptions, so only the value column is used.
 _atcoder() {
-  local cur cands
+  local cur value
   cur="${COMP_WORDS[COMP_CWORD]}"
-  cands="$(atcoder __complete -- "${COMP_WORDS[@]:1:COMP_CWORD}")"
-  COMPREPLY=( $(compgen -W "${cands}" -- "${cur}") )
+  local -a cands=()
+  while IFS=$'\t' read -r value _; do
+    [[ -n $value ]] && cands+=("$value")
+  done < <(atcoder __complete -- "${COMP_WORDS[@]:1:COMP_CWORD}")
+  COMPREPLY=( $(compgen -W "${cands[*]}" -- "${cur}") )
 }
 complete -F _atcoder atcoder
 `
 
 const zshCompletion = `#compdef atcoder
 # zsh completion for atcoder. Load with: source <(atcoder completion zsh)
+# Candidates arrive as "value<TAB>description". Described ones go through
+# _describe so the description shows in the menu (and in fzf-tab); plain
+# (description-less) candidates go through compadd.
 _atcoder() {
-  local -a cands
-  cands=(${(f)"$(atcoder __complete -- ${words[2,$CURRENT]})"})
-  compadd -- $cands
+  local -a lines described plain
+  local line val desc
+  lines=(${(f)"$(atcoder __complete -- ${words[2,$CURRENT]})"})
+  for line in $lines; do
+    if [[ $line == *$'\t'* ]]; then
+      val=${line%%$'\t'*}
+      desc=${line#*$'\t'}
+      described+=("${val}:${desc}")
+    else
+      plain+=("$line")
+    fi
+  done
+  (( $#described )) && _describe 'atcoder' described
+  (( $#plain )) && compadd -- $plain
 }
 compdef _atcoder atcoder
 `

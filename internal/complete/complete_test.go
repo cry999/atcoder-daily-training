@@ -58,11 +58,48 @@ func TestComplete(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := Complete(root, tc.words)
+			got := values(Complete(root, tc.words))
 			if !reflect.DeepEqual(got, tc.want) {
 				t.Errorf("Complete(%q) = %v, want %v", tc.words, got, tc.want)
 			}
 		})
+	}
+}
+
+// TestCompleteDescriptions は静的候補に説明が付き、動的候補は説明なしであることを確認する。
+func TestCompleteDescriptions(t *testing.T) {
+	root := setup(t)
+
+	// サブコマンドは説明付き。
+	for _, c := range Complete(root, []string{"te"}) {
+		if c.Value == "test" && c.Desc == "" {
+			t.Errorf("subcommand %q has empty Desc, want a description", c.Value)
+		}
+	}
+	// フラグは説明付き。
+	for _, c := range Complete(root, []string{"test", "--la"}) {
+		if c.Value == "--layout" && c.Desc == "" {
+			t.Errorf("flag %q has empty Desc, want a description", c.Value)
+		}
+	}
+	// stats の --last (010 で追加) がフラグ候補に居て説明を持つ。
+	var sawLast bool
+	for _, c := range Complete(root, []string{"stats", "--l"}) {
+		if c.Value == "--last" {
+			sawLast = true
+			if c.Desc == "" {
+				t.Errorf("--last has empty Desc, want a description")
+			}
+		}
+	}
+	if !sawLast {
+		t.Errorf("stats flags should include --last")
+	}
+	// 動的候補 (contest_id) は説明なし。
+	for _, c := range Complete(root, []string{"test", "ab"}) {
+		if c.Value == "abc457" && c.Desc != "" {
+			t.Errorf("dynamic candidate %q should have empty Desc, got %q", c.Value, c.Desc)
+		}
 	}
 }
 

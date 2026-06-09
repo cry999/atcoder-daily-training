@@ -261,16 +261,23 @@ run_case "completion fish"               0 completion fish
 run_case "completion (no shell)"         2 completion
 run_case "completion powershell (bad)"   2 completion powershell
 run_case "__complete (always exit 0)"    0 __complete -- te
-# 候補内容を検証 (キャッシュ/cwd 非依存な静的・既定候補のみ)。
-"$BIN" __complete -- te | grep -qx "test" \
+# 候補内容を検証 (キャッシュ/cwd 非依存な静的・既定候補のみ)。出力は "値<TAB>説明"
+# 形式なので、値の一致は 1 列目 (cut -f1) で見る。
+"$BIN" __complete -- te | cut -f1 | grep -qx "test" \
     || { echo "  ✗ __complete -- te did not yield 'test'"; failures=$((failures + 1)); }
-"$BIN" __complete -- "" | grep -qx "completion" \
+"$BIN" __complete -- "" | cut -f1 | grep -qx "completion" \
     || { echo "  ✗ __complete -- '' missing 'completion'"; failures=$((failures + 1)); }
-"$BIN" __complete -- test abc999 --layout "" | grep -qx "abc" \
+"$BIN" __complete -- test abc999 --layout "" | cut -f1 | grep -qx "abc" \
     || { echo "  ✗ __complete --layout did not yield 'abc'"; failures=$((failures + 1)); }
 # abc000 は staging にもキャッシュにも無いので、既定 letter (a〜g) 経路を踏む。
-"$BIN" __complete -- test abc000 --task "" | grep -qx "d" \
+"$BIN" __complete -- test abc000 --task "" | cut -f1 | grep -qx "d" \
     || { echo "  ✗ __complete --task did not yield default letters"; failures=$((failures + 1)); }
+# 静的候補には説明 (2 列目) が付く。cut -s -f2 はタブの無い行を抑止するので、
+# 説明付きなら非空・動的候補 (letter) なら空になる。
+[[ -n "$("$BIN" __complete -- te | cut -s -f2)" ]] \
+    || { echo "  ✗ __complete -- te missing description column"; failures=$((failures + 1)); }
+[[ -z "$("$BIN" __complete -- test abc000 --task "" | cut -s -f2)" ]] \
+    || { echo "  ✗ __complete --task letters should have no description"; failures=$((failures + 1)); }
 
 echo
 if [[ "$failures" -gt 0 ]]; then
