@@ -76,7 +76,7 @@ func usage() {
   atcoder test   <contest> --task <task> [-v] [-d] [-s] [-c <N[,M,...]>] [--refresh] [--timeout <dur>] [--tolerance <eps>] [--layout <auto|abc|exercise>] [-j <n>] [-w]
   atcoder run    <contest> --task <task> [-v] [-d] [--in <path>|-] [--out <path>] [--tolerance <eps>] [--timeout <dur>] [--layout <auto|abc|exercise>]
   atcoder submit <contest> --task <task> [--refresh] [--tolerance <eps>] [--no-open] [--layout <auto|abc|exercise>]
-  atcoder stats  [-w|--week | -m|--month | -y|--year | -l|--last <dur>]
+  atcoder stats  [-w|--week | -m|--month | -y|--year | -l|--last <dur>] [-g|--graph]
   atcoder config <show | get <key> | set <key> <value> | path>
   atcoder completion <bash|zsh|fish>
   atcoder commit`)

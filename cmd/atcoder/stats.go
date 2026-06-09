@@ -16,7 +16,7 @@ import (
 // 読み取り専用で、リポジトリには一切書き込まない。
 func cmdStats(args []string) (int, error) {
 	flags := flag.NewFlagSet("stats", flag.ContinueOnError)
-	var week, month, year bool
+	var week, month, year, graph bool
 	var last string
 	flags.BoolVar(&week, "week", false, "Limit to this week (Monday start, including today)")
 	flags.BoolVar(&week, "w", false, "Limit to this week (Monday start, including today)")
@@ -26,6 +26,8 @@ func cmdStats(args []string) (int, error) {
 	flags.BoolVar(&year, "y", false, "Limit to this year")
 	flags.StringVar(&last, "last", "", "Rolling window from today: 7d, 2w, 1m, 1y (bare d/w/m/y = 1)")
 	flags.StringVar(&last, "l", "", "Rolling window from today: 7d, 2w, 1m, 1y (bare d/w/m/y = 1)")
+	flags.BoolVar(&graph, "graph", false, "Render the time series as a GitHub-style contribution graph")
+	flags.BoolVar(&graph, "g", false, "Render the time series as a GitHub-style contribution graph")
 	flags.SetOutput(os.Stderr)
 	if err := flags.Parse(args); err != nil {
 		return 2, err
@@ -36,6 +38,7 @@ func cmdStats(args []string) (int, error) {
 		return 2, err
 	}
 	opts.Now = time.Now().Local()
+	opts.Graph = graph
 
 	solves, err := stats.Scan("exercise")
 	if err != nil {

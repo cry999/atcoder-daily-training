@@ -45,7 +45,7 @@ var subFlags = map[string][]string{
 	"test":   {"--task", "--refresh", "--timeout", "--case", "-c", "--layout", "--jobs", "-j", "--watch", "-w", "-v", "--verbose", "-d", "--debug", "-s", "--side-by-side", "--tolerance"},
 	"run":    {"--task", "--in", "-i", "--out", "-o", "--interactive", "-I", "--timeout", "-v", "--verbose", "-d", "--debug", "--layout", "--tolerance"},
 	"submit": {"--task", "--refresh", "--layout", "--no-open"},
-	"stats":  {"--week", "-w", "--month", "-m", "--year", "-y"},
+	"stats":  {"--week", "-w", "--month", "-m", "--year", "-y", "--graph", "-g"},
 }
 
 // takesContest はそのサブコマンドが <contest> 位置引数を取るか。

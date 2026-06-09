@@ -287,3 +287,132 @@ func mustWrite(t *testing.T, path string) {
 		t.Fatal(err)
 	}
 }
+
+func TestLetterWeight(t *testing.T) {
+	cases := []struct {
+		letter string
+		want   int
+	}{
+		{"a", 1},
+		{"d", 4},
+		{"g", 7},
+		{"z", 26},
+		{"?", 1},  // 不明
+		{"", 1},   // 空
+		{"ex", 5}, // 先頭文字のみ ('e')
+		{"1", 1},  // 英小文字でない
+	}
+	for _, c := range cases {
+		if got := letterWeight(c.letter); got != c.want {
+			t.Errorf("letterWeight(%q) = %d, want %d", c.letter, got, c.want)
+		}
+	}
+}
+
+func TestShadeLevel(t *testing.T) {
+	cases := []struct {
+		score int
+		want  int
+	}{
+		{0, 0},
+		{1, 1}, {3, 1},
+		{4, 2}, {7, 2},
+		{8, 3}, {12, 3},
+		{13, 4}, {100, 4},
+		{-5, 0}, // 負も 0 扱い
+	}
+	for _, c := range cases {
+		if got := shadeLevel(c.score); got != c.want {
+			t.Errorf("shadeLevel(%d) = %d, want %d", c.score, got, c.want)
+		}
+	}
+}
+
+// cellByDate はグリッドから指定日のセルを探す (見つからなければ ok=false)。
+func cellByDate(cols []GraphColumn, day time.Time) (GraphCell, bool) {
+	for _, col := range cols {
+		for _, c := range col.Cells {
+			if c.InRange && c.Date.Equal(day) {
+				return c, true
+			}
+		}
+	}
+	return GraphCell{}, false
+}
+
+func TestBuildGraphWeek(t *testing.T) {
+	now := d(2026, 6, 10) // 水曜。週は 6/8(月)〜6/14(日)
+	// 6/8: a(1)+d(4)=5 → level 2、6/9: g(7) → level 2、6/10: なし → level 0。
+	score := map[time.Time]int{
+		d(2026, 6, 8): 5,
+		d(2026, 6, 9): 7,
+	}
+	cols, omitted := buildGraph(score, weekStart(now), now) // ThisWeek の窓開始 = 今週月曜
+	if omitted != 0 {
+		t.Errorf("omitted = %d, want 0", omitted)
+	}
+	if len(cols) != 1 {
+		t.Fatalf("len(cols) = %d, want 1 (single week column)", len(cols))
+	}
+	// Mon(6/8)=level2, Tue(6/9)=level2, Wed(6/10)=level0 in range。
+	if c := cols[0].Cells[0]; !c.InRange || c.Level != 2 || c.Score != 5 {
+		t.Errorf("Mon cell = %+v, want InRange level2 score5", c)
+	}
+	if c := cols[0].Cells[1]; !c.InRange || c.Level != 2 || c.Score != 7 {
+		t.Errorf("Tue cell = %+v, want InRange level2 score7", c)
+	}
+	if c := cols[0].Cells[2]; !c.InRange || c.Level != 0 {
+		t.Errorf("Wed cell = %+v, want InRange level0", c)
+	}
+	// Thu(6/11)〜Sun は今日より後 → 範囲外パディング。
+	if c := cols[0].Cells[3]; c.InRange {
+		t.Errorf("Thu cell should be padding (after today), got %+v", c)
+	}
+}
+
+func TestBuildGraphMonthPadding(t *testing.T) {
+	now := d(2026, 6, 10) // 6/1 は月曜。range = 6/1〜6/10
+	cols, _ := buildGraph(map[time.Time]int{d(2026, 6, 1): 4}, d(2026, 6, 1), now) // ThisMonth の窓開始 = 月初
+	// 6/1 は月曜なので列頭。6/1 セルは InRange level2。
+	if c, ok := cellByDate(cols, d(2026, 6, 1)); !ok || c.Level != 2 {
+		t.Errorf("6/1 cell = %+v ok=%v, want level2", c, ok)
+	}
+	// 6/11 以降 (今日より後) は範囲外。最終列 Sun(6/14) はパディング。
+	last := cols[len(cols)-1]
+	if last.Cells[6].InRange {
+		t.Errorf("last Sun should be padding, got %+v", last.Cells[6])
+	}
+}
+
+func TestBuildGraphAllTimeCap(t *testing.T) {
+	now := d(2026, 6, 10)
+	// 60 週前から今日まで毎週 1 件 → 列が maxGraphWeeks (53) を超える。
+	score := map[time.Time]int{}
+	oldest := weekStart(now).AddDate(0, 0, -7*60)
+	for w := oldest; !w.After(now); w = w.AddDate(0, 0, 7) {
+		score[w] = 4
+	}
+	cols, omitted := buildGraph(score, time.Time{}, now) // AllTime: 窓開始ゼロ → 最古の解答日にフォールバック
+	if len(cols) != maxGraphWeeks {
+		t.Errorf("len(cols) = %d, want %d", len(cols), maxGraphWeeks)
+	}
+	if omitted <= 0 {
+		t.Errorf("omitted = %d, want > 0 (older weeks dropped)", omitted)
+	}
+	// 残るのは新しい側。最終列の月曜は今週の月曜。
+	if last := cols[len(cols)-1].Monday; !last.Equal(weekStart(now)) {
+		t.Errorf("last column Monday = %v, want this week's Monday %v", last, weekStart(now))
+	}
+}
+
+func TestComputeGraphSkipsSeries(t *testing.T) {
+	now := d(2026, 6, 10)
+	solves := []Solve{solve(d(2026, 6, 8), "abc457_d.py")}
+	rep := Compute(solves, Options{Period: ThisWeek, Now: now, Graph: true})
+	if len(rep.Graph) == 0 {
+		t.Errorf("Graph should be populated when Options.Graph is set")
+	}
+	if rep.Series != nil {
+		t.Errorf("Series should be nil when Graph is set, got %+v", rep.Series)
+	}
+}

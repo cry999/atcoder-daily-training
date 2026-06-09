@@ -245,6 +245,13 @@ run_case "stats -l m (bare unit)"      0 stats -l m
 run_case "stats --last 0d reject"      2 stats --last 0d
 run_case "stats --last 1x reject"      2 stats --last 1x
 run_case "stats --week --last 7d rej"  2 stats --week --last 7d
+# --graph (-g): 時系列を草グリッドで表示。期間フラグ/--last と併用可。排他は維持。
+run_case "stats --graph"               0 stats --graph
+run_case "stats -g"                    0 stats -g
+run_case "stats --year --graph"        0 stats --year --graph
+run_case "stats -m -g"                 0 stats -m -g
+run_case "stats --last 2w -g"          0 stats --last 2w -g
+run_case "stats -g -w --month reject"  2 stats -g -w --month
 
 # `atcoder completion` smoke: 各シェルのスクリプト出力と、隠し __complete ヘルパ。
 # completion の引数エラーは exit 2。__complete は常に exit 0 で候補を吐く。

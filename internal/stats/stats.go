@@ -60,6 +60,7 @@ type Options struct {
 	Period  Period
 	Rolling *Rolling
 	Now     time.Time
+	Graph   bool // true で時系列をバーではなく草グリッド (contribution graph) として構築する
 }
 
 // Count は key ごとの件数 (カテゴリ別 / レター別)。
@@ -74,6 +75,20 @@ type Bucket struct {
 	N     int
 }
 
+// GraphCell は草グリッドの 1 マス (1 日)。
+type GraphCell struct {
+	Date    time.Time // そのマスの日。範囲外パディングは IsZero
+	Score   int       // Σ letterWeight。範囲外/0 件は 0
+	Level   int       // 0..4 の濃淡レベル
+	InRange bool      // グリッド対象範囲 (期間窓内かつ今日以前) なら true。範囲外は空白パディング
+}
+
+// GraphColumn は週 (月曜始まり) 1 列。Cells[0]=Mon … Cells[6]=Sun。
+type GraphColumn struct {
+	Monday time.Time
+	Cells  [7]GraphCell
+}
+
 // Report は表示に必要な集計済みデータ。
 type Report struct {
 	Label         string
@@ -84,12 +99,17 @@ type Report struct {
 	Categories    []Count
 	Letters       []Count
 	Series        []Bucket
-	SeriesKind    string // "day" / "week"
-	SeriesOmitted int    // 週別で切り捨てた古い週数
+	SeriesKind    string        // "day" / "week"
+	SeriesOmitted int           // 週別で切り捨てた古い週数
+	Graph         []GraphColumn // Options.Graph 指定時のみ。空なら従来の Series を使う
+	GraphOmitted  int           // 53 週上限で切り捨てた古い週数
 }
 
 // maxWeekBuckets は週別時系列で表示する最大週数。超過分は SeriesOmitted に回す。
 const maxWeekBuckets = 16
+
+// maxGraphWeeks は草グリッドの最大列 (週) 数。超過分は古い週から GraphOmitted に回す。
+const maxGraphWeeks = 53
 
 // leadingAlphaRE はファイル名先頭の連続英字 (= コンテスト種別) を捕捉する。
 var leadingAlphaRE = regexp.MustCompile(`^[a-zA-Z]+`)
@@ -180,14 +200,17 @@ func Compute(solves []Solve, opts Options) Report {
 	rep := Report{Label: win.label}
 	rep.Total = len(in)
 
-	// カテゴリ別・レター別・日別件数を集計。
+	// カテゴリ別・レター別・日別件数・日別スコア (レター重み合計) を集計。
 	catN := map[string]int{}
 	letN := map[string]int{}
-	dayN := map[time.Time]int{} // 0 時 time → 件数
+	dayN := map[time.Time]int{}     // 0 時 time → 件数
+	dayScore := map[time.Time]int{} // 0 時 time → Σ letterWeight (草の濃淡用)
 	for _, s := range in {
 		catN[s.Category]++
 		letN[s.Letter]++
-		dayN[dayOf(s.Date)]++
+		day := dayOf(s.Date)
+		dayN[day]++
+		dayScore[day] += letterWeight(s.Letter)
 	}
 	rep.ActiveDays = len(dayN)
 	rep.Categories = sortedByCountDesc(catN)
@@ -201,8 +224,11 @@ func Compute(solves []Solve, opts Options) Report {
 	rep.CurrentStreak = currentStreak(days, now)
 	rep.LongestStreak = longestStreak(days)
 
-	// 時系列。
-	if win.daily {
+	// 時系列。--graph 指定時は草グリッドに差し替え、バー Series は構築しない。
+	// グリッド範囲は窓 (Period でも Rolling でも) の開始日に追従する。
+	if opts.Graph {
+		rep.Graph, rep.GraphOmitted = buildGraph(dayScore, win.start, now)
+	} else if win.daily {
 		rep.SeriesKind = "day"
 		rep.Series = dailySeries(dayN, win.start, now)
 	} else {
@@ -390,6 +416,102 @@ func weeklySeries(in []Solve) (buckets []Bucket, omitted int) {
 		buckets = append(buckets, Bucket{Label: w.Format("2006-01-02") + "+", N: weekN[w]})
 	}
 	return buckets, omitted
+}
+
+// letterWeight はレターを難易度の代理重みに変換する。
+//   - "?" (レター不明) は 1。
+//   - 先頭が英小文字なら a=1, b=2, … z=26 (大文字は classify で小文字化済み)。
+//   - それ以外 (数字始まり等) は 1。
+// 複数文字レター ("ex" 等、稀) は先頭文字のみ採用する。
+func letterWeight(letter string) int {
+	if letter == "" || letter == "?" {
+		return 1
+	}
+	c := letter[0]
+	if c >= 'a' && c <= 'z' {
+		return int(c-'a') + 1
+	}
+	return 1
+}
+
+// shadeLevel は日次スコア (Σ letterWeight) を濃淡レベル 0..4 に分類する。
+// しきい値は固定で、データに依存せず決定的。
+//
+//	score 0    → 0 (空マス)
+//	      1–3  → 1
+//	      4–7  → 2
+//	      8–12 → 3
+//	      13+  → 4
+func shadeLevel(score int) int {
+	switch {
+	case score <= 0:
+		return 0
+	case score <= 3:
+		return 1
+	case score <= 7:
+		return 2
+	case score <= 12:
+		return 3
+	default:
+		return 4
+	}
+}
+
+// buildGraph は日次スコアから集計窓に追従した草グリッドを構築する。
+// winStart は窓の開始日 (Period でも Rolling でも resolveWindow が決めた値)。
+// winStart.IsZero() (= 全期間で下端なし) のときは最初に解いた日を基点にする。
+// 列は月曜始まりの週、各列 7 マス (Mon..Sun)。範囲の先頭/末尾で週の途中に
+// かかる曜日は InRange=false の空白パディングにする。列が maxGraphWeeks を
+// 超える場合は新しい側を残し、切り捨てた古い週数を omitted で返す。
+func buildGraph(dayScore map[time.Time]int, winStart, now time.Time) (cols []GraphColumn, omitted int) {
+	now = dayOf(now)
+
+	// グリッドが覆う [rangeStart, rangeEnd] を決める。rangeEnd は常に今日。
+	rangeEnd := now
+	var rangeStart time.Time
+	if !winStart.IsZero() {
+		rangeStart = dayOf(winStart)
+	} else {
+		// 下端なし (全期間): 最初に解いた日が基点。無ければ今日。
+		rangeStart = now
+		first := true
+		for d := range dayScore {
+			d = dayOf(d)
+			if first || d.Before(rangeStart) {
+				rangeStart = d
+				first = false
+			}
+		}
+	}
+	if rangeStart.After(rangeEnd) {
+		rangeStart = rangeEnd
+	}
+
+	// 列は週境界 (月曜) に整列。範囲外の曜日はパディング。
+	firstMon := weekStart(rangeStart)
+	lastMon := weekStart(rangeEnd)
+	for mon := firstMon; !mon.After(lastMon); mon = mon.AddDate(0, 0, 7) {
+		col := GraphColumn{Monday: mon}
+		for wd := 0; wd < 7; wd++ {
+			day := mon.AddDate(0, 0, wd)
+			inRange := !day.Before(rangeStart) && !day.After(rangeEnd)
+			cell := GraphCell{InRange: inRange}
+			if inRange {
+				cell.Date = day
+				cell.Score = dayScore[day]
+				cell.Level = shadeLevel(cell.Score)
+			}
+			col.Cells[wd] = cell
+		}
+		cols = append(cols, col)
+	}
+
+	// 上限超過 (主に全期間) は新しい側を残す。
+	if len(cols) > maxGraphWeeks {
+		omitted = len(cols) - maxGraphWeeks
+		cols = cols[len(cols)-maxGraphWeeks:]
+	}
+	return cols, omitted
 }
 
 // sortedByCountDesc は件数の多い順、同数はキー名昇順で Count を並べる。

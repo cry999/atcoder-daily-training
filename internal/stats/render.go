@@ -57,8 +57,15 @@ func Render(w io.Writer, r Report) error {
 		writeCounts(&b, r.Letters)
 	}
 
-	// 時系列 (簡易バー付き)。
-	if len(r.Series) > 0 {
+	// 時系列。--graph 指定時は草グリッド、そうでなければ簡易バー。
+	switch {
+	case len(r.Graph) > 0:
+		b.WriteString("\n" + statSectStyle.Render("contribution graph (shade = Σ letter weight/day; a=1…g=7)") + "\n")
+		writeGraph(&b, r.Graph)
+		if r.GraphOmitted > 0 {
+			b.WriteString("  " + statInfoStyle.Render(fmt.Sprintf("…and %d older week(s) omitted", r.GraphOmitted)) + "\n")
+		}
+	case len(r.Series) > 0:
 		title := "by day"
 		if r.SeriesKind == "week" {
 			title = "by week"
@@ -121,4 +128,80 @@ func barString(n, max, maxBar int) string {
 		w = 1
 	}
 	return strings.Repeat("█", w)
+}
+
+// shadeGlyphs は濃淡レベル 0..4 のマス文字。色に依存せず段階が判別できるよう
+// 文字自体を変える (非 TTY/色覚配慮)。
+var shadeGlyphs = [5]string{"·", "░", "▒", "▓", "█"}
+
+// grassStyles はレベル別の着色 (Catppuccin 系の緑グラデーション)。TTY のみ効く。
+var grassStyles = [5]lipgloss.Style{
+	lipgloss.NewStyle().Foreground(lipgloss.Color("#45475a")), // 0: 空 (薄灰)
+	lipgloss.NewStyle().Foreground(lipgloss.Color("#40a02b")), // 1
+	lipgloss.NewStyle().Foreground(lipgloss.Color("#a6e3a1")), // 2
+	lipgloss.NewStyle().Foreground(lipgloss.Color("#94e2d5")), // 3
+	lipgloss.NewStyle().Foreground(lipgloss.Color("#a6e3ff")), // 4 (濃) — 明度を上げて強調
+}
+
+// weekdayLabels は左端の曜日ラベル (Mon..Sun)。
+var weekdayLabels = [7]string{"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"}
+
+// writeGraph は草グリッドを「月ラベル行 + 曜日 7 行 + 凡例」で描く。
+// 列 = 週 (月曜始まり)、行 = 曜日。マス 1 つは "<glyph> " の 2 文字幅。
+func writeGraph(b *strings.Builder, cols []GraphColumn) {
+	const labelW = 3 // "Mon"
+	prefix := strings.Repeat(" ", labelW+1)
+
+	// 月ラベル行: 列の月が前列から変わった最初の列にその月の略称を置く。
+	month := buildMonthHeader(cols, prefix)
+	if strings.TrimSpace(month) != "" {
+		b.WriteString("  " + statLabelStyle.Render(month) + "\n")
+	}
+
+	// 曜日 7 行。
+	for wd := 0; wd < 7; wd++ {
+		b.WriteString("  " + statLabelStyle.Render(weekdayLabels[wd]) + " ")
+		for _, col := range cols {
+			cell := col.Cells[wd]
+			if !cell.InRange {
+				b.WriteString("  ") // 範囲外パディング (空白 2 文字)
+				continue
+			}
+			b.WriteString(grassStyles[cell.Level].Render(shadeGlyphs[cell.Level]) + " ")
+		}
+		b.WriteString("\n")
+	}
+
+	// 凡例。
+	var legend strings.Builder
+	for lvl := 0; lvl < 5; lvl++ {
+		legend.WriteString(grassStyles[lvl].Render(shadeGlyphs[lvl]))
+	}
+	b.WriteString("\n  " + statInfoStyle.Render("less ") + legend.String() + statInfoStyle.Render(" more") + "\n")
+}
+
+// buildMonthHeader は列に揃えた月ラベル行を作る。各列は 2 文字幅。
+// 月が変わった最初の列の位置に月略称 (3 文字) を書き込む (GitHub と同様、まばら)。
+func buildMonthHeader(cols []GraphColumn, prefix string) string {
+	width := len(prefix) + len(cols)*2
+	row := []byte(strings.Repeat(" ", width))
+	prevMonth := -1
+	for i, col := range cols {
+		m := int(col.Monday.Month())
+		if m == prevMonth {
+			continue
+		}
+		prevMonth = m
+		// 各月の最初の月曜は必ず 1〜7 日。Day>7 はグリッド先頭の部分週なので
+		// ラベルを置かない (隣の月ラベルと重なるのを防ぐ)。
+		if col.Monday.Day() > 7 {
+			continue
+		}
+		label := col.Monday.Format("Jan")
+		x := len(prefix) + i*2
+		for k := 0; k < len(label) && x+k < len(row); k++ {
+			row[x+k] = label[k]
+		}
+	}
+	return string(row)
 }
