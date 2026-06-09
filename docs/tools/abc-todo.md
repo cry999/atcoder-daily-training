@@ -56,6 +56,8 @@
 
 ### B. コンテストメタの取り扱い
 
+> 要件詳細: `docs/tools/exercise-abc-contest-meta-requirements.md` (`new abc <contest>` 一括準備として設計済み)
+
 #### 解きたい問題
 
 - 本番では A〜G の問題が一斉に必要になる。今は問題ごとに `exercise test` で都度 fetch するため、開始直後の準備が問題数 × fetch 回数分の手作業になる。
