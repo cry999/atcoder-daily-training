@@ -9,6 +9,7 @@ import (
 
 	"github.com/cry999/atcoder-daily-training/internal/review"
 	"github.com/cry999/atcoder-daily-training/internal/stats"
+	"golang.org/x/term"
 )
 
 // cmdReview は exercise/ を「コンテスト単位」で一覧する。<category> 必須の位置引数で
@@ -53,6 +54,15 @@ func cmdReview(args []string) (int, error) {
 		Rolling:  sopts.Rolling,
 		Now:      time.Now().Local(),
 	})
+
+	// TTY かつ 1 件以上ならページに収まるスクロール TUI。非 TTY (パイプ/リダイレクト)
+	// や 0 件は従来どおり一括テキスト出力 (スクリプト・テストはこちらを踏む)。
+	if rep.Contests > 0 && term.IsTerminal(int(os.Stdout.Fd())) {
+		if err := review.RunTUI(rep); err != nil {
+			return 1, err
+		}
+		return 0, nil
+	}
 	if err := review.Render(os.Stdout, rep); err != nil {
 		return 1, err
 	}
