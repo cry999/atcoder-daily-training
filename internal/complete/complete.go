@@ -41,15 +41,18 @@ var subFlags = map[string][]string{
 	"test":   {"--task", "--refresh", "--timeout", "--case", "-c", "--layout", "--jobs", "-j", "--watch", "-w", "-v", "--verbose", "-d", "--debug", "-s", "--side-by-side", "--tolerance"},
 	"run":    {"--task", "--in", "-i", "--out", "-o", "--interactive", "-I", "--timeout", "-v", "--verbose", "-d", "--debug", "--layout", "--tolerance"},
 	"submit": {"--task", "--refresh", "--layout", "--no-open"},
+	"login":  {"--user", "--password-stdin"},
+	"logout": {},
+	"status": {"--task", "--watch", "-w", "--interval", "--open"},
 	"stats":  {"--week", "-w", "--month", "-m", "--year", "-y"},
 }
 
 // takesContest はそのサブコマンドが <contest> 位置引数を取るか。
-var takesContest = map[string]bool{"test": true, "run": true, "submit": true}
+var takesContest = map[string]bool{"test": true, "run": true, "submit": true, "status": true}
 
 // Subcommands は補完対象のサブコマンド名を返す (__complete は隠すので含めない)。
 func Subcommands() []string {
-	return []string{"new", "test", "run", "submit", "stats", "commit", "completion"}
+	return []string{"new", "test", "run", "submit", "login", "logout", "status", "stats", "commit", "completion"}
 }
 
 // Flags は指定サブコマンドのフラグ候補を返す。未知サブコマンドは nil。

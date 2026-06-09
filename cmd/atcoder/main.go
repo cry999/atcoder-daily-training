@@ -35,6 +35,24 @@ func main() {
 			fmt.Fprintln(os.Stderr, "atcoder submit:", err)
 		}
 		os.Exit(code)
+	case "login":
+		code, err := cmdLogin(os.Args[2:])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "atcoder login:", err)
+		}
+		os.Exit(code)
+	case "logout":
+		code, err := cmdLogout(os.Args[2:])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "atcoder logout:", err)
+		}
+		os.Exit(code)
+	case "status":
+		code, err := cmdStatus(os.Args[2:])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "atcoder status:", err)
+		}
+		os.Exit(code)
 	case "stats":
 		code, err := cmdStats(os.Args[2:])
 		if err != nil {
@@ -70,6 +88,9 @@ func usage() {
   atcoder test   <contest> --task <task> [-v] [-d] [-s] [-c <N[,M,...]>] [--refresh] [--timeout <dur>] [--tolerance <eps>] [--layout <auto|abc|exercise>] [-j <n>] [-w]
   atcoder run    <contest> --task <task> [-v] [-d] [--in <path>|-] [--out <path>] [--tolerance <eps>] [--timeout <dur>] [--layout <auto|abc|exercise>]
   atcoder submit <contest> --task <task> [--refresh] [--tolerance <eps>] [--no-open] [--layout <auto|abc|exercise>]
+  atcoder login  [--user <name>] [--password-stdin]
+  atcoder logout
+  atcoder status <contest> [--task <task>] [-w|--watch] [--interval <dur>] [--open]
   atcoder stats  [-w|--week | -m|--month | -y|--year]
   atcoder completion <bash|zsh|fish>
   atcoder commit`)
