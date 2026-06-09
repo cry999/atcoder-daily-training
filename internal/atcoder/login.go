@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/antchfx/htmlquery"
+	"golang.org/x/net/html"
 )
 
 const (
@@ -91,11 +92,20 @@ func fetchCSRFToken(client *http.Client) (string, error) {
 		return "", fmt.Errorf("ログインページの取得に失敗: %w", err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("ログインページの取得に失敗: 予期しないステータス %d", resp.StatusCode)
+	}
 
 	doc, err := htmlquery.Parse(resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("ログインページの解析に失敗: %w", err)
 	}
+	return extractCSRF(doc)
+}
+
+// extractCSRF はパース済みのログインフォームから隠し csrf_token を取り出す純粋関数。
+// HTTP 依存が無いため単体テストしやすい (fetchCSRFToken から分離)。
+func extractCSRF(doc *html.Node) (string, error) {
 	node := htmlquery.FindOne(doc, `//input[@name="csrf_token"]`)
 	if node == nil {
 		return "", fmt.Errorf("csrf_token が見つかりませんでした")
