@@ -40,6 +40,10 @@ func cmdStatus(args []string) (int, error) {
 	if *interval < 2*time.Second {
 		*interval = 2 * time.Second
 	}
+	// 引数エラー (exit 2) は認証チェック (exit 1) より先に確定させる。
+	if *watch && task == "" {
+		return 2, errors.New("--watch には --task が必要です")
+	}
 
 	sess, err := atcoder.LoadSession()
 	if err != nil {

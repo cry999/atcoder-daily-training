@@ -216,6 +216,19 @@ run_case "stats -m"                    0 stats -m
 run_case "stats -y"                    0 stats -y
 run_case "stats -w --month reject"     2 stats -w --month
 
+# `atcoder status` / `login` / `logout` smoke (ネットワーク非依存)。
+# XDG_CONFIG_HOME は空隔離 dir なので session.json は存在せず、status は
+# LoadSession で「未ログイン」となり exit 1 (HTTP を一切叩かない)。引数誤りは
+# exit 2。login は非対話入力経路 (run_piped で非 TTY) を踏ませて検証する。
+run_case  "status (not logged in)"            1 status fixture --task pass
+run_case  "status (no contest, arg err)"      2 status
+run_case  "status --watch w/o --task"         2 status fixture --watch
+run_case  "logout (no session, noop)"         0 logout
+# login: 非 TTY でのパスワード非表示入力は不可 → exit 2 (--user 指定で prompt 回避)。
+run_piped "login --user (non-TTY pw reject)"  2 "" login --user someone
+# login: --password-stdin は --user 必須 → 無ければ exit 2 (stdin を読む前に弾く)。
+run_piped "login --password-stdin w/o --user" 2 "" login --password-stdin
+
 # `atcoder completion` smoke: 各シェルのスクリプト出力と、隠し __complete ヘルパ。
 # completion の引数エラーは exit 2。__complete は常に exit 0 で候補を吐く。
 run_case "completion bash"               0 completion bash

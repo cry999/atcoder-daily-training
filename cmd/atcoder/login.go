@@ -64,8 +64,13 @@ func cmdLogout(args []string) (int, error) {
 // errNeedTTY は非表示入力に端末が必要なのに非 TTY だったことを表す (exit 2)。
 var errNeedTTY = errors.New("パスワード入力には端末が必要です (非対話なら --password-stdin を使ってください)")
 
+// errNeedUser は --password-stdin 指定時に --user が無いことを表す (exit 2)。
+var errNeedUser = errors.New("--password-stdin 時は --user が必要です")
+
+// passwordErrCode は readPassword のエラーを exit code に写す。利用方法の誤り
+// (端末が無い / --user 不足) は引数エラー扱いで 2、それ以外は 1。
 func passwordErrCode(err error) int {
-	if errors.Is(err, errNeedTTY) {
+	if errors.Is(err, errNeedTTY) || errors.Is(err, errNeedUser) {
 		return 2
 	}
 	return 1
@@ -76,7 +81,7 @@ func passwordErrCode(err error) int {
 func readPassword(pwStdin bool, user *string) (string, error) {
 	if pwStdin {
 		if *user == "" {
-			return "", errors.New("--password-stdin 時は --user が必要です")
+			return "", errNeedUser
 		}
 		b, err := io.ReadAll(os.Stdin)
 		if err != nil {

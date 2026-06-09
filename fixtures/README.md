@@ -29,6 +29,8 @@
 > フラグ単位の経路も `run.sh` で smoke する。例: `fixture_pass --watch` は run.sh の出力が非 TTY のため `exit 2` で拒否されることを確認 (watch ループ本体は常駐してブロックするため fixture では回さない)。
 >
 > ユーザ設定 (`config.toml`) も smoke する。`run.sh` は `XDG_CONFIG_HOME` を空 dir に固定して既存テストを config 非依存にしたうえで、専用 dir に `[test] side_by_side = true` を置いて (1) 既定で side-by-side diff になる (出力に `side-by-side` が出る) (2) `--side-by-side=false` でその回だけ unified に戻る (3) 壊れた `config.toml` は `exit 2` を確認する。`side_by_side` は終了コードを変えないため、出力文字列で検証する (`check_output` ヘルパー)。
+>
+> `atcoder status` / `login` / `logout` も**ネットワーク非依存**で smoke する。`XDG_CONFIG_HOME` が空隔離 dir のため `session.json` が無く、`status` は「未ログイン」で `exit 1` (HTTP を一切叩かない)。引数誤りは `exit 2` (`status` の contest 欠落、`--watch` に `--task` 無し)。`login` は非対話入力経路を `run_piped` (非 TTY) で踏ませ、(1) パスワード非表示入力が端末を要するため `exit 2` (2) `--password-stdin` は `--user` 必須で無ければ `exit 2` を確認する。実ログイン・実ジャッジ取得は認証が要るため fixture では回さない。
 
 ## ディレクトリ構造
 
