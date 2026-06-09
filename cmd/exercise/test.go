@@ -33,6 +33,9 @@ func cmdTest(args []string) (int, error) {
 	flags.StringVar(&caseStr, "case", "", `Run only the specified case(s); comma-separated (e.g. "01" or "1,3")`)
 	flags.StringVar(&caseStr, "c", "", `Run only the specified case(s); comma-separated (e.g. "01" or "1,3")`)
 	tolFlag := flags.Float64("tolerance", 0, "Absolute/relative tolerance for float token comparison (e.g. 1e-9). 0 or unset → use default 1e-6.")
+	var sideBySide bool
+	flags.BoolVar(&sideBySide, "s", false, "Show diff side-by-side (expected on left, actual on right)")
+	flags.BoolVar(&sideBySide, "side-by-side", false, "Show diff side-by-side (expected on left, actual on right)")
 	flags.SetOutput(os.Stderr)
 
 	if err := flags.Parse(args[1:]); err != nil {
@@ -65,7 +68,7 @@ func cmdTest(args []string) (int, error) {
 		Cases:       cases,
 		Tolerance:   *tolFlag,
 		ExecutorFor: selectExecutor,
-		Reporter:    ui.NewTestReporter(verbose),
+		Reporter:    ui.NewTestReporter(verbose, sideBySide),
 	})
 }
 

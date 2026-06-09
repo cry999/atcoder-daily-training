@@ -2,7 +2,11 @@ package ui
 
 import (
 	"fmt"
+	"os"
 	"strings"
+
+	"github.com/charmbracelet/lipgloss"
+	"golang.org/x/term"
 )
 
 // 表示形式は delta / Claude Code の unified diff を模す:
@@ -204,4 +208,166 @@ func renderTokenLine(ops []diffOp, n int, minus bool) string {
 	}
 	sb.WriteString("\n")
 	return sb.String()
+}
+
+// ---- side-by-side diff ----
+
+const (
+	diffSBIndent = "  "  // diff: ラベルの下に少し下げる
+	diffSBSep    = " │ " // 左右ハーフの間の区切り
+)
+
+// renderDiffSideBySide は expected を左、actual を右に並べた diff を返す。
+// full=true ならマッチ行も両側に表示する。各ハーフは端末幅を半分にした幅に
+// padding して左右が揃うようにする。
+func renderDiffSideBySide(expected, actual string, full bool) string {
+	totalW := terminalWidth()
+	half := (totalW - len(diffSBIndent) - len(diffSBSep)) / 2
+	if half < 20 {
+		half = 20
+	}
+
+	expLines := strings.Split(expected, "\n")
+	actLines := strings.Split(actual, "\n")
+	ops := lcsDiff(expLines, actLines)
+
+	sep := diffGutterStyle.Render(diffSBSep)
+
+	var sb strings.Builder
+	expN, actN := 0, 0
+	i := 0
+	for i < len(ops) {
+		if ops[i].Kind == diffKeep {
+			expN++
+			actN++
+			if full {
+				left := renderSBContext(ops[i].Text, expN, half)
+				right := renderSBContext(ops[i].Text, actN, half)
+				sb.WriteString(diffSBIndent + left + sep + right + "\n")
+			}
+			i++
+			continue
+		}
+		// hunk: 連続する非 keep
+		start := i
+		for i < len(ops) && ops[i].Kind != diffKeep {
+			i++
+		}
+		var dels, adds []string
+		for k := start; k < i; k++ {
+			if ops[k].Kind == diffDel {
+				dels = append(dels, ops[k].Text)
+			} else {
+				adds = append(adds, ops[k].Text)
+			}
+		}
+		pairs := len(dels)
+		if len(adds) < pairs {
+			pairs = len(adds)
+		}
+		for k := 0; k < pairs; k++ {
+			expN++
+			actN++
+			expToks := strings.Fields(dels[k])
+			actToks := strings.Fields(adds[k])
+			tokOps := lcsDiff(expToks, actToks)
+			left := renderSBHalfTokens(tokOps, expN, true, half)
+			right := renderSBHalfTokens(tokOps, actN, false, half)
+			sb.WriteString(diffSBIndent + left + sep + right + "\n")
+		}
+		for k := pairs; k < len(dels); k++ {
+			expN++
+			left := renderSBSolo(dels[k], expN, true, half)
+			right := strings.Repeat(" ", half)
+			sb.WriteString(diffSBIndent + left + sep + right + "\n")
+		}
+		for k := pairs; k < len(adds); k++ {
+			actN++
+			left := strings.Repeat(" ", half)
+			right := renderSBSolo(adds[k], actN, false, half)
+			sb.WriteString(diffSBIndent + left + sep + right + "\n")
+		}
+	}
+	return sb.String()
+}
+
+// renderSBContext は match 行の半ライン (line_no + 空サイン + dim 本文) を作って width に padding する。
+func renderSBContext(line string, n int, width int) string {
+	var sb strings.Builder
+	sb.WriteString(diffLineNumStyle.Render(fmt.Sprintf("%3d", n)))
+	sb.WriteString(diffGutterStyle.Render(" │ "))
+	sb.WriteString("  ") // "- " / "+ " と桁を揃える空サイン
+	sb.WriteString(diffContextStyle.Render(line))
+	return padToWidth(sb.String(), width)
+}
+
+// renderSBHalfTokens は token ops から、minus / plus のいずれかの半ラインを生成する。
+// side-by-side では line bg を付けず foreground のみで強調することで、padding が
+// 視覚的に分断されないようにする。
+func renderSBHalfTokens(ops []diffOp, n int, minus bool, width int) string {
+	signStyle := diffPlusSignStyle
+	emphStyle := diffPlusEmphStyle
+	if minus {
+		signStyle = diffMinusSignStyle
+		emphStyle = diffMinusEmphStyle
+	}
+	var sb strings.Builder
+	sb.WriteString(diffLineNumStyle.Render(fmt.Sprintf("%3d", n)))
+	sb.WriteString(diffGutterStyle.Render(" │ "))
+	if minus {
+		sb.WriteString(signStyle.Render("- "))
+	} else {
+		sb.WriteString(signStyle.Render("+ "))
+	}
+	first := true
+	for _, op := range ops {
+		if minus && op.Kind == diffAdd {
+			continue
+		}
+		if !minus && op.Kind == diffDel {
+			continue
+		}
+		if !first {
+			sb.WriteString(" ")
+		}
+		first = false
+		if op.Kind == diffKeep {
+			sb.WriteString(op.Text)
+		} else {
+			sb.WriteString(emphStyle.Render(op.Text))
+		}
+	}
+	return padToWidth(sb.String(), width)
+}
+
+// renderSBSolo はペア相手がいない 1 行を半ラインとして描画する (全 token を強調)。
+func renderSBSolo(line string, n int, minus bool, width int) string {
+	toks := strings.Fields(line)
+	ops := make([]diffOp, len(toks))
+	kind := diffAdd
+	if minus {
+		kind = diffDel
+	}
+	for i, t := range toks {
+		ops[i] = diffOp{Kind: kind, Text: t}
+	}
+	return renderSBHalfTokens(ops, n, minus, width)
+}
+
+// padToWidth は ANSI を含む文字列の可視幅を測って、指定幅まで空白でパディングする。
+func padToWidth(s string, width int) string {
+	visW := lipgloss.Width(s)
+	if visW >= width {
+		return s
+	}
+	return s + strings.Repeat(" ", width-visW)
+}
+
+// terminalWidth は os.Stdout の端末幅を返す。取得失敗時は 120 にフォールバック。
+func terminalWidth() int {
+	w, _, err := term.GetSize(int(os.Stdout.Fd()))
+	if err != nil || w <= 0 {
+		return 120
+	}
+	return w
 }

@@ -11,10 +11,13 @@ import (
 )
 
 type TestReporter struct {
-	verbose bool
+	verbose    bool
+	sideBySide bool
 }
 
-func NewTestReporter(verbose bool) *TestReporter { return &TestReporter{verbose: verbose} }
+func NewTestReporter(verbose, sideBySide bool) *TestReporter {
+	return &TestReporter{verbose: verbose, sideBySide: sideBySide}
+}
 
 func (r *TestReporter) Fetching(contest, task string) {
 	fmt.Println(infoStyle.Render(fmt.Sprintf("Fetching %s/%s from AtCoder...", contest, task)))
@@ -67,7 +70,8 @@ func (r *TestReporter) Case(cr testexec.CaseResult) {
 	switch cr.Status {
 	case testexec.Fail:
 		// -v のときは diff にマッチ行も context として含める。
-		printDiff(cr.Expected, cr.Actual, r.verbose)
+		// -s のときは side-by-side レンダラに切り替える。
+		printDiff(cr.Expected, cr.Actual, r.verbose, r.sideBySide)
 	case testexec.RE:
 		printStderr(cr.Stderr)
 	}
@@ -108,9 +112,17 @@ func statusBadge(s testexec.CaseStatus) string {
 	return ""
 }
 
-func printDiff(expected, got string, full bool) {
-	fmt.Println("       " + sectionLabel.Render("diff:"))
-	fmt.Print(renderDiff(expected, got, full))
+func printDiff(expected, got string, full, sideBySide bool) {
+	label := "diff:"
+	if sideBySide {
+		label = "diff (side-by-side):"
+	}
+	fmt.Println("       " + sectionLabel.Render(label))
+	if sideBySide {
+		fmt.Print(renderDiffSideBySide(expected, got, full))
+	} else {
+		fmt.Print(renderDiff(expected, got, full))
+	}
 }
 
 const (
