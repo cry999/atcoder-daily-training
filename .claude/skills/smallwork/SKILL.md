@@ -67,6 +67,7 @@ git branch -d <branch>
 
 ## 関連
 
+- どちらの流儀か迷うとき: `triage` スキル (smallwork / feature を振り分ける入口)
 - 重い機能追加: `feature` スキル
 - ツールのスモークテスト: `test-tool` スキル
 - ルート規約: `CLAUDE.md` (worktree 必須・ディレクトリ規約・解答スタイル)

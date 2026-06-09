@@ -103,6 +103,7 @@ git branch -d <branch>
 - ロードマップ: `docs/tools/abc-todo.md` (ABC 本番系) / `docs/tools/todo.md` (全般)
 - 利用手引: `docs/tools/exercise-{test,run,commit}-usage.md`
 - ルート規約: `CLAUDE.md` (worktree 必須・ディレクトリ規約)
+- 軽量ワークフロー / 振り分け入口: `smallwork` スキル・`triage` スキル
 
 ## 注意
 
