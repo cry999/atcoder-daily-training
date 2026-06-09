@@ -47,6 +47,16 @@ func main() {
 			fmt.Fprintln(os.Stderr, "atcoder commit:", err)
 		}
 		os.Exit(code)
+	case "completion":
+		code, err := cmdCompletion(os.Args[2:])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "atcoder completion:", err)
+		}
+		os.Exit(code)
+	case "__complete":
+		// 隠しヘルパ。補完スクリプトからのみ呼ばれる。補完を壊さないため常に exit 0。
+		code, _ := cmdComplete(os.Args[2:])
+		os.Exit(code)
 	default:
 		usage()
 		os.Exit(2)
@@ -61,5 +71,6 @@ func usage() {
   atcoder run    <contest> --task <task> [-v] [-d] [--in <path>|-] [--out <path>] [--tolerance <eps>] [--timeout <dur>] [--layout <auto|abc|exercise>]
   atcoder submit <contest> --task <task> [--refresh] [--tolerance <eps>] [--no-open] [--layout <auto|abc|exercise>]
   atcoder stats  [--week | --month | --year]
+  atcoder completion <bash|zsh|fish>
   atcoder commit`)
 }

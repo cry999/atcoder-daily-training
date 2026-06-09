@@ -160,6 +160,25 @@ run_case "stats --week"                0 stats --week
 run_case "stats --year"                0 stats --year
 run_case "stats --week --month reject" 2 stats --week --month
 
+# `atcoder completion` smoke: 各シェルのスクリプト出力と、隠し __complete ヘルパ。
+# completion の引数エラーは exit 2。__complete は常に exit 0 で候補を吐く。
+run_case "completion bash"               0 completion bash
+run_case "completion zsh"                0 completion zsh
+run_case "completion fish"               0 completion fish
+run_case "completion (no shell)"         2 completion
+run_case "completion powershell (bad)"   2 completion powershell
+run_case "__complete (always exit 0)"    0 __complete -- te
+# 候補内容を検証 (キャッシュ/cwd 非依存な静的・既定候補のみ)。
+"$BIN" __complete -- te | grep -qx "test" \
+    || { echo "  ✗ __complete -- te did not yield 'test'"; failures=$((failures + 1)); }
+"$BIN" __complete -- "" | grep -qx "completion" \
+    || { echo "  ✗ __complete -- '' missing 'completion'"; failures=$((failures + 1)); }
+"$BIN" __complete -- test abc999 --layout "" | grep -qx "abc" \
+    || { echo "  ✗ __complete --layout did not yield 'abc'"; failures=$((failures + 1)); }
+# abc000 は staging にもキャッシュにも無いので、既定 letter (a〜g) 経路を踏む。
+"$BIN" __complete -- test abc000 --task "" | grep -qx "d" \
+    || { echo "  ✗ __complete --task did not yield default letters"; failures=$((failures + 1)); }
+
 echo
 if [[ "$failures" -gt 0 ]]; then
     echo "${failures} case(s) failed"
