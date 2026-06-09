@@ -92,6 +92,17 @@ run_case "fixture_float (1e-6 tol)"   0 test fixture --task float
 run_case "abc999/a test (--layout auto)"    0 test abc999 --task a
 run_case "abc999/a test (--layout abc)"     0 test abc999 --task a --layout abc
 
+# `exercise new abc` (contest prepare) smoke, offline via --no-fetch so no network.
+# abc998 has no pre-populated cache; --no-fetch + --tasks builds a minimal contest.toml
+# and generates empty abc/998/{a,b}.py skeletons.
+run_case "new abc abc998 --no-fetch"        0 new abc abc998 --no-fetch --tasks a,b
+test -f "$STAGE/abc/998/a.py" && test -f "$STAGE/abc/998/b.py" \
+    || { echo "  ✗ new abc did not create skeletons"; failures=$((failures + 1)); }
+test -f "$CACHE_HOME/atcoder-tools/abc998/contest.toml" \
+    || { echo "  ✗ new abc did not save contest.toml"; failures=$((failures + 1)); }
+# Invalid contest ID is rejected.
+run_case "new abc arc100 (bad id)"          1 new abc arc100 --no-fetch --tasks a
+
 # `exercise run` (ad-hoc stdin) smoke tests
 INPUT_FILE="$STAGE/run-input.txt"
 echo "5" > "$INPUT_FILE"

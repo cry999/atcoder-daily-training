@@ -13,7 +13,7 @@ func main() {
 
 	switch os.Args[1] {
 	case "new":
-		if err := cmdNew(); err != nil {
+		if err := cmdNew(os.Args[2:]); err != nil {
 			fmt.Fprintln(os.Stderr, "exercise new:", err)
 			os.Exit(1)
 		}
@@ -44,6 +44,7 @@ func main() {
 func usage() {
 	fmt.Fprintln(os.Stderr, `Usage:
   exercise new
+  exercise new abc <contest> [--tasks <list>] [--refresh] [--no-skeleton] [--no-fetch]
   exercise test   <contest> --task <task> [-v] [-d] [-s] [-c <N[,M,...]>] [--refresh] [--timeout <dur>] [--tolerance <eps>] [--layout <auto|abc|exercise>]
   exercise run    <contest> --task <task> [-v] [-d] [--in <path>|-] [--out <path>] [--tolerance <eps>] [--timeout <dur>] [--layout <auto|abc|exercise>]
   exercise commit`)

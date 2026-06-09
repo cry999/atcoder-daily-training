@@ -28,10 +28,17 @@ import (
 // しやすい中立な名前にしている。
 const AppName = "atcoder-tools"
 
+// Contest は指定された contest のキャッシュディレクトリを返す。
+// contest.toml (コンテストメタ) とタスク単位のサブディレクトリがこの下に並ぶ。
+// パスは存在するとは限らない (呼び出し側が必要に応じて MkdirAll する)。
+func Contest(contest string) string {
+	return filepath.Join(Base(), AppName, contest)
+}
+
 // Task は指定された contest / task のキャッシュディレクトリを返す。
 // パスは存在するとは限らない (呼び出し側が必要に応じて MkdirAll する)。
 func Task(contest, task string) string {
-	return filepath.Join(Base(), AppName, contest, task)
+	return filepath.Join(Contest(contest), task)
 }
 
 // Base は XDG_CACHE_HOME (or fallback) のディレクトリを返す。

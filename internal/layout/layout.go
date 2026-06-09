@@ -31,6 +31,17 @@ type Layout interface {
 // abcContestRE は abc<NNN> 形式 (NNN は数字 1 文字以上) を捕捉する。
 var abcContestRE = regexp.MustCompile(`^abc(\d+)$`)
 
+// ContestNum は abc<NNN> 形式の contest ID から数字部分 (例: "457") を取り出す。
+// ABC レイアウトのディレクトリ名 (`abc/<contest_num>/`) に使う。
+// abc<NNN> 形式でなければ ok=false を返す。
+func ContestNum(contestID string) (string, bool) {
+	m := abcContestRE.FindStringSubmatch(contestID)
+	if m == nil {
+		return "", false
+	}
+	return m[1], true
+}
+
 // TaskID は短縮形 task ("d") を AtCoder の task ID ("abc457_d") に展開する。
 // 既に `_` を含んでいればそのまま返す (例: "abc457_d" → "abc457_d")。
 // layout に依存しない (cache key / AtCoder URL 共通)。

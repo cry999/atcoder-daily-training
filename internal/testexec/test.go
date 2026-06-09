@@ -54,7 +54,7 @@ func Run(opts Options) (int, error) {
 	testsDir := filepath.Join(taskDir, "tests")
 	metaPath := filepath.Join(taskDir, "meta.toml")
 
-	mta, err := ensureTests(opts.Reporter, opts.Contest, opts.Task, taskDir, testsDir, metaPath, opts.Refresh)
+	mta, _, err := ensureTests(opts.Reporter, opts.Contest, opts.Task, taskDir, testsDir, metaPath, opts.Refresh)
 	if err != nil {
 		return 1, err
 	}
@@ -133,12 +133,44 @@ func runCase(executor Executor, extraEnv []string, debug bool, tolerance float64
 	return judge(name, string(input), string(expected), pr, debug, tolerance), nil
 }
 
-func ensureTests(reporter Reporter, contest, task, taskDir, testsDir, metaPath string, refresh bool) (*meta, error) {
+// EnsureResult は EnsureTests の結果サマリ。コンテスト一括準備の進捗表示に使う。
+type EnsureResult struct {
+	Fetched     bool // true ならネットワークから取得、false ならキャッシュヒット
+	NumSamples  int  // 現在キャッシュされているサンプルケース数
+	TimeLimitMs int
+}
+
+// EnsureTests は単一タスクのサンプル + meta をキャッシュに揃える。
+// キャッシュ済みなら何もせず、未取得 (または refresh) なら AtCoder から取得する。
+// `exercise new abc` のような一括準備から呼ぶための公開ラッパー。
+func EnsureTests(reporter Reporter, contest, task string, refresh bool) (EnsureResult, error) {
+	taskDir := cachepath.Task(contest, task)
+	testsDir := filepath.Join(taskDir, "tests")
+	metaPath := filepath.Join(taskDir, "meta.toml")
+
+	mta, fetched, err := ensureTests(reporter, contest, task, taskDir, testsDir, metaPath, refresh)
+	if err != nil {
+		return EnsureResult{}, err
+	}
+	names, err := listCases(testsDir)
+	if err != nil {
+		return EnsureResult{}, err
+	}
+	return EnsureResult{
+		Fetched:     fetched,
+		NumSamples:  len(names),
+		TimeLimitMs: mta.TimeLimitMs,
+	}, nil
+}
+
+// ensureTests は contest/task のサンプル + meta をキャッシュに揃え、その meta と
+// 「実際にネットワークから取得したか (fetched)」を返す。
+func ensureTests(reporter Reporter, contest, task, taskDir, testsDir, metaPath string, refresh bool) (*meta, bool, error) {
 	if !refresh {
 		_, errTests := os.Stat(testsDir)
 		if errTests == nil {
 			if m, err := loadMeta(metaPath); err == nil {
-				return m, nil
+				return m, false, nil
 			}
 		}
 	}
@@ -146,11 +178,11 @@ func ensureTests(reporter Reporter, contest, task, taskDir, testsDir, metaPath s
 	reporter.Fetching(contest, task)
 	prob, err := fetchProblem(contest, task)
 	if err != nil {
-		return nil, fmt.Errorf("AtCoder から取得できませんでした: %w", err)
+		return nil, false, fmt.Errorf("AtCoder から取得できませんでした: %w", err)
 	}
 
 	if err := os.MkdirAll(testsDir, 0o755); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if entries, err := os.ReadDir(testsDir); err == nil {
 		for _, e := range entries {
@@ -162,10 +194,10 @@ func ensureTests(reporter Reporter, contest, task, taskDir, testsDir, metaPath s
 		inPath := filepath.Join(testsDir, fmt.Sprintf("%02d.in", n))
 		outPath := filepath.Join(testsDir, fmt.Sprintf("%02d.out", n))
 		if err := os.WriteFile(inPath, []byte(s.Input), 0o644); err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		if err := os.WriteFile(outPath, []byte(s.Output), 0o644); err != nil {
-			return nil, err
+			return nil, false, err
 		}
 	}
 
@@ -177,9 +209,9 @@ func ensureTests(reporter Reporter, contest, task, taskDir, testsDir, metaPath s
 		FetchedAt:   time.Now(),
 	}
 	if err := saveMeta(metaPath, mta); err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	return mta, nil
+	return mta, true, nil
 }
 
 // filterCases は要求されたケース名 (例: "1", "01", "03") の和集合に含まれる
