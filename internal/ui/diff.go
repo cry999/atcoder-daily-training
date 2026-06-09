@@ -223,16 +223,17 @@ func renderTokenLine(ops []diffOp, n int, minus bool) string {
 //
 // レイアウト (1 行):
 //
-//	<indent><左 content padded> │ <expN> │+-│ <actN> │ <右 content>
+//	<indent><左 content padded> │ <expN> │-+│ <actN> │ <右 content>
 //
 // 期待値ライン (左) と実際のライン (右) を直接並べ、中央には両方の行番号
 // を "│" で囲って出す。行番号自体は前景を dim neutral に保ち、minus/plus
-// の識別は背景色 (薄い赤 / 緑) で示す。中央 sigil "│+-│" は行番号囲いの
-// "│" を共有する形になっており、active な sign だけ色付きで出す:
+// の識別は背景色 (薄い赤 / 緑) で示す。中央 sigil "│-+│" は行番号囲いの
+// "│" を共有する形になっており、左の "-" は期待値側 (minus) の sign、右の
+// "+" は実際値側 (plus) の sign。active な sign だけ色付きで出す:
 //
-//	paired :  │ N │+-│ N │   (+=green / -=red)
-//	solo + :  │   │+ │ N │
-//	solo - :  │ N │ -│   │
+//	paired :  │ N │-+│ N │   (-=red / +=green)
+//	solo - :  │ N │- │   │
+//	solo + :  │   │ +│ N │
 //	context:  │ N │  │ N │
 
 type sbRowKind int
@@ -322,12 +323,13 @@ func renderDiffSideBySide(expected, actual string, full bool) string {
 	return sb.String()
 }
 
-// renderSBCenter は中央ブロック " │ <expN> │<+><-> │ <actN> │ " (18 桁) を返す。
+// renderSBCenter は中央ブロック " │ <expN> │<-><+> │ <actN> │ " (18 桁) を返す。
 // 行番号は "│" で囲われ、kind に応じて行番号の背景色 (minus/plus bg) と
 // sigil の +/- の active 状態を決める。前景色は dim neutral で統一。
 // 左半 (" │ <es> │") は paired/soloDel で minus の薄い行 bg、右半
 // ("│ <as> │ ") は paired/soloAdd で plus の薄い行 bg を持つ。中央 sigil の
-// "+-" 2 文字は bg を持たず、左右 bg の継ぎ目になる。
+// "-+" 2 文字は bg を持たず、左右 bg の継ぎ目になる。左の "-" は左側
+// (expected) の sign、右の "+" は右側 (actual) の sign。
 func renderSBCenter(expN, actN int, kind sbRowKind) string {
 	// 行番号スタイル: 前景は dim、背景で minus/plus を識別
 	expStyle := diffLineNumStyle
@@ -379,7 +381,8 @@ func renderSBCenter(expN, actN int, kind sbRowKind) string {
 	case sbRowSoloAdd:
 		rightChunk = diffPlusLineStyle.Render(rightChunk)
 	}
-	return leftChunk + plusCh + minusCh + rightChunk
+	// 左に "-" (期待値側 = minus)、右に "+" (実際値側 = plus)。
+	return leftChunk + minusCh + plusCh + rightChunk
 }
 
 // renderSBContextSide は match 行の半側を返す (dim 本文を width に pad)。
