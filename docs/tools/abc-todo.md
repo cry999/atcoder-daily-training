@@ -14,8 +14,8 @@
 
 | フェーズ | 取り組み | 状態 |
 |---|---|---|
-| MVP | A. ディレクトリ / 命名規約 (`abc/<contest>/<letter>.py` を test/run の対象に) | TODO |
-| MVP | B. コンテストメタの取り扱い (タスクリストの一括 fetch、コンテストメタ保存) | TODO |
+| MVP | A. ディレクトリ / 命名規約 (`abc/<contest>/<letter>.py` を test/run の対象に) | ✅ DONE (e4b790e) |
+| MVP | B. コンテストメタの取り扱い (タスクリストの一括 fetch、コンテストメタ保存) | ✅ DONE (0596725) |
 | Phase 2 | E. 本番 vs 練習モード判定 | TODO |
 | Phase 2 | F. WA / penalty 後のワークフロー (ユーザ追加ケース) | TODO |
 | Phase 2 | G. タイマー / コンテスト状態の TUI | TODO |
@@ -57,6 +57,17 @@
 ### B. コンテストメタの取り扱い
 
 > 要件詳細: `docs/tools/exercise-abc-contest-meta-requirements.md` (`new abc <contest>` 一括準備として設計済み)
+>
+> **✅ 実装済み (0596725)** — `exercise new abc <contest>` として実装。下記「決めること」は次のように決着した:
+> - **コマンド表面**: `contest prepare` 新設ではなく、既存 `exercise new` を拡張して `new abc <contest>` モードにした (引数なしは従来の当日 dir 作成のまま)。
+> - **保存場所 / スキーマ**: 候補どおり `$XDG_CACHE_HOME/atcoder-tools/<contest>/contest.toml`。`title` / `fetched_at` を追加し、`start_at` / `end_at` は TOML ネイティブ datetime で保存。
+> - **時刻取得元**: `/contests/<contest>` トップページの `contest-duration` 内 `<time class="fixtime">` 2 要素から取得 (`duration_ms` は差分から算出)。タスクリストは `/contests/<contest>/tasks` から。
+> - **進捗表示**: `[i/N] <task_id>  ok (fetched/cached)` を 1 行ずつ。ネットワーク取得が起きたタスクの後だけ 300ms 待って rate limit を回避。
+> - **`--refresh` / 部分更新**: `--tasks` で部分指定 (全タスクリストは壊さない)、`--refresh` はキャッシュのみ対象で**解答ファイルには一切触れない**。`--no-skeleton` / `--no-fetch` (オフライン) も実装。
+> - **スケルトン**: H 未実装のため `abc/<num>/<letter>.py` を**空ファイル**で生成 (既存ファイルは温存)。H 実装時にテンプレート書き込みへ差し替える。
+> - **実装**: 新規 `internal/contestmeta/` (スキーマ + load/save + fetch)、`cachepath.Contest`、`layout.ContestNum`、`testexec.EnsureTests` (公開ラッパー)。`fixtures/run.sh` にオフライン smoke + 不正 ID 拒否を追加。
+>
+> 次の前提: `contest.toml` の時刻メタが揃ったので、E (本番モード判定) / G (タイマー) はこれを入力にできる。
 
 #### 解きたい問題
 
