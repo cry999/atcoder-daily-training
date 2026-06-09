@@ -42,6 +42,7 @@ internal/watch/
 
 internal/config/
   config.go      # ユーザ設定 config.toml の XDG パス解決 + Load。flag のデフォルトに流し込む
+  keys.go        # 既知キーのレジストリ (fields) + Keys/Get/Set/All/ValueCandidates。config サブコマンドと補完が参照する単一情報源
 
 internal/cachepath/
   cachepath.go   # キャッシュ配置 (XDG_CACHE_HOME / ~/.cache / atcoder-tools 配下) の解決
@@ -62,6 +63,8 @@ cmd/atcoder  ──▶  internal/testexec  ──▶  internal/runner
 > `internal/watch` は `testexec` / `ui` に依存しない単一ファイル監視の小さな層。watch ループ自体 (実行 → 待機 → 再実行) は composition root の `cmd/atcoder/test.go` が持ち、`testexec.Run` を反復呼び出しする。
 >
 > `internal/config` は `internal/cachepath` (キャッシュ配置) と対をなすユーザ設定の層。`config.Load()` の結果を composition root が flag のデフォルト値に流し込むことで `flag > config > default` の優先順位を実現する。`testexec` 等のドメイン層は config を知らない。
+>
+> `atcoder config` サブコマンド (`cmd/atcoder/config.go`) は `internal/config` の**キーレジストリ** (`keys.go` の `fields`) を介して設定を閲覧・編集する。既知キー・型・値候補をこのレジストリ 1 か所に集約し、`config get/set/show` とシェル補完 (`internal/complete`) が同じ表を参照する (キー追加 = `fields` に 1 行)。`set` は未知キー保全のため struct ではなく汎用 `map[string]any` で読み書きする。
 
 - 矢印は import 方向。
 - `cmd/atcoder` (composition root) のみが全 internal パッケージを import し、結線する。

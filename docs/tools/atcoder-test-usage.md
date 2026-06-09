@@ -253,6 +253,31 @@ side_by_side = true   # diff を常に side-by-side で表示 (-s 相当)
 |---|---|---|---|---|
 | `test.side_by_side` | bool | `false` | `-s` / `--side-by-side` | FAIL 時の diff を side-by-side でレンダリングする既定値 |
 
+### `atcoder config` で設定をいじる
+
+`config.toml` を手で開かなくても、`atcoder config` サブコマンドで閲覧・編集できる。
+
+```sh
+atcoder config show                        # 既知キーと現在値を一覧
+atcoder config get test.side_by_side       # 1 キーの現在値を出力
+atcoder config set test.side_by_side true  # 書き込み (config.toml を作成/更新)
+atcoder config path                        # config.toml の絶対パスを出力
+```
+
+```
+$ atcoder config show
+test.side_by_side = false
+$ atcoder config set test.side_by_side true
+set test.side_by_side = true  (/Users/you/.config/atcoder-daily-training/config.toml)
+$ atcoder config get test.side_by_side
+true
+```
+
+- キーは **`<section>.<field>`** のドット区切り (例 `test.side_by_side`)。指定できるキーは上表のとおり (`config show` でも一覧できる)。
+- `set` は `config.toml` が無ければ親ディレクトリごと作成し、**既存の他キー・未知キー・他セクションは保全**して該当キーだけ更新する。
+- **未知キー・型に合わない値・未知サブコマンド・引数不足は `exit 2`**、`config.toml` の書き込み失敗は `exit 1`。
+- `set` した値は次回以降の `atcoder test` が読む (優先順位 `flag > config > default` は上記のまま)。
+
 ## 制約事項 (現時点)
 
 - 対応言語は Python のみ。
