@@ -373,11 +373,12 @@ func renderSBContextSide(line string, width int) string {
 }
 
 // renderSBPairSide は paired diff の半側を返す。SBS では sign が中央 sigil に
-// 集約されているので各側は **本文のみ** を返す (intra-line emph はそのまま)。
+// 集約されているので各側は **本文のみ** を返す。SBS は行 bg を持たないので、
+// intra-line emph は背景なし fg only スタイル (*FgStyle) を使う。
 func renderSBPairSide(ops []diffOp, minus bool, width int) string {
-	emphStyle := diffPlusEmphStyle
+	emphStyle := diffPlusEmphFgStyle
 	if minus {
-		emphStyle = diffMinusEmphStyle
+		emphStyle = diffMinusEmphFgStyle
 	}
 	var sb strings.Builder
 	first := true

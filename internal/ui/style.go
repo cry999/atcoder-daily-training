@@ -66,8 +66,13 @@ var (
 	diffGutterStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaSurface2))
 	diffMinusLineStyle = lipgloss.NewStyle().Background(lipgloss.Color(diffMinusBg)).Foreground(lipgloss.Color(mochaText))
 	diffPlusLineStyle  = lipgloss.NewStyle().Background(lipgloss.Color(diffPlusBg)).Foreground(lipgloss.Color(mochaText))
-	diffMinusEmphStyle = lipgloss.NewStyle().Background(lipgloss.Color(mochaRed)).Foreground(lipgloss.Color(mochaBase)).Bold(true)
-	diffPlusEmphStyle  = lipgloss.NewStyle().Background(lipgloss.Color(mochaGreen)).Foreground(lipgloss.Color(mochaBase)).Bold(true)
+	// intra-line emph: 差分のあった token を「文字色」で強調する。
+	// unified diff は行全体に lineBg が乗っているので、その上で fg だけ
+	// red/green に上書きする。SBS は行 bg を持たないので *FgStyle を使う。
+	diffMinusEmphStyle   = lipgloss.NewStyle().Background(lipgloss.Color(diffMinusBg)).Foreground(lipgloss.Color(mochaRed)).Bold(true)
+	diffPlusEmphStyle    = lipgloss.NewStyle().Background(lipgloss.Color(diffPlusBg)).Foreground(lipgloss.Color(mochaGreen)).Bold(true)
+	diffMinusEmphFgStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaRed)).Bold(true)
+	diffPlusEmphFgStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaGreen)).Bold(true)
 	diffMinusSignStyle   = lipgloss.NewStyle().Background(lipgloss.Color(diffMinusBg)).Foreground(lipgloss.Color(mochaRed)).Bold(true)
 	diffPlusSignStyle    = lipgloss.NewStyle().Background(lipgloss.Color(diffPlusBg)).Foreground(lipgloss.Color(mochaGreen)).Bold(true)
 	diffMinusSignFgStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaRed)).Bold(true)   // SBS 中央 sigil の "-" 用 (背景なし)
