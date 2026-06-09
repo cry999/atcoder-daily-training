@@ -89,4 +89,11 @@ var (
 	summaryFailStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaRed)).Bold(true)
 
 	infoStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay1)).Italic(true)
+
+	// ライブ進捗表示 (progress.go) 用のスタイル。
+	runningHeaderStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay1)).Italic(true)
+	spinnerStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaSapphire))
+	pendingStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay0))
+	runningStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaSubtext0))
+	countStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaBlue))
 )

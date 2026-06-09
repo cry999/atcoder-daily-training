@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/cry999/atcoder-daily-training/internal/cachepath"
@@ -31,6 +33,7 @@ type Options struct {
 	Debug       bool          // true → DEBUG=1 を子プロセスに渡し、stdout から [DEBUG] 行を除外して比較
 	Cases       []string      // 非空ならこの名前 (例: "01", "03") のケースだけ実行。数値のみは 2 桁ゼロ埋めに正規化
 	Tolerance   float64       // float トークン比較の絶対 / 相対誤差。0 以下なら DefaultTolerance を使う
+	Concurrency int           // 同時に実行するケース数。0 以下なら runtime.NumCPU() (ケース数で頭打ち)
 	ExecutorFor ExecutorFor
 	Reporter    Reporter
 }
@@ -93,19 +96,60 @@ func Run(opts Options) (int, error) {
 		extraEnv = []string{"DEBUG=1"}
 	}
 
+	// 各ケースは独立 (共有状態なし、Executor.Run は毎回別プロセスを起動) なので、
+	// 上限付きワーカープールで並列に実行する。結果は元の並び (names 順) を保つ。
+	concurrency := opts.Concurrency
+	if concurrency <= 0 {
+		concurrency = runtime.NumCPU()
+	}
+	if concurrency > len(names) {
+		concurrency = len(names)
+	}
+
+	opts.Reporter.Begin(names, concurrency)
+
+	results := make([]CaseResult, len(names))
+	var (
+		wg       sync.WaitGroup
+		mu       sync.Mutex // firstErr を保護する
+		firstErr error
+		sem      = make(chan struct{}, concurrency)
+	)
+	for i, name := range names {
+		wg.Add(1)
+		go func(i int, name string) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			opts.Reporter.CaseStarted(name)
+			cr, err := runCase(executor, extraEnv, opts.Debug, tolerance, solutionPath, testsDir, name, timeout)
+			if err != nil {
+				mu.Lock()
+				if firstErr == nil {
+					firstErr = err
+				}
+				mu.Unlock()
+				return
+			}
+			cr.OriginalLimitMs = mta.TimeLimitMs
+			results[i] = cr
+			opts.Reporter.CaseFinished(cr)
+		}(i, name)
+	}
+	wg.Wait()
+
+	opts.Reporter.End(results)
+	if firstErr != nil {
+		return 1, firstErr
+	}
+
 	passed := 0
-	for _, name := range names {
-		cr, err := runCase(executor, extraEnv, opts.Debug, tolerance, solutionPath, testsDir, name, timeout)
-		if err != nil {
-			return 1, err
-		}
-		cr.OriginalLimitMs = mta.TimeLimitMs
-		opts.Reporter.Case(cr)
+	for _, cr := range results {
 		if cr.Status == Pass {
 			passed++
 		}
 	}
-
 	opts.Reporter.Summary(passed, len(names))
 	if passed != len(names) {
 		return 1, nil

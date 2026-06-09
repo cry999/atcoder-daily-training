@@ -243,5 +243,8 @@ type quietReporter struct{}
 
 func (quietReporter) Fetching(contest, task string)                                                {}
 func (quietReporter) Header(task, contest string, timeLimitMs, timeoutMs, ntests int, tol float64) {}
-func (quietReporter) Case(cr testexec.CaseResult)                                                  {}
+func (quietReporter) Begin(names []string, jobs int)                                               {}
+func (quietReporter) CaseStarted(name string)                                                      {}
+func (quietReporter) CaseFinished(cr testexec.CaseResult)                                          {}
+func (quietReporter) End(results []testexec.CaseResult)                                            {}
 func (quietReporter) Summary(passed, total int)                                                    {}

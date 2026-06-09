@@ -2,9 +2,13 @@ package ui
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"golang.org/x/term"
 
 	"github.com/cry999/atcoder-daily-training/internal/runexec"
 	"github.com/cry999/atcoder-daily-training/internal/testexec"
@@ -13,10 +17,21 @@ import (
 type TestReporter struct {
 	verbose    bool
 	sideBySide bool
+
+	// live は stdout が端末のときだけ true。true ならテスト実行中に bubbletea で
+	// ライブ表示 (ケース一覧 + プログレスバー) を出す。パイプ/CI のときは false で、
+	// End() で結果をまとめてプレーン出力する。
+	live    bool
+	program *tea.Program
+	done    chan struct{}
 }
 
 func NewTestReporter(verbose, sideBySide bool) *TestReporter {
-	return &TestReporter{verbose: verbose, sideBySide: sideBySide}
+	return &TestReporter{
+		verbose:    verbose,
+		sideBySide: sideBySide,
+		live:       term.IsTerminal(int(os.Stdout.Fd())),
+	}
 }
 
 func (r *TestReporter) Fetching(contest, task string) {
@@ -49,17 +64,75 @@ func formatTolerance(t float64) string {
 	return s
 }
 
-func (r *TestReporter) Case(cr testexec.CaseResult) {
-	elapsedText := elapsedStyle.Render(fmt.Sprintf("%d ms", cr.Elapsed.Milliseconds()))
-	if cr.Status == testexec.Pass && cr.OriginalLimitMs > 0 &&
-		cr.Elapsed > time.Duration(cr.OriginalLimitMs)*time.Millisecond {
-		elapsedText += "  " + overLimitStyle.Render(fmt.Sprintf("(over original %dms)", cr.OriginalLimitMs))
+// Begin はライブ表示を開始する (live のときのみ)。bubbletea プログラムを別
+// goroutine で走らせ、CaseStarted / CaseFinished で送られるイベントを描画する。
+func (r *TestReporter) Begin(names []string, jobs int) {
+	if !r.live {
+		return
 	}
-	fmt.Printf("%s %s  %s\n",
-		caseLabelStyle.Render("["+cr.Name+"]"),
-		statusBadge(cr.Status),
-		elapsedText,
-	)
+	r.program = tea.NewProgram(newProgressModel(names, jobs))
+	r.done = make(chan struct{})
+	go func() {
+		_, _ = r.program.Run()
+		close(r.done)
+	}()
+}
+
+// CaseStarted / CaseFinished はワーカー goroutine から並列に呼ばれる。
+// program.Send はスレッドセーフ。
+func (r *TestReporter) CaseStarted(name string) {
+	if !r.live {
+		return
+	}
+	r.program.Send(caseStartedMsg{name: name})
+}
+
+func (r *TestReporter) CaseFinished(cr testexec.CaseResult) {
+	if !r.live {
+		return
+	}
+	r.program.Send(caseFinishedMsg{cr: cr})
+}
+
+// End はライブ表示を終了させ、各ケースの詳細 (verbose の入出力 / debug / diff /
+// stderr) をケース名順に出力する。
+//   - live のとき: ライブのグリッドに既に各ケースの 1 行サマリが残っているので、
+//     ここでは「追加情報を持つケース」だけ [NN] 行 + 詳細を出す。
+//   - 非 live のとき: 各ケースの 1 行サマリと詳細を順に出す (従来の挙動)。
+//
+// results にはエラーで実行できなかったケースの zero 値 (Name=="") が混じりうる
+// ため、Name 空はスキップする。
+func (r *TestReporter) End(results []testexec.CaseResult) {
+	if r.live {
+		r.program.Quit()
+		<-r.done
+	}
+	wroteSeparator := false
+	for _, cr := range results {
+		if cr.Name == "" {
+			continue
+		}
+		if r.live {
+			if !r.caseHasDetail(cr) {
+				continue
+			}
+			if !wroteSeparator {
+				fmt.Println()
+				wroteSeparator = true
+			}
+		}
+		fmt.Println(caseLineString(cr))
+		r.printCaseDetail(cr)
+	}
+}
+
+// caseHasDetail はライブ表示後に追加で詳細を出す価値があるか (FAIL の diff、
+// RE の stderr、verbose の入出力、debug 行) を返す。
+func (r *TestReporter) caseHasDetail(cr testexec.CaseResult) bool {
+	return r.verbose || cr.Debug != "" || cr.Status == testexec.Fail || cr.Status == testexec.RE
+}
+
+func (r *TestReporter) printCaseDetail(cr testexec.CaseResult) {
 	if r.verbose {
 		printContent("input:", cr.Input)
 		printContent("output:", cr.Actual)
@@ -75,6 +148,21 @@ func (r *TestReporter) Case(cr testexec.CaseResult) {
 	case testexec.RE:
 		printStderr(cr.Stderr)
 	}
+}
+
+// caseLineString は "[NN] BADGE  elapsed (over ...)" の 1 行を返す (改行なし)。
+// ライブグリッドの完了行と End() のプレーン出力で共用する。
+func caseLineString(cr testexec.CaseResult) string {
+	elapsedText := elapsedStyle.Render(fmt.Sprintf("%d ms", cr.Elapsed.Milliseconds()))
+	if cr.Status == testexec.Pass && cr.OriginalLimitMs > 0 &&
+		cr.Elapsed > time.Duration(cr.OriginalLimitMs)*time.Millisecond {
+		elapsedText += "  " + overLimitStyle.Render(fmt.Sprintf("(over original %dms)", cr.OriginalLimitMs))
+	}
+	return fmt.Sprintf("%s %s  %s",
+		caseLabelStyle.Render("["+cr.Name+"]"),
+		statusBadge(cr.Status),
+		elapsedText,
+	)
 }
 
 func printContent(label, body string) {

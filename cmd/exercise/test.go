@@ -38,6 +38,9 @@ func cmdTest(args []string) (int, error) {
 	flags.BoolVar(&sideBySide, "s", false, "Show diff side-by-side (expected on left, actual on right)")
 	flags.BoolVar(&sideBySide, "side-by-side", false, "Show diff side-by-side (expected on left, actual on right)")
 	layoutFlag := flags.String("layout", "auto", "Solution file layout (auto, abc, exercise). auto picks abc for abc<NNN>, exercise otherwise.")
+	var jobs int
+	flags.IntVar(&jobs, "jobs", 0, "Number of test cases to run in parallel. 0 → number of CPUs (capped at the case count).")
+	flags.IntVar(&jobs, "j", 0, "Number of test cases to run in parallel. 0 → number of CPUs (capped at the case count).")
 	flags.SetOutput(os.Stderr)
 
 	if err := flags.Parse(args[1:]); err != nil {
@@ -75,6 +78,7 @@ func cmdTest(args []string) (int, error) {
 		Debug:       debug,
 		Cases:       cases,
 		Tolerance:   *tolFlag,
+		Concurrency: jobs,
 		ExecutorFor: selectExecutor,
 		Reporter:    ui.NewTestReporter(verbose, sideBySide),
 	})
