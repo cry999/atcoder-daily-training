@@ -63,3 +63,5 @@ When adding a solution, match the layout already in use for that sub-tree (don't
   ```
 
   Worktree path convention: sibling to the main checkout under `../atcoder-daily-training.worktrees/<branch>/`. One worktree per coherent task; don't reuse worktrees across unrelated changes.
+
+- **Manage TODOs in `docs/tools/todo.md`.** Ongoing tasks and improvement ideas for the `atcoder` tool are tracked there (ABC 本番対応のロードマップは `docs/tools/abc-todo.md`). When adding, picking up, or completing a TODO, update that file rather than tracking it elsewhere.
