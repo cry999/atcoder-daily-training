@@ -19,13 +19,14 @@ func cmdLogin(args []string) (int, error) {
 	flags := flag.NewFlagSet("login", flag.ContinueOnError)
 	userFlag := flags.String("user", "", "AtCoder username (省略時は対話入力)")
 	pwStdin := flags.Bool("password-stdin", false, "パスワードを stdin から読む (非対話)")
+	showPw := flags.Bool("show-password", false, "パスワードを画面に表示しながら入力する (デバッグ用)")
 	flags.SetOutput(os.Stderr)
 	if err := flags.Parse(args); err != nil {
 		return 2, err
 	}
 
 	user := *userFlag
-	password, err := readPassword(*pwStdin, &user)
+	password, err := readPassword(*pwStdin, *showPw, &user)
 	if err != nil {
 		return passwordErrCode(err), err
 	}
@@ -78,7 +79,8 @@ func passwordErrCode(err error) int {
 
 // readPassword はユーザ名 (未指定なら対話で補完) とパスワードを取得する。
 // --password-stdin 時は stdin からパスワードを読み、ユーザ名は --user 必須。
-func readPassword(pwStdin bool, user *string) (string, error) {
+// showPw 時は端末からパスワードを表示しながら読み、入力値を確認表示する (デバッグ用)。
+func readPassword(pwStdin, showPw bool, user *string) (string, error) {
 	if pwStdin {
 		if *user == "" {
 			return "", errNeedUser
@@ -90,20 +92,33 @@ func readPassword(pwStdin bool, user *string) (string, error) {
 		return strings.TrimRight(string(b), "\r\n"), nil
 	}
 
-	// 対話入力。ユーザ名が未指定ならまず尋ねる。
+	// 対話入力。ユーザ名が未指定ならまず尋ねる (show/非 show 共通の scanner)。
+	sc := bufio.NewScanner(os.Stdin)
 	if *user == "" {
 		if !term.IsTerminal(int(os.Stdin.Fd())) {
 			return "", errNeedTTY
 		}
 		fmt.Fprint(os.Stderr, "Username: ")
-		sc := bufio.NewScanner(os.Stdin)
 		if sc.Scan() {
 			*user = strings.TrimSpace(sc.Text())
 		}
 	}
+
 	if !term.IsTerminal(int(os.Stdin.Fd())) {
 		return "", errNeedTTY
 	}
+
+	if showPw {
+		// デバッグ用: パスワードを画面に表示しながら入力し、入力値を確認表示する。
+		fmt.Fprint(os.Stderr, "Password (※画面に表示されます): ")
+		pw := ""
+		if sc.Scan() {
+			pw = sc.Text()
+		}
+		fmt.Fprintf(os.Stderr, "[debug] user=%q password=%q (len=%d)\n", *user, pw, len(pw))
+		return pw, nil
+	}
+
 	fmt.Fprint(os.Stderr, "Password: ")
 	b, err := term.ReadPassword(int(os.Stdin.Fd()))
 	fmt.Fprintln(os.Stderr)

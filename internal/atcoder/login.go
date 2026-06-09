@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -17,6 +18,14 @@ const (
 	loginURL  = baseURL + "/login"
 	userAgent = "atcoder-status/0.1 (+https://github.com/cry999/atcoder-daily-training)"
 )
+
+// dbg は ATCODER_DEBUG が設定されているときだけ stderr に診断行を出す。
+// 秘密情報 (パスワード・cookie 値) は出さない。
+func dbg(format string, a ...any) {
+	if os.Getenv("ATCODER_DEBUG") != "" {
+		fmt.Fprintf(os.Stderr, "[atcoder-debug] "+format+"\n", a...)
+	}
+}
 
 // Login は username/password で AtCoder にログインし、認証済み Session を返す。
 // パスワードは内部でのみ使い、戻り値には含めない (cookie だけを保持する)。
@@ -65,6 +74,7 @@ func Login(user, password string) (*Session, error) {
 		return nil, fmt.Errorf("ログインリクエストに失敗: %w", err)
 	}
 	resp.Body.Close()
+	dbg("POST /login -> %d Location=%q", resp.StatusCode, resp.Header.Get("Location"))
 
 	// 成功/失敗いずれも AtCoder は 302 を返す (成功は / へ、失敗は /login へ)。
 	// 4xx/5xx が返るのは資格情報以前の拒否 (CSRF/ヘッダ不備・レート制限等) なので、
@@ -103,6 +113,7 @@ func fetchCSRFToken(client *http.Client) (string, error) {
 		return "", fmt.Errorf("ログインページの取得に失敗: %w", err)
 	}
 	defer resp.Body.Close()
+	dbg("GET /login -> %d", resp.StatusCode)
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("ログインページの取得に失敗: 予期しないステータス %d", resp.StatusCode)
 	}
@@ -111,7 +122,9 @@ func fetchCSRFToken(client *http.Client) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("ログインページの解析に失敗: %w", err)
 	}
-	return extractCSRF(doc)
+	token, err := extractCSRF(doc)
+	dbg("csrf_token found=%t len=%d", err == nil, len(token))
+	return token, err
 }
 
 // extractCSRF はパース済みのログインフォームから隠し csrf_token を取り出す純粋関数。
@@ -141,6 +154,7 @@ func loggedIn(client *http.Client) (bool, error) {
 		return false, fmt.Errorf("ログイン状態の確認に失敗: %w", err)
 	}
 	defer resp.Body.Close()
+	dbg("GET /settings -> %d Location=%q", resp.StatusCode, resp.Header.Get("Location"))
 	// 未ログインだと /login へ 302。ログイン済みなら 200。
 	return resp.StatusCode == http.StatusOK, nil
 }
