@@ -78,7 +78,11 @@ const zshCompletion = `#compdef atcoder
 _atcoder() {
   local -a lines described plain
   local line val desc
-  lines=(${(f)"$(atcoder __complete -- ${words[2,$CURRENT]})"})
+  # 補完中の単語が空 (例: atcoder test <TAB>) でも、その空トークンを __complete に
+  # 渡さねば位置を誤判定する。${words[...]} を unquoted で渡すと zsh が空要素を落とし、
+  # サブコマンド位置と誤認してサブコマンドを候補にしてしまうため、"${(@)...}" で
+  # 空要素を保持して渡す。
+  lines=(${(f)"$(atcoder __complete -- "${(@)words[2,$CURRENT]}")"})
   for line in $lines; do
     if [[ $line == *$'\t'* ]]; then
       val=${line%%$'\t'*}

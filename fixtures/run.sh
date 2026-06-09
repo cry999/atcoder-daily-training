@@ -332,6 +332,31 @@ GOPROXY=off GONOPROXY=none run_case "update --check (proxy off → exit 1)" 1 up
 run_case "update --local --check (reject)" 2 update --local --check
 GOBIN="$(mktemp -d)" run_case "update --local outside a module (exit 1)" 1 update --local
 
+# zsh 補完の regression: サブコマンドの次の位置引数 (例 `atcoder test <TAB>`) で、
+# 補完中の空トークンが __complete に渡るか。旧 `${words[2,$CURRENT]}` (unquoted) は
+# 空要素を落とし、位置をサブコマンド位置と誤判定してサブコマンドを候補にしていた。
+# 修正は `"${(@)words[2,$CURRENT]}"` で空要素を保持すること。
+echo
+echo "=== zsh completion: positional after a subcommand must not offer subcommands ==="
+if command -v zsh >/dev/null 2>&1; then
+    zsh_cands=$(BIN="$BIN" zsh -c '
+        compdef(){ : }
+        compadd(){ while (( $# )); do [[ $1 == "--" ]] && { shift; break }; [[ $1 == -* ]] || break; shift; done; print -rl -- "$@" }
+        _describe(){ shift; local -a a; eval "a=(\"\${${1}[@]}\")"; print -rl -- "${a[@]%%:*}" }
+        source <($BIN completion zsh)
+        words=(atcoder test ""); CURRENT=3
+        _atcoder
+    ' 2>/dev/null) || true
+    if printf "%s\n" "$zsh_cands" | grep -qxE "new|test|login|logout|status|stats|config|commit|completion|update|version|review"; then
+        echo "  ✗ subcommand offered at the <contest> position (empty current word dropped)"
+        failures=$((failures + 1))
+    else
+        echo "  ✓ no subcommand leak (offered: $(printf "%s " $zsh_cands | head -c 50))"
+    fi
+else
+    echo "  (zsh not installed; skipping)"
+fi
+
 echo
 if [[ "$failures" -gt 0 ]]; then
     echo "${failures} case(s) failed"
