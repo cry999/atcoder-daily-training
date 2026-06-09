@@ -40,8 +40,9 @@ const FileName = "config.toml"
 // 先に書く必要があるため、struct でも Test セクションより前に declare する。
 // 空 ("") は未設定で、layout.Resolve が auto にフォールバックする。
 type Config struct {
-	Layout string     `toml:"layout,omitempty"`
-	Test   TestConfig `toml:"test"`
+	Layout string            `toml:"layout,omitempty"`
+	Test   TestConfig        `toml:"test"`
+	Alias  map[string]string `toml:"alias"` // [alias] 名前→コマンド列 (git 風 alias)
 }
 
 // TestConfig は [test] セクション。atcoder test の既定値。

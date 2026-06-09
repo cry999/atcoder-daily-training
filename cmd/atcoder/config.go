@@ -3,18 +3,20 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/cry999/atcoder-daily-training/internal/config"
 )
 
-// cmdConfig は `atcoder config <show|get|set|path>` を処理し、ユーザ設定
-// (config.toml) の閲覧・編集を行う。
+// cmdConfig は `atcoder config <show|get|set|unset|path>` を処理し、ユーザ設定
+// (config.toml) の閲覧・編集を行う。alias.<name> キーで git 風 alias も管理する。
 //
 // exit code: 引数誤り / 未知キー / 型不一致 / 既存 config の文法エラー = 2、
 // config.toml の書き込み失敗 = 1、成功 = 0。
 func cmdConfig(args []string) (int, error) {
 	if len(args) == 0 {
-		return 2, errors.New("usage: atcoder config <show|get|set|path>")
+		return 2, errors.New("usage: atcoder config <show|get|set|unset|path>")
 	}
 	switch args[0] {
 	case "show":
@@ -23,11 +25,13 @@ func cmdConfig(args []string) (int, error) {
 		return configGet(args[1:])
 	case "set":
 		return configSet(args[1:])
+	case "unset":
+		return configUnset(args[1:])
 	case "path":
 		fmt.Println(config.Path())
 		return 0, nil
 	default:
-		return 2, fmt.Errorf("unknown config subcommand: %s (want show, get, set, or path)", args[0])
+		return 2, fmt.Errorf("unknown config subcommand: %s (want show, get, set, unset, or path)", args[0])
 	}
 }
 
@@ -70,6 +74,27 @@ func configSet(args []string) (int, error) {
 		}
 		return 1, err
 	}
+	// 組み込みサブコマンド名の alias は dispatch で常に無視される。保存は許すが警告する。
+	if name, ok := strings.CutPrefix(key, "alias."); ok && isBuiltin(name) {
+		fmt.Fprintf(os.Stderr, "warning: alias %q shadows a built-in command and will be ignored\n", name)
+	}
 	fmt.Printf("set %s = %s  (%s)\n", key, value, config.Path())
+	return 0, nil
+}
+
+func configUnset(args []string) (int, error) {
+	if len(args) < 1 {
+		return 2, errors.New("usage: atcoder config unset <key>")
+	}
+	key := args[0]
+	if err := config.Unset(key); err != nil {
+		if errors.Is(err, config.ErrUnknownKey) ||
+			errors.Is(err, config.ErrInvalidValue) ||
+			errors.Is(err, config.ErrParse) {
+			return 2, err
+		}
+		return 1, err
+	}
+	fmt.Printf("unset %s  (%s)\n", key, config.Path())
 	return 0, nil
 }

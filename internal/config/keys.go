@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -12,6 +13,22 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/cry999/atcoder-daily-training/internal/layout"
 )
+
+// aliasPrefix は config 上の alias キーの接頭辞 (例 "alias.upd-lo")。
+const aliasPrefix = "alias."
+
+// aliasNameRE は alias 名 (alias.<name> の <name>) の許容パターン。英数字・- ・_。
+var aliasNameRE = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
+
+// aliasName は key が alias キーなら <name> を返す。ok は名前が妥当か。
+// key が alias 接頭辞を持たないときは name="" ok=false。
+func aliasName(key string) (name string, isAlias, ok bool) {
+	if !strings.HasPrefix(key, aliasPrefix) {
+		return "", false, false
+	}
+	name = key[len(aliasPrefix):]
+	return name, true, name != "" && aliasNameRE.MatchString(name)
+}
 
 // 設定キーの操作で返す sentinel error。呼び出し側 (cmd/atcoder/config.go) が
 // exit code を分類するのに使う: ErrUnknownKey / ErrInvalidValue / ErrParse は
@@ -103,7 +120,22 @@ func Keys() []string {
 
 // Get は key の現在値 (config.toml 反映後、無ければ既定値) を文字列で返す。
 // 未知キーは ErrUnknownKey、既存 config の文法エラーは ErrParse。
+// key が "alias.<name>" なら [alias] から引く (未定義は ErrUnknownKey)。
 func Get(key string) (string, error) {
+	if name, isAlias, ok := aliasName(key); isAlias {
+		if !ok {
+			return "", fmt.Errorf("%w: %s (alias 名は英数字・-・_ のみ)", ErrInvalidValue, key)
+		}
+		aliases, err := Aliases()
+		if err != nil {
+			return "", err
+		}
+		v, found := aliases[name]
+		if !found {
+			return "", fmt.Errorf("%w: %s", ErrUnknownKey, key)
+		}
+		return v, nil
+	}
 	f := lookup(key)
 	if f == nil {
 		return "", fmt.Errorf("%w: %s (known: %s)", ErrUnknownKey, key, strings.Join(Keys(), ", "))
@@ -115,15 +147,50 @@ func Get(key string) (string, error) {
 	return f.repr(cfg), nil
 }
 
+// Aliases は [alias] テーブル (名前→コマンド列) を返す。未設定なら空 map。
+func Aliases() (map[string]string, error) {
+	cfg, err := Load()
+	if err != nil {
+		return nil, err
+	}
+	if cfg.Alias == nil {
+		return map[string]string{}, nil
+	}
+	return cfg.Alias, nil
+}
+
+// AliasKeys は補完用に "alias.<name>" を名前順で返す。
+func AliasKeys() ([]string, error) {
+	aliases, err := Aliases()
+	if err != nil {
+		return nil, err
+	}
+	out := make([]string, 0, len(aliases))
+	for n := range aliases {
+		out = append(out, aliasPrefix+n)
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
 // All は全既知キーと現在値の組をキー順で返す (config show 用)。
+// typed キーに続けて [alias] エントリ ("alias.<name>") を名前順で並べる。
 func All() ([]KeyValue, error) {
 	cfg, err := Load()
 	if err != nil {
 		return nil, err
 	}
-	out := make([]KeyValue, 0, len(fields))
+	out := make([]KeyValue, 0, len(fields)+len(cfg.Alias))
 	for _, k := range Keys() {
 		out = append(out, KeyValue{Key: k, Value: lookup(k).repr(cfg)})
+	}
+	names := make([]string, 0, len(cfg.Alias))
+	for n := range cfg.Alias {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	for _, n := range names {
+		out = append(out, KeyValue{Key: aliasPrefix + n, Value: cfg.Alias[n]})
 	}
 	return out, nil
 }
@@ -135,6 +202,17 @@ func All() ([]KeyValue, error) {
 // エラー: 未知キーは ErrUnknownKey、値が型に合わなければ ErrInvalidValue、
 // 既存ファイルの文法エラーは ErrParse、書き込み失敗はそのまま (= 実行時エラー)。
 func Set(key, raw string) error {
+	if name, isAlias, ok := aliasName(key); isAlias {
+		if !ok {
+			return fmt.Errorf("%w: %s (alias 名は英数字・-・_ のみ)", ErrInvalidValue, key)
+		}
+		m, err := loadRaw()
+		if err != nil {
+			return err
+		}
+		setNested(m, []string{"alias", name}, raw)
+		return saveRaw(m)
+	}
 	f := lookup(key)
 	if f == nil {
 		return fmt.Errorf("%w: %s (known: %s)", ErrUnknownKey, key, strings.Join(Keys(), ", "))
@@ -146,6 +224,38 @@ func Set(key, raw string) error {
 	if err := f.set(m, raw); err != nil {
 		return err
 	}
+	return saveRaw(m)
+}
+
+// Unset は key を config.toml から削除する。
+//   - "alias.<name>": [alias] から該当エントリを削除。未定義は ErrUnknownKey。
+//   - typed キー: 上書きを消して既定値に戻す (未設定でも既知キーなら no-op で成功)。
+//   - それ以外の未知キー: ErrUnknownKey。
+//
+// 書き込み失敗はそのまま (= 実行時エラー)。
+func Unset(key string) error {
+	if name, isAlias, ok := aliasName(key); isAlias {
+		if !ok {
+			return fmt.Errorf("%w: %s (alias 名は英数字・-・_ のみ)", ErrInvalidValue, key)
+		}
+		m, err := loadRaw()
+		if err != nil {
+			return err
+		}
+		if !unsetNested(m, []string{"alias", name}) {
+			return fmt.Errorf("%w: %s", ErrUnknownKey, key)
+		}
+		return saveRaw(m)
+	}
+	f := lookup(key)
+	if f == nil {
+		return fmt.Errorf("%w: %s (known: %s)", ErrUnknownKey, key, strings.Join(Keys(), ", "))
+	}
+	m, err := loadRaw()
+	if err != nil {
+		return err
+	}
+	unsetNested(m, strings.Split(f.key, ".")) // 既知キーは不在でも no-op で成功
 	return saveRaw(m)
 }
 
@@ -191,6 +301,26 @@ func saveRaw(m map[string]any) error {
 	}
 	defer f.Close()
 	return toml.NewEncoder(f).Encode(m)
+}
+
+// unsetNested は m の path で示すエントリを削除する。削除できたら true、
+// 中間テーブルやキーが無ければ false。空になった中間テーブルはそのまま残す
+// (簡潔さ優先。空テーブルは toml に残るが無害)。
+func unsetNested(m map[string]any, path []string) bool {
+	cur := m
+	for _, k := range path[:len(path)-1] {
+		sub, ok := cur[k].(map[string]any)
+		if !ok {
+			return false
+		}
+		cur = sub
+	}
+	last := path[len(path)-1]
+	if _, ok := cur[last]; !ok {
+		return false
+	}
+	delete(cur, last)
+	return true
 }
 
 // setNested は m の path で示すネスト位置に val を置く。中間テーブルが無ければ作る。

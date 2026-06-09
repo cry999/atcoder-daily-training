@@ -60,6 +60,7 @@ var configSubCands = []Candidate{
 	{"path", "print the config file path"},
 	{"set", "change one setting"},
 	{"show", "print all settings"},
+	{"unset", "remove a setting or alias"},
 }
 
 // subcommandCands は補完対象のサブコマンド名 (説明付き)。__complete は隠すので含めない。
@@ -218,13 +219,13 @@ func Tasks(root, contest string) []string {
 // 候補 (説明付き) を返す。__complete の本体。決して error を返さない。
 func Complete(root string, words []string) []Candidate {
 	if len(words) == 0 {
-		return subcommandCands
+		return subcommandCandidates()
 	}
 	cur := words[len(words)-1]
 
-	// サブコマンド位置。
+	// サブコマンド位置。組み込み + config の alias を候補にする。
 	if len(words) == 1 {
-		return filterPrefix(subcommandCands, cur)
+		return filterPrefix(subcommandCandidates(), cur)
 	}
 	sub := words[0]
 
@@ -252,8 +253,8 @@ func Complete(root string, words []string) []Candidate {
 		switch {
 		case len(pos) == 0:
 			return filterPrefix(configSubCands, cur)
-		case len(pos) == 1 && (pos[0] == "get" || pos[0] == "set"):
-			return filterPrefix(plain(config.Keys()), cur)
+		case len(pos) == 1 && (pos[0] == "get" || pos[0] == "set" || pos[0] == "unset"):
+			return filterPrefix(plain(configKeys()), cur)
 		case len(pos) == 2 && pos[0] == "set":
 			return filterPrefix(plain(config.ValueCandidates(pos[1])), cur)
 		}
@@ -351,6 +352,46 @@ func plain(values []string) []Candidate {
 		out[i] = Candidate{Value: v}
 	}
 	return out
+}
+
+// subcommandCandidates は組み込みサブコマンドに config の alias を足した候補を返す。
+func subcommandCandidates() []Candidate {
+	return append(append([]Candidate{}, subcommandCands...), aliasCands()...)
+}
+
+// aliasCands は config の [alias] を補完候補にする (説明は展開先)。組み込みと
+// 同名の alias は dispatch で無視されるので候補から除く。config エラーは無視。
+func aliasCands() []Candidate {
+	aliases, err := config.Aliases()
+	if err != nil || len(aliases) == 0 {
+		return nil
+	}
+	builtin := make(map[string]bool, len(subcommandCands))
+	for _, c := range subcommandCands {
+		builtin[c.Value] = true
+	}
+	names := make([]string, 0, len(aliases))
+	for n := range aliases {
+		if !builtin[n] {
+			names = append(names, n)
+		}
+	}
+	sort.Strings(names)
+	out := make([]Candidate, 0, len(names))
+	for _, n := range names {
+		out = append(out, Candidate{Value: n, Desc: "alias → " + aliases[n]})
+	}
+	return out
+}
+
+// configKeys は config の typed キーに既存 alias キー (alias.<name>) を足して返す
+// (get/set/unset のキー補完用)。AliasKeys のエラーは無視。
+func configKeys() []string {
+	keys := config.Keys()
+	if ak, err := config.AliasKeys(); err == nil {
+		keys = append(keys, ak...)
+	}
+	return keys
 }
 
 // values は Candidate スライスから Value だけを取り出す。

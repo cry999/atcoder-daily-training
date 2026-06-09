@@ -201,3 +201,67 @@ func TestPathShape(t *testing.T) {
 		t.Fatalf("Path() = %q, want %q", Path(), want)
 	}
 }
+
+// alias.<name> は set → get で往復でき、config.toml の [alias] に書かれる。
+func TestAliasSetGetUnset(t *testing.T) {
+	writeConfig(t, "")
+	if err := Set("alias.upd-lo", "update --local"); err != nil {
+		t.Fatalf("Set alias failed: %v", err)
+	}
+	v, err := Get("alias.upd-lo")
+	if err != nil || v != "update --local" {
+		t.Fatalf("Get alias = %q, %v; want %q", v, err, "update --local")
+	}
+	// Aliases() に反映される。
+	aliases, err := Aliases()
+	if err != nil || aliases["upd-lo"] != "update --local" {
+		t.Fatalf("Aliases() = %v, %v", aliases, err)
+	}
+	// show (All) に alias.<name> が出る。
+	all, _ := All()
+	var sawAlias bool
+	for _, kv := range all {
+		if kv.Key == "alias.upd-lo" && kv.Value == "update --local" {
+			sawAlias = true
+		}
+	}
+	if !sawAlias {
+		t.Errorf("All() should include alias.upd-lo; got %v", all)
+	}
+	// unset で消える。
+	if err := Unset("alias.upd-lo"); err != nil {
+		t.Fatalf("Unset alias failed: %v", err)
+	}
+	if _, err := Get("alias.upd-lo"); !errors.Is(err, ErrUnknownKey) {
+		t.Errorf("Get after unset err = %v, want ErrUnknownKey", err)
+	}
+}
+
+// 既存の typed セクションを保全しつつ alias を足す。
+func TestAliasPreservesTypedKeys(t *testing.T) {
+	writeConfig(t, "[test]\nside_by_side = true\n")
+	if err := Set("alias.t", "test"); err != nil {
+		t.Fatalf("Set alias failed: %v", err)
+	}
+	if v, _ := Get("test.side_by_side"); v != "true" {
+		t.Errorf("typed key clobbered by alias set: side_by_side = %q, want true", v)
+	}
+}
+
+// 不正な alias 名は ErrInvalidValue。
+func TestAliasInvalidName(t *testing.T) {
+	writeConfig(t, "")
+	for _, key := range []string{"alias.", "alias.a.b", "alias.has space", "alias.dot.dot"} {
+		if err := Set(key, "test"); !errors.Is(err, ErrInvalidValue) {
+			t.Errorf("Set(%q) err = %v, want ErrInvalidValue", key, err)
+		}
+	}
+}
+
+// 未定義 alias の unset / get は ErrUnknownKey。
+func TestAliasUnsetUnknown(t *testing.T) {
+	writeConfig(t, "")
+	if err := Unset("alias.nope"); !errors.Is(err, ErrUnknownKey) {
+		t.Errorf("Unset(alias.nope) err = %v, want ErrUnknownKey", err)
+	}
+}

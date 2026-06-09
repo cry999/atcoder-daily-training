@@ -17,7 +17,8 @@ func setup(t *testing.T) string {
 	mustTouch(t, filepath.Join(root, "abc", "457", "a.py"))
 	mustTouch(t, filepath.Join(root, "abc", "457", "b.py"))
 	mustMkdir(t, filepath.Join(root, "arc", "180"))
-	t.Setenv("XDG_CACHE_HOME", t.TempDir()) // キャッシュは空に
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())  // キャッシュは空に
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir()) // config (alias 等) も空に隔離
 	return root
 }
 
@@ -117,5 +118,46 @@ func TestCompleteNeverPanics(t *testing.T) {
 		{"completion"},
 	} {
 		_ = Complete(root, words)
+	}
+}
+
+// alias がサブコマンド候補に出て、config unset とそのキー補完が効くこと。
+func TestCompleteAliasAndUnset(t *testing.T) {
+	root := setup(t)
+	cfgDir := filepath.Join(os.Getenv("XDG_CONFIG_HOME"), "atcoder-daily-training")
+	mustMkdir(t, cfgDir)
+	if err := os.WriteFile(filepath.Join(cfgDir, "config.toml"),
+		[]byte("[alias]\nupd-lo = \"update --local\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// サブコマンド位置に alias 名が説明付きで出る。
+	var sawAlias bool
+	for _, c := range Complete(root, []string{"up"}) {
+		if c.Value == "upd-lo" {
+			sawAlias = true
+			if c.Desc == "" {
+				t.Errorf("alias candidate missing description")
+			}
+		}
+	}
+	if !sawAlias {
+		t.Errorf("subcommand completion should include alias 'upd-lo'")
+	}
+
+	// config の sub-subcommand に unset が出る。
+	if got := values(Complete(root, []string{"config", "un"})); !reflect.DeepEqual(got, []string{"unset"}) {
+		t.Errorf("config 'un' completion = %v, want [unset]", got)
+	}
+
+	// config unset のキー補完に alias.upd-lo が出る。
+	var sawKey bool
+	for _, c := range Complete(root, []string{"config", "unset", "alias."}) {
+		if c.Value == "alias.upd-lo" {
+			sawKey = true
+		}
+	}
+	if !sawKey {
+		t.Errorf("config unset key completion should include alias.upd-lo")
 	}
 }

@@ -170,6 +170,28 @@ XDG_CONFIG_HOME="$CFGW" check_output "config get layout reads back abc"   0 has 
 rm -rf "$CFGW"
 export XDG_CONFIG_HOME="$CONFIG_HOME"
 
+# ----- config alias (git 風) -----
+# [alias] に置いた名前で atcoder <name> が展開される。組み込み優先・ループ検出・unset を確認。
+ALIASCFG="$(mktemp -d)"
+XDG_CONFIG_HOME="$ALIASCFG" run_case "config set alias.v = version"        0 config set alias.v version
+# atcoder v → version (組み込み・オフライン)。展開が効いていれば exit 0。
+XDG_CONFIG_HOME="$ALIASCFG" run_case "alias v expands to version"          0 v
+XDG_CONFIG_HOME="$ALIASCFG" check_output "config get alias.v"             0 has "version" -- config get alias.v
+XDG_CONFIG_HOME="$ALIASCFG" check_output "config show lists alias.v"      0 has "alias.v = version" -- config show
+XDG_CONFIG_HOME="$ALIASCFG" run_case "config unset alias.v"               0 config unset alias.v
+XDG_CONFIG_HOME="$ALIASCFG" run_case "config unset alias.nope (undefined)" 2 config unset alias.nope
+XDG_CONFIG_HOME="$ALIASCFG" run_case "config set alias.<bad name> reject"  2 config set "alias.bad name" version
+# 組み込み名の alias は保存できる (警告 stderr) が dispatch では無視される。
+XDG_CONFIG_HOME="$ALIASCFG" run_case "config set alias.test (warns, exit 0)" 0 config set alias.test version
+rm -rf "$ALIASCFG"
+# alias ループ (a→b→a) は exit 2。
+ALIASLOOP="$(mktemp -d)"
+mkdir -p "$ALIASLOOP/atcoder-daily-training"
+printf '[alias]\na = "b"\nb = "a"\n' > "$ALIASLOOP/atcoder-daily-training/config.toml"
+XDG_CONFIG_HOME="$ALIASLOOP" run_case "alias loop (exit 2)"                2 a
+rm -rf "$ALIASLOOP"
+export XDG_CONFIG_HOME="$CONFIG_HOME"
+
 # ABC layout smoke: --layout=auto picks abc/<num>/<letter>.py for abc<NNN> contest IDs.
 run_case "abc999/a test (--layout auto)"    0 test abc999 --task a
 run_case "abc999/a test (--layout abc)"     0 test abc999 --task a --layout abc
