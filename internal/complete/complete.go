@@ -85,7 +85,7 @@ var valueFlags = map[string]bool{
 	"--case": true, "-c": true, "--in": true, "-i": true,
 	"--out": true, "-o": true, "--jobs": true, "-j": true,
 	"--tolerance": true, "--last": true, "-l": true,
-	"--user": true, "--interval": true,
+	"--user": true, "--interval": true, "--session-cookie": true,
 }
 
 // subFlags は各サブコマンドのフラグ候補 (説明付き)。cmd/atcoder/*.go の実フラグ・
@@ -147,8 +147,9 @@ var subFlags = map[string][]Candidate{
 		{"-l", "rolling window from today (e.g. 7d, 1m)"},
 	},
 	"login": {
-		{"--user", "AtCoder username (prompts if omitted)"},
-		{"--password-stdin", "read the password from stdin (non-interactive)"},
+		{"--session-cookie", "REVEL_SESSION value copied from your browser"},
+		{"--session-stdin", "read the REVEL_SESSION value from stdin"},
+		{"--user", "AtCoder username (auto-detected if omitted)"},
 	},
 	"logout": nil,
 	"status": {

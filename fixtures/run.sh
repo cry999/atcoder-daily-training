@@ -293,10 +293,11 @@ run_case  "status (not logged in)"            1 status fixture --task pass
 run_case  "status (no contest, arg err)"      2 status
 run_case  "status --watch w/o --task"         2 status fixture --watch
 run_case  "logout (no session, noop)"         0 logout
-# login: 非 TTY でのパスワード非表示入力は不可 → exit 2 (--user 指定で prompt 回避)。
-run_piped "login --user (non-TTY pw reject)"  2 "" login --user someone
-# login: --password-stdin は --user 必須 → 無ければ exit 2 (stdin を読む前に弾く)。
-run_piped "login --password-stdin w/o --user" 2 "" login --password-stdin
+# login は cookie 取り込み式 (AtCoder ログインは Cloudflare Turnstile 保護のため)。
+# 非 TTY かつ --session-cookie/--session-stdin 無し → 対話不可で exit 2。
+run_piped "login (non-TTY, no cookie flag)"   2 "" login
+# --session-stdin に空入力 → cookie 空で exit 2 (検証ネットワークに到達しない)。
+run_piped "login --session-stdin (empty)"     2 "" login --session-stdin
 
 # `atcoder completion` smoke: 各シェルのスクリプト出力と、隠し __complete ヘルパ。
 # completion の引数エラーは exit 2。__complete は常に exit 0 で候補を吐く。

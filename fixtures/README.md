@@ -32,7 +32,7 @@
 >
 > `atcoder config` サブコマンドも smoke する。`config show`/`path` の出力検証、未知サブコマンド・未知キー・型不一致・引数不足の `exit 2`、書き込み専用 dir での `set` → `get` 往復、および `set` した値が `atcoder test` の diff に波及する (出力に `side-by-side` が出る) 経路を確認する。
 >
-> `atcoder status` / `login` / `logout` も**ネットワーク非依存**で smoke する。`XDG_CONFIG_HOME` が空隔離 dir のため `session.json` が無く、`status` は「未ログイン」で `exit 1` (HTTP を一切叩かない)。引数誤りは `exit 2` (`status` の contest 欠落、`--watch` に `--task` 無し)。`login` は非対話入力経路を `run_piped` (非 TTY) で踏ませ、(1) パスワード非表示入力が端末を要するため `exit 2` (2) `--password-stdin` は `--user` 必須で無ければ `exit 2` を確認する。実ログイン・実ジャッジ取得は認証が要るため fixture では回さない。
+> `atcoder status` / `login` / `logout` も**ネットワーク非依存**で smoke する。`XDG_CONFIG_HOME` が空隔離 dir のため `session.json` が無く、`status` は「未ログイン」で `exit 1` (HTTP を一切叩かない)。引数誤りは `exit 2` (`status` の contest 欠落、`--watch` に `--task` 無し)。`login` は cookie 取り込み式 (AtCoder ログインは Cloudflare Turnstile 保護のため username/password では不可)。`run_piped` (非 TTY) で (1) `--session-cookie`/`--session-stdin` 無しは対話不可で `exit 2` (2) `--session-stdin` への空入力は cookie 空で `exit 2` を確認する。実ログイン・実ジャッジ取得は認証が要るため fixture では回さない。
 
 ## ディレクトリ構造
 
