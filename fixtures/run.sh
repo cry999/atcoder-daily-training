@@ -148,6 +148,18 @@ run_case "run --interactive + file --in (reject)" 2 run fixture --task pass --in
 run_case "submit fixture pass --no-open"  0 submit fixture --task pass --no-open
 run_case "submit fixture fail --no-open"  1 submit fixture --task fail --no-open
 
+# `exercise stats` smoke: exercise/ ツリーを集計する読み取り専用コマンド。
+# STAGE には当日 dir の fixture_*.py が居るので集計対象がある。過去日も足して
+# 複数日・週別時系列の経路を踏ませる。期間フラグ排他違反は exit 2。
+mkdir -p "$STAGE/exercise/2026/05/20" "$STAGE/exercise/2026/06/01"
+cp "$FIXTURES/fixture_pass.py" "$STAGE/exercise/2026/05/20/abc457_d.py"
+cp "$FIXTURES/fixture_pass.py" "$STAGE/exercise/2026/06/01/arc180_c.py"
+run_case "stats (all time)"            0 stats
+run_case "stats --month"               0 stats --month
+run_case "stats --week"                0 stats --week
+run_case "stats --year"                0 stats --year
+run_case "stats --week --month reject" 2 stats --week --month
+
 echo
 if [[ "$failures" -gt 0 ]]; then
     echo "${failures} case(s) failed"

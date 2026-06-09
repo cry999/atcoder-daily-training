@@ -1,0 +1,200 @@
+package stats
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+)
+
+// d は YYYY-MM-DD のローカル 0 時を作るヘルパー。
+func d(y, m, day int) time.Time {
+	return time.Date(y, time.Month(m), day, 0, 0, 0, 0, time.Local)
+}
+
+func solve(date time.Time, file string) Solve {
+	cat, letter := classify(file)
+	return Solve{Date: date, File: file, Category: cat, Letter: letter}
+}
+
+func TestClassify(t *testing.T) {
+	cases := []struct {
+		file     string
+		category string
+		letter   string
+	}{
+		{"abc457_d.py", "abc", "d"},
+		{"arc180_c.py", "arc", "c"},
+		{"ABC457_D.py", "abc", "d"}, // 大文字も正規化
+		{"scratch.py", "scratch", "?"},
+		{"123.py", "other", "?"},
+		{"abc457_xy.py", "abc", "xy"},
+	}
+	for _, c := range cases {
+		cat, letter := classify(c.file)
+		if cat != c.category || letter != c.letter {
+			t.Errorf("classify(%q) = (%q,%q), want (%q,%q)", c.file, cat, letter, c.category, c.letter)
+		}
+	}
+}
+
+func TestComputeAllTime(t *testing.T) {
+	now := d(2026, 6, 9) // 火曜
+	solves := []Solve{
+		solve(d(2026, 6, 7), "abc457_d.py"),
+		solve(d(2026, 6, 8), "abc457_e.py"),
+		solve(d(2026, 6, 8), "arc180_c.py"),
+		solve(d(2026, 6, 9), "abc458_a.py"),
+		solve(d(2025, 12, 31), "abc400_b.py"), // 前年
+	}
+	rep := Compute(solves, Options{Period: AllTime, Now: now})
+
+	if rep.Total != 5 {
+		t.Errorf("Total = %d, want 5", rep.Total)
+	}
+	if rep.ActiveDays != 4 {
+		t.Errorf("ActiveDays = %d, want 4", rep.ActiveDays)
+	}
+	// 6/7,6/8,6/9 の 3 連続。今日 6/9 を含むので current = 3。
+	if rep.CurrentStreak != 3 {
+		t.Errorf("CurrentStreak = %d, want 3", rep.CurrentStreak)
+	}
+	if rep.LongestStreak != 3 {
+		t.Errorf("LongestStreak = %d, want 3", rep.LongestStreak)
+	}
+	if rep.SeriesKind != "week" {
+		t.Errorf("SeriesKind = %q, want week", rep.SeriesKind)
+	}
+	// カテゴリ: abc=3, arc=1, abc400=abc なので abc=4? 確認: abc457_d, abc457_e, abc458_a, abc400_b → abc=4, arc=1
+	if len(rep.Categories) != 2 || rep.Categories[0].Key != "abc" || rep.Categories[0].N != 4 {
+		t.Errorf("Categories = %+v, want abc=4 first", rep.Categories)
+	}
+}
+
+func TestComputeThisMonth(t *testing.T) {
+	now := d(2026, 6, 9)
+	solves := []Solve{
+		solve(d(2026, 6, 7), "abc457_d.py"),
+		solve(d(2026, 6, 9), "abc458_a.py"),
+		solve(d(2026, 5, 31), "abc450_a.py"), // 先月 → 除外
+		solve(d(2025, 6, 9), "abc300_a.py"),  // 前年同月 → 除外
+	}
+	rep := Compute(solves, Options{Period: ThisMonth, Now: now})
+	if rep.Total != 2 {
+		t.Errorf("Total = %d, want 2 (this month only)", rep.Total)
+	}
+	if rep.SeriesKind != "day" {
+		t.Errorf("SeriesKind = %q, want day", rep.SeriesKind)
+	}
+	// 日別は 6/1〜6/9 の 9 日分 (0 件含む)。
+	if len(rep.Series) != 9 {
+		t.Errorf("len(Series) = %d, want 9", len(rep.Series))
+	}
+	// current streak: 6/9 のみが連続末尾 (6/8 は無い) → 1。
+	if rep.CurrentStreak != 1 {
+		t.Errorf("CurrentStreak = %d, want 1", rep.CurrentStreak)
+	}
+}
+
+func TestComputeThisWeek(t *testing.T) {
+	now := d(2026, 6, 10) // 水曜。週は 6/8(月)〜6/14(日)
+	solves := []Solve{
+		solve(d(2026, 6, 8), "abc457_a.py"),
+		solve(d(2026, 6, 9), "abc457_b.py"),
+		solve(d(2026, 6, 7), "abc456_a.py"), // 前週日曜 → 除外
+	}
+	rep := Compute(solves, Options{Period: ThisWeek, Now: now})
+	if rep.Total != 2 {
+		t.Errorf("Total = %d, want 2", rep.Total)
+	}
+	// 6/8(月)〜6/10(今日) の 3 日。
+	if len(rep.Series) != 3 {
+		t.Errorf("len(Series) = %d, want 3", len(rep.Series))
+	}
+}
+
+func TestCurrentStreakGraceYesterday(t *testing.T) {
+	now := d(2026, 6, 9) // 今日は未着手
+	solves := []Solve{
+		solve(d(2026, 6, 7), "abc457_a.py"),
+		solve(d(2026, 6, 8), "abc457_b.py"),
+	}
+	rep := Compute(solves, Options{Period: AllTime, Now: now})
+	// 今日未着手でも前日まで 2 連続 → current = 2。
+	if rep.CurrentStreak != 2 {
+		t.Errorf("CurrentStreak = %d, want 2 (grace to yesterday)", rep.CurrentStreak)
+	}
+}
+
+func TestCurrentStreakBroken(t *testing.T) {
+	now := d(2026, 6, 9)
+	solves := []Solve{
+		solve(d(2026, 6, 5), "abc457_a.py"),
+		solve(d(2026, 6, 6), "abc457_b.py"),
+	}
+	rep := Compute(solves, Options{Period: AllTime, Now: now})
+	// 直近が 6/6、今日/前日に無い → current = 0、longest = 2。
+	if rep.CurrentStreak != 0 {
+		t.Errorf("CurrentStreak = %d, want 0", rep.CurrentStreak)
+	}
+	if rep.LongestStreak != 2 {
+		t.Errorf("LongestStreak = %d, want 2", rep.LongestStreak)
+	}
+}
+
+func TestComputeEmpty(t *testing.T) {
+	rep := Compute(nil, Options{Period: AllTime, Now: d(2026, 6, 9)})
+	if rep.Total != 0 || rep.ActiveDays != 0 || rep.CurrentStreak != 0 || rep.LongestStreak != 0 {
+		t.Errorf("empty Compute = %+v, want all zero", rep)
+	}
+}
+
+func TestLetterBucketing(t *testing.T) {
+	now := d(2026, 6, 9)
+	solves := []Solve{
+		solve(now, "abc457_a.py"),
+		solve(now, "abc457_d.py"),
+		solve(now, "scratch.py"), // letter 不明 → "?"
+	}
+	rep := Compute(solves, Options{Period: AllTime, Now: now})
+	// "?" は末尾。
+	if last := rep.Letters[len(rep.Letters)-1]; last.Key != "?" {
+		t.Errorf("last letter = %q, want ?", last.Key)
+	}
+}
+
+func TestScan(t *testing.T) {
+	root := t.TempDir()
+	mustWrite(t, filepath.Join(root, "2026", "06", "09", "abc457_d.py"))
+	mustWrite(t, filepath.Join(root, "2026", "06", "08", "arc180_c.py"))
+	mustWrite(t, filepath.Join(root, "2026", "06", "09", "notes.txt")) // 非 .py → 無視
+	mustWrite(t, filepath.Join(root, "2026", "13", "09", "bad.py"))    // 不正月 → 無視
+
+	solves, err := Scan(root)
+	if err != nil {
+		t.Fatalf("Scan: %v", err)
+	}
+	if len(solves) != 2 {
+		t.Fatalf("len(solves) = %d, want 2; got %+v", len(solves), solves)
+	}
+}
+
+func TestScanMissingRoot(t *testing.T) {
+	solves, err := Scan(filepath.Join(t.TempDir(), "does-not-exist"))
+	if err != nil {
+		t.Fatalf("Scan missing root should not error: %v", err)
+	}
+	if len(solves) != 0 {
+		t.Errorf("len(solves) = %d, want 0", len(solves))
+	}
+}
+
+func mustWrite(t *testing.T, path string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("print(1)\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
