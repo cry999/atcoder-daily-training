@@ -13,7 +13,7 @@ FIXTURES="$REPO_ROOT/fixtures"
 
 # Build the tool.
 TOOL_DIR="$(mktemp -d)"
-trap 'rm -rf "$TOOL_DIR" "$STAGE" "$CACHE_HOME"' EXIT
+trap 'rm -rf "$TOOL_DIR" "$STAGE" "$CACHE_HOME" "$CONFIG_HOME"' EXIT
 BIN="$TOOL_DIR/atcoder"
 echo "Building $BIN ..."
 go build -o "$BIN" ./cmd/atcoder
@@ -34,6 +34,12 @@ cp "$FIXTURES/fixture_pass.py" "$STAGE/abc/999/a.py"
 CACHE_HOME="$(mktemp -d)"
 cp -R "$FIXTURES/cache/." "$CACHE_HOME/"
 export XDG_CACHE_HOME="$CACHE_HOME"
+
+# Isolate XDG_CONFIG_HOME to an empty dir so the smoke tests never pick up a real
+# ~/.config/atcoder-daily-training/config.toml. Config-specific tests below point
+# XDG_CONFIG_HOME at their own staged config.
+CONFIG_HOME="$(mktemp -d)"
+export XDG_CONFIG_HOME="$CONFIG_HOME"
 
 cd "$STAGE"
 
@@ -91,6 +97,51 @@ run_case "fixture_float (1e-6 tol)"   0 test fixture --task float
 # watch モードは TTY 必須。run.sh の出力は非 TTY なので --watch は exit 2 で拒否される。
 # (watch ループ本体は常駐してブロックするため、ここでは回さない。)
 run_case "fixture_pass --watch (non-TTY reject)" 2 test fixture --task pass --watch
+
+# ----- ユーザ設定ファイル (config.toml) -----
+# config の側 (side_by_side) は終了コードを変えないので、出力に diff の
+# side-by-side ラベルが出るか/出ないかで検証する。
+# check_output <label> <expected_exit> <has|hasnot> <pattern> -- <args...>
+check_output() {
+    local label="$1" expected_exit="$2" mode="$3" pattern="$4"
+    shift 5 # label exit mode pattern "--"
+    echo
+    echo "=== ${label} (expecting exit ${expected_exit}, ${mode} '${pattern}') ==="
+    set +e
+    local out; out="$("$BIN" "$@" 2>&1)"; local got=$?
+    set -e
+    echo "$out"
+    local ok=1
+    [[ "$got" -eq "$expected_exit" ]] || { echo "  ✗ exit ${got} (expected ${expected_exit})"; ok=0; }
+    if [[ "$mode" == "has" ]]; then
+        echo "$out" | grep -q "$pattern" || { echo "  ✗ output missing '${pattern}'"; ok=0; }
+    else
+        echo "$out" | grep -q "$pattern" && { echo "  ✗ output unexpectedly has '${pattern}'"; ok=0; }
+    fi
+    if [[ "$ok" -eq 1 ]]; then echo "  ✓ ok"; else failures=$((failures + 1)); fi
+}
+
+# config を置く専用の XDG_CONFIG_HOME を用意する。
+CFG_DIR="$(mktemp -d)"
+mkdir -p "$CFG_DIR/atcoder-daily-training"
+printf '[test]\nside_by_side = true\n' > "$CFG_DIR/atcoder-daily-training/config.toml"
+
+# config で side_by_side=true → -s 省略でも side-by-side diff になる (FAIL = exit 1)。
+XDG_CONFIG_HOME="$CFG_DIR" check_output "config side_by_side=true → side-by-side diff" \
+    1 has "side-by-side" -- test fixture --task diff
+# 明示 --side-by-side=false は config の true を上書きして unified に戻す。
+XDG_CONFIG_HOME="$CFG_DIR" check_output "flag --side-by-side=false overrides config" \
+    1 hasnot "side-by-side" -- test fixture --task diff --side-by-side=false
+
+# 壊れた config.toml はパース失敗で exit 2。
+BAD_CFG_DIR="$(mktemp -d)"
+mkdir -p "$BAD_CFG_DIR/atcoder-daily-training"
+printf '[test]\nside_by_side = \n' > "$BAD_CFG_DIR/atcoder-daily-training/config.toml"
+XDG_CONFIG_HOME="$BAD_CFG_DIR" run_case "malformed config.toml (parse error)" \
+    2 test fixture --task pass
+rm -rf "$CFG_DIR" "$BAD_CFG_DIR"
+# bash では関数呼び出し前置の代入が残存しうるので、隔離用の空 config dir に戻す。
+export XDG_CONFIG_HOME="$CONFIG_HOME"
 
 # ABC layout smoke: --layout=auto picks abc/<num>/<letter>.py for abc<NNN> contest IDs.
 run_case "abc999/a test (--layout auto)"    0 test abc999 --task a

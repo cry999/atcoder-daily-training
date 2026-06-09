@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cry999/atcoder-daily-training/internal/config"
 	"github.com/cry999/atcoder-daily-training/internal/layout"
 	"github.com/cry999/atcoder-daily-training/internal/runner"
 	"github.com/cry999/atcoder-daily-training/internal/testexec"
@@ -30,6 +31,13 @@ func cmdTest(args []string) (int, error) {
 	}
 	contest := args[0]
 
+	// ユーザ設定を読み、フラグのデフォルトに反映する (優先順位: flag > config > default)。
+	// 設定が無いのは正常 (全デフォルト)。パース失敗だけ exit 2。
+	cfg, err := config.Load()
+	if err != nil {
+		return 2, err
+	}
+
 	flags := flag.NewFlagSet("test", flag.ContinueOnError)
 	taskFlag := flags.String("task", "", `AtCoder task ID, or short form (e.g. "d" expands to "<contest>_d")`)
 	refresh := flags.Bool("refresh", false, "Force refetch sample cases")
@@ -44,9 +52,11 @@ func cmdTest(args []string) (int, error) {
 	flags.StringVar(&caseStr, "case", "", `Run only the specified case(s); comma-separated (e.g. "01" or "1,3")`)
 	flags.StringVar(&caseStr, "c", "", `Run only the specified case(s); comma-separated (e.g. "01" or "1,3")`)
 	tolFlag := flags.Float64("tolerance", 0, "Absolute/relative tolerance for float token comparison (e.g. 1e-9). 0 or unset → use default 1e-6.")
+	// side-by-side のデフォルトは config から取る (flag > config > default)。
+	// 設定で true でも `--side-by-side=false` でその回だけ unified に戻せる。
 	var sideBySide bool
-	flags.BoolVar(&sideBySide, "s", false, "Show diff side-by-side (expected on left, actual on right)")
-	flags.BoolVar(&sideBySide, "side-by-side", false, "Show diff side-by-side (expected on left, actual on right)")
+	flags.BoolVar(&sideBySide, "s", cfg.Test.SideBySide, "Show diff side-by-side (expected on left, actual on right)")
+	flags.BoolVar(&sideBySide, "side-by-side", cfg.Test.SideBySide, "Show diff side-by-side (expected on left, actual on right)")
 	layoutFlag := flags.String("layout", "auto", "Solution file layout (auto, abc, exercise). auto picks abc for abc<NNN>, exercise otherwise.")
 	var jobs int
 	flags.IntVar(&jobs, "jobs", 0, "Number of test cases to run in parallel. 0 → number of CPUs (capped at the case count).")
