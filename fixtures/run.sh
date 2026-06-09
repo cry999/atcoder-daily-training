@@ -267,6 +267,17 @@ run_case "stats -m -g"                 0 stats -m -g
 run_case "stats --last 2w -g"          0 stats --last 2w -g
 run_case "stats -g -w --month reject"  2 stats -g -w --month
 
+# `atcoder review <category>` smoke: 上の exercise ツリー (abc457_d, arc180_c) を
+# コンテスト単位で列挙する読み取り専用コマンド。カテゴリは必須の位置引数。
+run_case "review abc"                  0 review abc
+run_case "review arc"                  0 review arc
+run_case "review abc --month"          0 review abc --month
+run_case "review abc -l 2w"            0 review abc -l 2w
+run_case "review xyz (0 件・成功)"      0 review xyz
+run_case "review (no category) reject" 2 review
+run_case "review abc -w --month rej"   2 review abc -w --month
+run_case "review abc --last 0d reject" 2 review abc --last 0d
+
 # `atcoder status` / `login` / `logout` smoke (ネットワーク非依存)。
 # XDG_CONFIG_HOME は空隔離 dir なので session.json は存在せず、status は
 # LoadSession で「未ログイン」となり exit 1 (HTTP を一切叩かない)。引数誤りは

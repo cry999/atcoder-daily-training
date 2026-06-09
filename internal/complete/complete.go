@@ -38,6 +38,15 @@ var layoutCands = []Candidate{
 	{"exercise", "exercise/YYYY/MM/DD/<task>.py layout"},
 }
 
+// categoryCands は `atcoder review` の <category> 位置引数候補 (説明付き)。
+var categoryCands = []Candidate{
+	{"abc", "AtCoder Beginner Contest"},
+	{"arc", "AtCoder Regular Contest"},
+	{"agc", "AtCoder Grand Contest"},
+	{"ahc", "AtCoder Heuristic Contest"},
+	{"awc", "AtCoder Working-system Contest"},
+}
+
 // shellCands は completion サブコマンドが対応するシェル (説明付き)。
 var shellCands = []Candidate{
 	{"bash", "print bash completion script"},
@@ -61,6 +70,7 @@ var subcommandCands = []Candidate{
 	{"logout", "delete the saved AtCoder session"},
 	{"status", "show the judge verdict of your submission"},
 	{"stats", "show daily practice statistics"},
+	{"review", "list practiced contests of a category"},
 	{"config", "show or change tool settings"},
 	{"commit", "git-commit today's exercise solutions"},
 	{"completion", "print a shell completion script"},
@@ -125,6 +135,16 @@ var subFlags = map[string][]Candidate{
 		{"-l", "rolling window from today (e.g. 7d, 1m)"},
 		{"--graph", "render time series as a contribution graph"},
 		{"-g", "render time series as a contribution graph"},
+	},
+	"review": {
+		{"--week", "limit to this week"},
+		{"-w", "limit to this week"},
+		{"--month", "limit to this month"},
+		{"-m", "limit to this month"},
+		{"--year", "limit to this year"},
+		{"-y", "limit to this year"},
+		{"--last", "rolling window from today (e.g. 7d, 1m)"},
+		{"-l", "rolling window from today (e.g. 7d, 1m)"},
 	},
 	"login": {
 		{"--user", "AtCoder username (prompts if omitted)"},
@@ -273,6 +293,10 @@ func Complete(root string, words []string) []Candidate {
 	case takesContest[sub]:
 		if len(posBefore) == 0 {
 			return filterPrefix(plain(Contests(root)), cur)
+		}
+	case sub == "review":
+		if len(posBefore) == 0 {
+			return filterPrefix(categoryCands, cur)
 		}
 	}
 	return nil

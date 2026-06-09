@@ -47,6 +47,12 @@ func main() {
 			fmt.Fprintln(os.Stderr, "atcoder stats:", err)
 		}
 		os.Exit(code)
+	case "review":
+		code, err := cmdReview(os.Args[2:])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "atcoder review:", err)
+		}
+		os.Exit(code)
 	case "config":
 		code, err := cmdConfig(os.Args[2:])
 		if err != nil {
@@ -99,6 +105,7 @@ func usage() {
   atcoder logout
   atcoder status <contest> [--task <task>] [-w|--watch] [--interval <dur>] [--open]
   atcoder stats  [-w|--week | -m|--month | -y|--year | -l|--last <dur>] [-g|--graph]
+  atcoder review <category> [-w|--week | -m|--month | -y|--year | -l|--last <dur>]
   atcoder config <show | get <key> | set <key> <value> | path>
   atcoder completion <bash|zsh|fish>
   atcoder commit

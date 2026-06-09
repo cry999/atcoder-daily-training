@@ -38,6 +38,24 @@ func TestClassify(t *testing.T) {
 	}
 }
 
+func TestContestID(t *testing.T) {
+	cases := []struct {
+		file string
+		want string
+	}{
+		{"abc457_d.py", "abc457"},
+		{"ABC457_D.py", "abc457"}, // 小文字化
+		{"arc180_c.py", "arc180"},
+		{"scratch.py", "scratch"}, // 数字無し → 先頭英字
+		{"123.py", "other"},       // 先頭英字なし
+	}
+	for _, c := range cases {
+		if got := contestID(c.file); got != c.want {
+			t.Errorf("contestID(%q) = %q, want %q", c.file, got, c.want)
+		}
+	}
+}
+
 func TestComputeAllTime(t *testing.T) {
 	now := d(2026, 6, 9) // 火曜
 	solves := []Solve{

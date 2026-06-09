@@ -147,6 +147,19 @@ var grassStyles = [5]lipgloss.Style{
 	lipgloss.NewStyle().Foreground(lipgloss.Color("#39d353")), // 4: 最も明るい緑 (最も濃い活動)
 }
 
+// ShadeGlyph はレベル 0..4 のマス文字を着色して返す。stats --graph と review が
+// 同じ濃淡記号・色ランプを共有するための公開ヘルパ。level 0 は薄灰の `·`
+// (未活動/未解)、1..4 は暗→明の緑 `■`。範囲外の値は端に丸める。
+func ShadeGlyph(level int) string {
+	if level < 0 {
+		level = 0
+	}
+	if level > 4 {
+		level = 4
+	}
+	return grassStyles[level].Render(shadeGlyphs[level])
+}
+
 // weekdayLabels は左端の曜日ラベル (Mon..Sun)。
 var weekdayLabels = [7]string{"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"}
 

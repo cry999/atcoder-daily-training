@@ -51,6 +51,7 @@ type Solve struct {
 	Date     time.Time // パス由来の解答日 (ローカル 0 時)
 	File     string    // ベース名 (例 "abc457_d.py")
 	Category string    // コンテスト種別 ("abc"/"arc"/…/"other")
+	Contest  string    // contest_id ("abc457")。先頭英字 + 数字。数字無しは先頭英字
 	Letter   string    // 問題レター ("a".."g") / 不明は "?"
 }
 
@@ -114,6 +115,9 @@ const maxGraphWeeks = 53
 // leadingAlphaRE はファイル名先頭の連続英字 (= コンテスト種別) を捕捉する。
 var leadingAlphaRE = regexp.MustCompile(`^[a-zA-Z]+`)
 
+// contestIDRE はファイル名先頭の「英字 + 数字」(= contest_id) を捕捉する。
+var contestIDRE = regexp.MustCompile(`^[a-zA-Z]+[0-9]+`)
+
 // Scan は root (通常 "exercise") 配下の YYYY/MM/DD/*.py を列挙して Solve にする。
 // root が無ければ空スライスを返す (エラーにしない)。
 func Scan(root string) ([]Solve, error) {
@@ -137,7 +141,7 @@ func Scan(root string) ([]Solve, error) {
 		}
 		base := parts[3]
 		cat, letter := classify(base)
-		solves = append(solves, Solve{Date: date, File: base, Category: cat, Letter: letter})
+		solves = append(solves, Solve{Date: date, File: base, Category: cat, Contest: contestID(base), Letter: letter})
 	}
 	return solves, nil
 }
@@ -177,6 +181,21 @@ func classify(file string) (category, letter string) {
 		letter = strings.ToLower(base[i+1:])
 	}
 	return category, letter
+}
+
+// contestID はファイル名から contest_id を導く。
+//   - "abc457_d.py" → "abc457"  (先頭英字 + 数字)
+//   - "scratch.py"  → "scratch" (数字が無ければ先頭英字)
+//   - "123.py"      → "other"   (先頭英字なし)
+func contestID(file string) string {
+	base := strings.TrimSuffix(file, filepath.Ext(file))
+	if m := contestIDRE.FindString(base); m != "" {
+		return strings.ToLower(m)
+	}
+	if m := leadingAlphaRE.FindString(base); m != "" {
+		return strings.ToLower(m)
+	}
+	return "other"
 }
 
 // Compute は Solve 群を Options に従って集計する純粋関数。
@@ -335,6 +354,27 @@ func inWin(d time.Time, w window) bool {
 		return false
 	}
 	return true
+}
+
+// InWindow は date が opts の集計窓 (Period / Rolling) に入るか判定する公開ヘルパ。
+// review など stats 以外のコマンドが同じ窓定義を共有するために使う。Now が
+// ゼロ値なら time.Now().Local() を使う。
+func InWindow(date time.Time, opts Options) bool {
+	now := opts.Now
+	if now.IsZero() {
+		now = time.Now().Local()
+	}
+	return inWin(date, resolveWindow(opts, dayOf(now)))
+}
+
+// WindowLabel は opts の集計窓のラベルを返す
+// ("all time" / "this month (2026-06)" / "last 2 weeks (…)" など)。
+func WindowLabel(opts Options) string {
+	now := opts.Now
+	if now.IsZero() {
+		now = time.Now().Local()
+	}
+	return resolveWindow(opts, dayOf(now)).label
 }
 
 // currentStreak は今日 (無ければ前日) を起点に連続アクティブ日数を遡って数える。
