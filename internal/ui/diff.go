@@ -132,12 +132,14 @@ func renderDiff(expected, actual string, full bool) string {
 
 // renderContextLine は match した行を unified diff 風に " " (空白) サイン付きで描画する。
 // 背景色は付けず、本文も dim foreground にして「変化点ではない」ことを視覚的に示す。
+// レイアウト: "<3d 行番号> <空サイン> │ <本文>" (sign は - / + の桁を埋める空白)。
 func renderContextLine(line string, n int) string {
 	var sb strings.Builder
 	sb.WriteString("         ")
 	sb.WriteString(diffLineNumStyle.Render(fmt.Sprintf("%3d", n)))
+	sb.WriteString(" ") // line number と sign の間
+	sb.WriteString(" ") // sign の位置 (context は空)
 	sb.WriteString(diffGutterStyle.Render(" │ "))
-	sb.WriteString("  ") // "- " / "+ " と桁を揃える
 	sb.WriteString(diffContextStyle.Render(line))
 	sb.WriteString("\n")
 	return sb.String()
@@ -178,14 +180,18 @@ func renderTokenLine(ops []diffOp, n int, minus bool) string {
 	}
 
 	var sb strings.Builder
+	// レイアウト: "<3d 行番号> <sign> │ <内容>" — sign を gutter の右ではなく
+	// 行番号の隣に置くことで、左半 ("行を識別する情報") と右半 ("実際の出力") を
+	// 視覚的に分離する。
 	sb.WriteString("         ")
 	sb.WriteString(diffLineNumStyle.Render(fmt.Sprintf("%3d", n)))
-	sb.WriteString(diffGutterStyle.Render(" │ "))
+	sb.WriteString(" ")
 	if minus {
-		sb.WriteString(signStyle.Render("- "))
+		sb.WriteString(signStyle.Render("-"))
 	} else {
-		sb.WriteString(signStyle.Render("+ "))
+		sb.WriteString(signStyle.Render("+"))
 	}
+	sb.WriteString(diffGutterStyle.Render(" │ "))
 
 	first := true
 	for _, op := range ops {
@@ -211,27 +217,32 @@ func renderTokenLine(ops []diffOp, n int, minus bool) string {
 }
 
 // ---- side-by-side diff ----
+//
+// レイアウト:
+//
+//	<indent><左半: "- 1 2 3 4 5">  <expN> │ <actN>  <右半: "+ 1 2 9 4 5">
+//
+// 行番号は中央 ("<expN> │ <actN>") にまとめて表示することで、左右の content を
+// 同じ行に視線を引いて比較しやすくする。sign は各 content の先頭に置く。
 
 const (
-	diffSBIndent = "  "  // diff: ラベルの下に少し下げる
-	diffSBSep    = " │ " // 左右ハーフの間の区切り
+	diffSBIndent = "  "
+	// 中央ブロックの最大幅: " " + 3桁(expN) + " │ " + 3桁(actN) + " " = 12
+	diffSBCenterWidth = 12
 )
 
-// renderDiffSideBySide は expected を左、actual を右に並べた diff を返す。
-// full=true ならマッチ行も両側に表示する。各ハーフは端末幅を半分にした幅に
-// padding して左右が揃うようにする。
+// renderDiffSideBySide は expected を左、actual を右、中央に両方の行番号を
+// 並べた diff を返す。full=true ならマッチ行も両側に context として出す。
 func renderDiffSideBySide(expected, actual string, full bool) string {
 	totalW := terminalWidth()
-	half := (totalW - len(diffSBIndent) - len(diffSBSep)) / 2
-	if half < 20 {
-		half = 20
+	half := (totalW - len(diffSBIndent) - diffSBCenterWidth) / 2
+	if half < 18 {
+		half = 18
 	}
 
 	expLines := strings.Split(expected, "\n")
 	actLines := strings.Split(actual, "\n")
 	ops := lcsDiff(expLines, actLines)
-
-	sep := diffGutterStyle.Render(diffSBSep)
 
 	var sb strings.Builder
 	expN, actN := 0, 0
@@ -241,9 +252,9 @@ func renderDiffSideBySide(expected, actual string, full bool) string {
 			expN++
 			actN++
 			if full {
-				left := renderSBContext(ops[i].Text, expN, half)
-				right := renderSBContext(ops[i].Text, actN, half)
-				sb.WriteString(diffSBIndent + left + sep + right + "\n")
+				left := renderSBContextSide(ops[i].Text, half)
+				right := renderSBContextSide(ops[i].Text, half)
+				sb.WriteString(diffSBIndent + left + renderSBCenter(expN, actN) + right + "\n")
 			}
 			i++
 			continue
@@ -271,40 +282,48 @@ func renderDiffSideBySide(expected, actual string, full bool) string {
 			expToks := strings.Fields(dels[k])
 			actToks := strings.Fields(adds[k])
 			tokOps := lcsDiff(expToks, actToks)
-			left := renderSBHalfTokens(tokOps, expN, true, half)
-			right := renderSBHalfTokens(tokOps, actN, false, half)
-			sb.WriteString(diffSBIndent + left + sep + right + "\n")
+			left := renderSBPairSide(tokOps, true, half)
+			right := renderSBPairSide(tokOps, false, half)
+			sb.WriteString(diffSBIndent + left + renderSBCenter(expN, actN) + right + "\n")
 		}
 		for k := pairs; k < len(dels); k++ {
 			expN++
-			left := renderSBSolo(dels[k], expN, true, half)
+			left := renderSBSoloSide(dels[k], true, half)
 			right := strings.Repeat(" ", half)
-			sb.WriteString(diffSBIndent + left + sep + right + "\n")
+			sb.WriteString(diffSBIndent + left + renderSBCenter(expN, 0) + right + "\n")
 		}
 		for k := pairs; k < len(adds); k++ {
 			actN++
 			left := strings.Repeat(" ", half)
-			right := renderSBSolo(adds[k], actN, false, half)
-			sb.WriteString(diffSBIndent + left + sep + right + "\n")
+			right := renderSBSoloSide(adds[k], false, half)
+			sb.WriteString(diffSBIndent + left + renderSBCenter(0, actN) + right + "\n")
 		}
 	}
 	return sb.String()
 }
 
-// renderSBContext は match 行の半ライン (line_no + 空サイン + dim 本文) を作って width に padding する。
-func renderSBContext(line string, n int, width int) string {
-	var sb strings.Builder
-	sb.WriteString(diffLineNumStyle.Render(fmt.Sprintf("%3d", n)))
-	sb.WriteString(diffGutterStyle.Render(" │ "))
-	sb.WriteString("  ") // "- " / "+ " と桁を揃える空サイン
-	sb.WriteString(diffContextStyle.Render(line))
-	return padToWidth(sb.String(), width)
+// renderSBCenter は中央の "<expN> │ <actN>" ブロックを 12 桁に揃えて返す。
+// 0 が渡された側は空白に。
+func renderSBCenter(expN, actN int) string {
+	es := "   "
+	as := "   "
+	if expN > 0 {
+		es = fmt.Sprintf("%3d", expN)
+	}
+	if actN > 0 {
+		as = fmt.Sprintf("%3d", actN)
+	}
+	return " " + diffLineNumStyle.Render(es) + diffGutterStyle.Render(" │ ") + diffLineNumStyle.Render(as) + " "
 }
 
-// renderSBHalfTokens は token ops から、minus / plus のいずれかの半ラインを生成する。
-// side-by-side では line bg を付けず foreground のみで強調することで、padding が
-// 視覚的に分断されないようにする。
-func renderSBHalfTokens(ops []diffOp, n int, minus bool, width int) string {
+// renderSBContextSide は match 行の半側を返す ("  <text>" を dim、width に pad)。
+func renderSBContextSide(line string, width int) string {
+	s := "  " + diffContextStyle.Render(line)
+	return padToWidth(s, width)
+}
+
+// renderSBPairSide は paired diff の半側を返す ("<sign> <tokens with intra-line emph>")。
+func renderSBPairSide(ops []diffOp, minus bool, width int) string {
 	signStyle := diffPlusSignStyle
 	emphStyle := diffPlusEmphStyle
 	if minus {
@@ -312,13 +331,12 @@ func renderSBHalfTokens(ops []diffOp, n int, minus bool, width int) string {
 		emphStyle = diffMinusEmphStyle
 	}
 	var sb strings.Builder
-	sb.WriteString(diffLineNumStyle.Render(fmt.Sprintf("%3d", n)))
-	sb.WriteString(diffGutterStyle.Render(" │ "))
 	if minus {
-		sb.WriteString(signStyle.Render("- "))
+		sb.WriteString(signStyle.Render("-"))
 	} else {
-		sb.WriteString(signStyle.Render("+ "))
+		sb.WriteString(signStyle.Render("+"))
 	}
+	sb.WriteString(" ")
 	first := true
 	for _, op := range ops {
 		if minus && op.Kind == diffAdd {
@@ -340,8 +358,8 @@ func renderSBHalfTokens(ops []diffOp, n int, minus bool, width int) string {
 	return padToWidth(sb.String(), width)
 }
 
-// renderSBSolo はペア相手がいない 1 行を半ラインとして描画する (全 token を強調)。
-func renderSBSolo(line string, n int, minus bool, width int) string {
+// renderSBSoloSide はペア相手がいない 1 行の半側を返す (全 token を強調)。
+func renderSBSoloSide(line string, minus bool, width int) string {
 	toks := strings.Fields(line)
 	ops := make([]diffOp, len(toks))
 	kind := diffAdd
@@ -351,7 +369,7 @@ func renderSBSolo(line string, n int, minus bool, width int) string {
 	for i, t := range toks {
 		ops[i] = diffOp{Kind: kind, Text: t}
 	}
-	return renderSBHalfTokens(ops, n, minus, width)
+	return renderSBPairSide(ops, minus, width)
 }
 
 // padToWidth は ANSI を含む文字列の可視幅を測って、指定幅まで空白でパディングする。
