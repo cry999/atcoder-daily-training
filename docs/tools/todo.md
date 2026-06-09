@@ -67,3 +67,31 @@ ABC 本番対応に限定されない、`exercise` ツール全般の改善 TODO
 
 - ライブ進捗表示・並列実行 (前段の `exercise test` 改善) の上に乗る。watch は「同じ 1 回実行をループで呼ぶ」薄い層。
 - 将来 `exercise run --watch` へ展開する余地あり (対話/judge モードの再実行)。
+
+## J. 練習統計 (`exercise stats`) ✅ DONE (dd3c3a8)
+
+### 解きたい問題
+
+- 毎日 `exercise/YYYY/MM/DD/` に解答を積み上げているが、「どれくらい続けられているか」「どの種類に偏っているか」「最近の推移」を振り返る手段が無い。`find | wc -l` を都度叩くしかなかった。
+- モチベーション維持にはストリーク (連続練習日数) と推移の可視化が効く。
+
+### 決まったこと
+
+> 要件詳細は `docs/tools/requirements/005-exercise-stats.md`、利用手引は `docs/tools/exercise-stats-usage.md`。
+
+- `exercise stats [--week | --month | --year]`。デフォルトは全期間、フラグで今週/今月/今年に絞る (相対指定のみ。任意日付範囲は将来の `--since`/`--until`)。
+- **集計対象は `exercise/YYYY/MM/DD/*.py` のみ** (1 ファイル = 1 問、日付はパス由来)。他ツリー横断は将来拡張。
+- 統計は解答数・アクティブ日数・current/longest ストリーク・カテゴリ別 (コンテスト種別/レター)・時系列 (週/月は日別、年/全期間は週別)。
+- **読み取り専用・オフライン**。ネットワーク・認証・キャッシュ・解答ファイルに一切触れない。
+- 集計ロジックは純粋関数 (`internal/stats.Compute`) にして `Now` 注入でユニットテスト。
+
+### 影響範囲
+
+- 新規 `cmd/exercise/stats.go`, `internal/stats/` (集計 + レンダリング + テスト)
+- `cmd/exercise/main.go` (dispatch + usage)
+- `fixtures/run.sh` (exit 0 / 期間フラグ排他 = exit 2 の smoke)
+- `docs/tools/exercise-stats-usage.md` (利用手引)
+
+### 関連項目
+
+- 将来: `--json` 出力、`--since`/`--until`、`adt/` 等の他ツリー横断、難易度/結果別集計。
