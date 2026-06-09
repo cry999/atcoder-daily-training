@@ -142,6 +142,95 @@ func TestCurrentStreakBroken(t *testing.T) {
 	}
 }
 
+func TestComputeRollingDays(t *testing.T) {
+	now := d(2026, 6, 9) // 火曜
+	solves := []Solve{
+		solve(d(2026, 6, 9), "abc458_a.py"), // 今日 → 含む
+		solve(d(2026, 6, 3), "abc457_d.py"), // 7d 窓のちょうど最初の日 (now-6) → 含む
+		solve(d(2026, 6, 2), "abc456_a.py"), // now-7 → 半開区間の下端 → 除外
+	}
+	// --last 7d: 半開区間 (6/2, 6/9] = 6/3〜6/9 の 7 日。
+	rep := Compute(solves, Options{Rolling: &Rolling{N: 7, Unit: UnitDay}, Now: now})
+	if rep.Total != 2 {
+		t.Errorf("Total = %d, want 2 (6/3 and 6/9 in window, 6/2 excluded)", rep.Total)
+	}
+	if rep.SeriesKind != "day" {
+		t.Errorf("SeriesKind = %q, want day", rep.SeriesKind)
+	}
+	if len(rep.Series) != 7 { // 6/3..6/9
+		t.Errorf("len(Series) = %d, want 7", len(rep.Series))
+	}
+	if got := rep.Label; got != "last 7 days (2026-06-03–06-09)" {
+		t.Errorf("Label = %q", got)
+	}
+}
+
+func TestComputeRollingWeekEqualsSevenDays(t *testing.T) {
+	now := d(2026, 6, 9)
+	solves := []Solve{
+		solve(d(2026, 6, 3), "abc457_d.py"), // now-6 → 含む
+		solve(d(2026, 6, 2), "abc456_a.py"), // now-7 → 除外
+	}
+	rep := Compute(solves, Options{Rolling: &Rolling{N: 1, Unit: UnitWeek}, Now: now})
+	if rep.Total != 1 {
+		t.Errorf("Total = %d, want 1 (1w == last 7 days)", rep.Total)
+	}
+	if len(rep.Series) != 7 {
+		t.Errorf("len(Series) = %d, want 7", len(rep.Series))
+	}
+}
+
+func TestComputeRollingDefaultCount(t *testing.T) {
+	now := d(2026, 6, 9)
+	// N 省略 (bare "d") は 1 扱い: 窓は今日のみ。
+	solves := []Solve{
+		solve(d(2026, 6, 9), "abc458_a.py"), // 今日 → 含む
+		solve(d(2026, 6, 8), "abc457_e.py"), // 昨日 → 1d の半開区間 (6/8, 6/9] からは除外
+	}
+	rep := Compute(solves, Options{Rolling: &Rolling{N: 1, Unit: UnitDay}, Now: now})
+	if rep.Total != 1 {
+		t.Errorf("Total = %d, want 1 (1d window = today only)", rep.Total)
+	}
+	if len(rep.Series) != 1 {
+		t.Errorf("len(Series) = %d, want 1", len(rep.Series))
+	}
+}
+
+func TestComputeRollingMonth(t *testing.T) {
+	now := d(2026, 6, 9)
+	solves := []Solve{
+		solve(d(2026, 6, 9), "abc458_a.py"),  // 今日 → 含む
+		solve(d(2026, 5, 10), "abc450_a.py"), // 半開区間 (5/9, 6/9] の最初の日 → 含む
+		solve(d(2026, 5, 9), "abc449_a.py"),  // ちょうど 1 ヶ月前 = 下端 → 除外
+	}
+	rep := Compute(solves, Options{Rolling: &Rolling{N: 1, Unit: UnitMonth}, Now: now})
+	if rep.Total != 2 {
+		t.Errorf("Total = %d, want 2 (5/10 and 6/9; 5/9 excluded)", rep.Total)
+	}
+	if rep.SeriesKind != "day" { // 1 ヶ月 (≤31 日) は日別。
+		t.Errorf("SeriesKind = %q, want day", rep.SeriesKind)
+	}
+	if got := rep.Label; got != "last 1 month (2026-05-10–06-09)" {
+		t.Errorf("Label = %q", got)
+	}
+}
+
+func TestComputeRollingYearWeekly(t *testing.T) {
+	now := d(2026, 6, 9)
+	solves := []Solve{
+		solve(d(2026, 6, 9), "abc458_a.py"),  // 今日 → 含む
+		solve(d(2025, 6, 10), "abc300_a.py"), // 半開区間 (2025-06-09, now] の最初 → 含む
+		solve(d(2025, 6, 9), "abc299_a.py"),  // ちょうど 1 年前 = 下端 → 除外
+	}
+	rep := Compute(solves, Options{Rolling: &Rolling{N: 1, Unit: UnitYear}, Now: now})
+	if rep.Total != 2 {
+		t.Errorf("Total = %d, want 2", rep.Total)
+	}
+	if rep.SeriesKind != "week" { // 1 年 (>31 日) は週別。
+		t.Errorf("SeriesKind = %q, want week", rep.SeriesKind)
+	}
+}
+
 func TestComputeEmpty(t *testing.T) {
 	rep := Compute(nil, Options{Period: AllTime, Now: d(2026, 6, 9)})
 	if rep.Total != 0 || rep.ActiveDays != 0 || rep.CurrentStreak != 0 || rep.LongestStreak != 0 {

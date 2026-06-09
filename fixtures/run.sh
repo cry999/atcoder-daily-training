@@ -237,6 +237,14 @@ run_case "stats -w"                    0 stats -w
 run_case "stats -m"                    0 stats -m
 run_case "stats -y"                    0 stats -y
 run_case "stats -w --month reject"     2 stats -w --month
+# ローリング期間 --last <dur>: 今日から N 単位分。短縮形 -l。bare d/w/m/y は 1 扱い。
+run_case "stats --last 7d"             0 stats --last 7d
+run_case "stats --last 1m"             0 stats --last 1m
+run_case "stats --last 1y"             0 stats --last 1y
+run_case "stats -l m (bare unit)"      0 stats -l m
+run_case "stats --last 0d reject"      2 stats --last 0d
+run_case "stats --last 1x reject"      2 stats --last 1x
+run_case "stats --week --last 7d rej"  2 stats --week --last 7d
 
 # `atcoder completion` smoke: 各シェルのスクリプト出力と、隠し __complete ヘルパ。
 # completion の引数エラーは exit 2。__complete は常に exit 0 で候補を吐く。

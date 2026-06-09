@@ -2,13 +2,16 @@
 // 解答数・アクティブ日数・ストリーク・カテゴリ別内訳・時系列を求める。
 //
 // I/O (Scan) と集計ロジック (Compute) を分離し、Compute は純粋関数にして
-// ある。Now を注入できるので「今週/今月/今年」の相対集計も決定的にテスト
-// できる (internal/layout の Detect / Letter と同じ流儀)。
+// ある。Now を注入できるので「今週/今月/今年」の暦窓も「今日から N 単位分」の
+// ローリング窓も決定的にテストできる (internal/layout の Detect / Letter と
+// 同じ流儀)。
 //
-// 要件詳細: docs/tools/requirements/005-exercise-stats.md
+// 要件詳細: docs/tools/requirements/005-exercise-stats.md (基本),
+// docs/tools/requirements/010-stats-rolling-window.md (ローリング期間)。
 package stats
 
 import (
+	"fmt"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -17,7 +20,7 @@ import (
 	"time"
 )
 
-// Period は集計窓。
+// Period は暦ベースの集計窓。
 type Period int
 
 const (
@@ -26,6 +29,22 @@ const (
 	ThisMonth
 	ThisYear
 )
+
+// Unit はローリング窓 (Rolling) の単位。
+type Unit int
+
+const (
+	UnitDay Unit = iota
+	UnitWeek
+	UnitMonth
+	UnitYear
+)
+
+// Rolling は「今日から N 単位分」のローリング窓指定 (半開区間 (start, now])。
+type Rolling struct {
+	N    int
+	Unit Unit
+}
 
 // Solve は 1 ファイル = 1 問の集計単位。
 type Solve struct {
@@ -36,9 +55,11 @@ type Solve struct {
 }
 
 // Options は集計条件。Now がゼロ値なら time.Now().Local() を使う。
+// Rolling が非 nil なら Period より優先してローリング窓で集計する。
 type Options struct {
-	Period Period
-	Now    time.Time
+	Period  Period
+	Rolling *Rolling
+	Now     time.Time
 }
 
 // Count は key ごとの件数 (カテゴリ別 / レター別)。
@@ -146,15 +167,17 @@ func Compute(solves []Solve, opts Options) Report {
 	}
 	now = dayOf(now)
 
+	win := resolveWindow(opts, now)
+
 	// 期間窓で絞る。
 	var in []Solve
 	for _, s := range solves {
-		if inWindow(s.Date, now, opts.Period) {
+		if inWin(s.Date, win) {
 			in = append(in, s)
 		}
 	}
 
-	rep := Report{Label: periodLabel(opts.Period, now)}
+	rep := Report{Label: win.label}
 	rep.Total = len(in)
 
 	// カテゴリ別・レター別・日別件数を集計。
@@ -179,14 +202,88 @@ func Compute(solves []Solve, opts Options) Report {
 	rep.LongestStreak = longestStreak(days)
 
 	// 時系列。
-	if opts.Period == ThisWeek || opts.Period == ThisMonth {
+	if win.daily {
 		rep.SeriesKind = "day"
-		rep.Series = dailySeries(dayN, opts.Period, now)
+		rep.Series = dailySeries(dayN, win.start, now)
 	} else {
 		rep.SeriesKind = "week"
 		rep.Series, rep.SeriesOmitted = weeklySeries(in)
 	}
 	return rep
+}
+
+// window は集計に使う日付窓。start/end は inclusive 日境界 (ローカル 0 時)。
+// start.IsZero() なら下端なし、end.IsZero() なら上端なし (= 全期間)。
+type window struct {
+	start, end time.Time
+	daily      bool   // 時系列粒度: true=日別 / false=週別
+	label      string // Report.Label
+}
+
+// resolveWindow は Options から window を組み立てる。
+// Rolling が非 nil ならローリング窓、そうでなければ Period の暦窓。
+func resolveWindow(opts Options, now time.Time) window {
+	if r := opts.Rolling; r != nil {
+		return rollingWindow(*r, now)
+	}
+	switch opts.Period {
+	case ThisWeek:
+		s := weekStart(now)
+		e := s.AddDate(0, 0, 6)
+		return window{start: s, end: e, daily: true,
+			label: "this week (" + s.Format("2006-01-02") + "–" + e.Format("01-02") + ")"}
+	case ThisMonth:
+		s := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+		e := s.AddDate(0, 1, -1)
+		return window{start: s, end: e, daily: true,
+			label: "this month (" + now.Format("2006-01") + ")"}
+	case ThisYear:
+		s := time.Date(now.Year(), 1, 1, 0, 0, 0, 0, now.Location())
+		e := time.Date(now.Year(), 12, 31, 0, 0, 0, 0, now.Location())
+		return window{start: s, end: e, daily: false,
+			label: "this year (" + now.Format("2006") + ")"}
+	default: // AllTime
+		return window{daily: false, label: "all time"}
+	}
+}
+
+// rollingWindow は「今日から N 単位分」の半開区間 (startExcl, now] を window にする。
+// 含まれる最初の日 first を start に、now を end に置き、粒度は窓日数 (≤31 で日別) で決める。
+func rollingWindow(r Rolling, now time.Time) window {
+	var startExcl time.Time
+	var unit string
+	switch r.Unit {
+	case UnitWeek:
+		startExcl = now.AddDate(0, 0, -7*r.N)
+		unit = "week"
+	case UnitMonth:
+		startExcl = now.AddDate(0, -r.N, 0)
+		unit = "month"
+	case UnitYear:
+		startExcl = now.AddDate(-r.N, 0, 0)
+		unit = "year"
+	default: // UnitDay
+		startExcl = now.AddDate(0, 0, -r.N)
+		unit = "day"
+	}
+	first := startExcl.AddDate(0, 0, 1) // 半開区間なので開始の翌日が最初の含む日
+	plural := ""
+	if r.N != 1 {
+		plural = "s"
+	}
+	label := fmt.Sprintf("last %d %s%s (%s–%s)", r.N, unit, plural,
+		first.Format("2006-01-02"), now.Format("01-02"))
+	return window{start: first, end: now, daily: daysBetween(first, now) <= 31, label: label}
+}
+
+// daysBetween は a..b (inclusive) の日数を DST 非依存に数える。
+func daysBetween(a, b time.Time) int {
+	a, b = dayOf(a), dayOf(b)
+	n := 0
+	for d := a; !d.After(b); d = d.AddDate(0, 0, 1) {
+		n++
+	}
+	return n
 }
 
 // dayOf は時刻を捨ててローカル 0 時に丸める。
@@ -202,36 +299,16 @@ func weekStart(t time.Time) time.Time {
 	return t.AddDate(0, 0, -delta)
 }
 
-// inWindow は d が now 基準の期間窓に入るか判定する。
-func inWindow(d, now time.Time, p Period) bool {
+// inWin は d (日に丸めて) が window の inclusive 境界に入るか判定する。
+func inWin(d time.Time, w window) bool {
 	d = dayOf(d)
-	switch p {
-	case ThisYear:
-		return d.Year() == now.Year()
-	case ThisMonth:
-		return d.Year() == now.Year() && d.Month() == now.Month()
-	case ThisWeek:
-		start := weekStart(now)
-		end := start.AddDate(0, 0, 6)
-		return !d.Before(start) && !d.After(end)
-	default: // AllTime
-		return true
+	if !w.start.IsZero() && d.Before(w.start) {
+		return false
 	}
-}
-
-func periodLabel(p Period, now time.Time) string {
-	switch p {
-	case ThisWeek:
-		s := weekStart(now)
-		e := s.AddDate(0, 0, 6)
-		return "this week (" + s.Format("2006-01-02") + "–" + e.Format("01-02") + ")"
-	case ThisMonth:
-		return "this month (" + now.Format("2006-01") + ")"
-	case ThisYear:
-		return "this year (" + now.Format("2006") + ")"
-	default:
-		return "all time"
+	if !w.end.IsZero() && d.After(w.end) {
+		return false
 	}
+	return true
 }
 
 // currentStreak は今日 (無ければ前日) を起点に連続アクティブ日数を遡って数える。
@@ -281,19 +358,13 @@ func dateSet(days []time.Time) map[time.Time]bool {
 	return s
 }
 
-// dailySeries は窓の開始日〜今日の各日を 0 件含めて並べる (week/month 用)。
-func dailySeries(dayN map[time.Time]int, p Period, now time.Time) []Bucket {
-	var start time.Time
-	switch p {
-	case ThisWeek:
-		start = weekStart(now)
-	case ThisMonth:
-		start = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-	default:
+// dailySeries は start〜now の各日を 0 件含めて並べる (日別粒度の窓用)。
+func dailySeries(dayN map[time.Time]int, start, now time.Time) []Bucket {
+	if start.IsZero() {
 		start = now
 	}
 	var out []Bucket
-	for d := start; !d.After(now); d = d.AddDate(0, 0, 1) {
+	for d := dayOf(start); !d.After(now); d = d.AddDate(0, 0, 1) {
 		out = append(out, Bucket{Label: d.Format("2006-01-02"), N: dayN[d]})
 	}
 	return out
