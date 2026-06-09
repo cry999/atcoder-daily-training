@@ -2,7 +2,7 @@
 
 `atcoder` ツールの `test` サブコマンドの使い方をまとめる。
 
-仕様の詳細は [exercise-test-requirements.md](./exercise-test-requirements.md) を参照。
+仕様の詳細は [001-exercise-test.md](./requirements/001-exercise-test.md) を参照。
 
 ## 前提
 
@@ -51,7 +51,7 @@ exercise/YYYY/MM/DD/
 ## コマンド
 
 ```
-atcoder test <contest> --task <task> [-v] [-d] [--case <N[,M,...]>] [--refresh] [--timeout <dur>] [-j <n>] [-w]
+atcoder test <contest> --task <task> [-v] [-d] [-s] [-c <N[,M,...]>] [--refresh] [--timeout <dur>] [--tolerance <eps>] [--layout <auto|abc|exercise>] [-j <n>] [-w]
 ```
 
 ### 引数
@@ -63,8 +63,11 @@ atcoder test <contest> --task <task> [-v] [-d] [--case <N[,M,...]>] [--refresh] 
 | `-v` / `--verbose` | | 各ケースで入力 (`input:`) と実際の出力 (`output:`) を表示 |
 | `-d` / `--debug` | | 子プロセスに `DEBUG=1` を渡し、stdout のうち `[DEBUG]` で始まる行を比較対象から除外。除外行は `debug:` セクションに表示 |
 | `-c` / `--case <N>` | | 指定したケース番号のみ実行。カンマ区切りで複数可 (`-c 1,3`)。数値は `01`, `03` のように 2 桁ゼロ埋めへ正規化。該当無しはエラー終了 |
+| `-s` / `--side-by-side` | | diff を左右 2 カラムで表示 (期待出力=左、実際の出力=右) |
 | `--refresh` | | テストキャッシュを無視して AtCoder から再取得 |
 | `--timeout <dur>` | | 1 ケースあたりの実行制限時間を上書き。Go の duration 記法 (例: `5s`, `500ms`)。未指定なら `meta.toml.time_limit_ms` の値を使う |
+| `--tolerance <eps>` | | float トークン比較の絶対/相対許容誤差 (例: `1e-9`)。未指定または `0` は既定の `1e-6` |
+| `--layout <auto\|abc\|exercise>` | | 解答ファイルの配置規約。`auto` (既定) は `abc<NNN>` なら `abc`、それ以外は `exercise`。`exercise`=当日 `exercise/YYYY/MM/DD/<task>.py`、`abc`=`abc/<num>/<letter>.py` |
 | `-j` / `--jobs <n>` | | テストケースを並列実行する数。`0` (既定) は CPU 数 (ケース数で頭打ち)。`-j 1` で逐次 |
 | `-w` / `--watch` | | 解答ファイルの保存を監視し、変更のたびにテストを自動再実行。`Ctrl+C` で終了。**端末 (TTY) が必要** |
 
@@ -259,7 +262,7 @@ side_by_side = true   # diff を常に side-by-side で表示 (-s 相当)
 
 ## 関連
 
-- 要件定義: [exercise-test-requirements.md](./exercise-test-requirements.md)
+- 要件定義: [001-exercise-test.md](./requirements/001-exercise-test.md)
 - アーキテクチャ: [atcoder-test-architecture.md](./atcoder-test-architecture.md)
 - テスト戦略: [atcoder-test-testing.md](./atcoder-test-testing.md)
 - ad-hoc 実行コマンド: [atcoder-run-usage.md](./atcoder-run-usage.md)

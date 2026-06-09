@@ -2,7 +2,7 @@
 
 `test` がサンプルケースとの突合せ判定を行うのに対し、`run` は **任意の標準入力で解答を走らせて、出てきた出力をそのまま見る** ための ad-hoc 実行コマンド。判定 (PASS/FAIL) は行わない。
 
-仕様の詳細は [exercise-test-requirements.md](./exercise-test-requirements.md) (test 側) と本ドキュメントを参照。アーキテクチャは [atcoder-test-architecture.md](./atcoder-test-architecture.md) (runexec パッケージのセクション)。
+仕様の詳細は [001-exercise-test.md](./requirements/001-exercise-test.md) (test 側) と本ドキュメントを参照。アーキテクチャは [atcoder-test-architecture.md](./atcoder-test-architecture.md) (runexec パッケージのセクション)。
 
 ## 用途
 
@@ -17,7 +17,7 @@
 ## コマンド
 
 ```
-atcoder run <contest> --task <task> [-v] [-d] [--in <path>|-] [--out <path>] [--interactive] [--timeout <dur>]
+atcoder run <contest> --task <task> [-v] [-d] [--in <path>|-] [--out <path>] [--interactive] [--timeout <dur>] [--tolerance <eps>] [--layout <auto|abc|exercise>]
 ```
 
 ### 引数
@@ -32,6 +32,8 @@ atcoder run <contest> --task <task> [-v] [-d] [--in <path>|-] [--out <path>] [--
 | `-v` / `--verbose` | | 渡した入力 (`input:` セクション) も合わせて表示 |
 | `-d` / `--debug` | | 子プロセスに `DEBUG=1` を渡し、stdout から `[DEBUG]` で始まる行を `debug:` セクションに切り出す (`test` と同じ規約) |
 | `--timeout <dur>` | | 制限時間の上書き (`5s`, `500ms` 等)。未指定なら meta.toml の値、無ければ 2 秒 |
+| `--tolerance <eps>` | | `--out` judge モードでの float トークン比較の許容誤差 (例: `1e-9`)。未指定または `0` は既定の `1e-6` |
+| `--layout <auto\|abc\|exercise>` | | 解答ファイルの配置規約 (`test` と同じ)。`auto` (既定) は `abc<NNN>` なら `abc`、それ以外は `exercise` |
 
 ## 出力例
 
@@ -134,7 +136,7 @@ printf "3\nok\nok\nok\n" | atcoder run abc999 --task a --interactive
 
 ## 関連
 
-- 仕様 (test): [exercise-test-requirements.md](./exercise-test-requirements.md)
+- 仕様 (test): [001-exercise-test.md](./requirements/001-exercise-test.md)
 - 利用 (test): [atcoder-test-usage.md](./atcoder-test-usage.md)
 - アーキテクチャ: [atcoder-test-architecture.md](./atcoder-test-architecture.md)
 - テスト戦略: [atcoder-test-testing.md](./atcoder-test-testing.md)

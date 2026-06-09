@@ -8,7 +8,7 @@
 
 - 本番中は **コンテスト開始直後の準備フリクション** と **WA 後の挙動修正サイクル** が体感に大きく効く。練習用ワークフローのままだと、`atcoder new` が当日 dir を作る、`--task` ごとに 1 回ずつ fetch、…と毎回手数が増える。
 - 提出 (submit) や認証は `oj` / `atcoder-cli` などの既存ツールに任せれば足りるので、当面ローカル側のフリクション削減に集中する。
-- 本ドキュメントは設計の道標であって、各項目の細部仕様は別途要件定義に落とす (`docs/tools/exercise-test-requirements.md` のような形)。
+- 本ドキュメントは設計の道標であって、各項目の細部仕様は別途要件定義に落とす (`docs/tools/requirements/001-exercise-test.md` のような形)。
 
 ## 優先順位
 
@@ -56,7 +56,7 @@
 
 ### B. コンテストメタの取り扱い
 
-> 要件詳細: `docs/tools/exercise-abc-contest-meta-requirements.md` (`new abc <contest>` 一括準備として設計済み)
+> 要件詳細: `docs/tools/requirements/003-exercise-abc-contest-meta.md` (`new abc <contest>` 一括準備として設計済み)
 >
 > **✅ 実装済み (0596725)** — `atcoder new abc <contest>` として実装。下記「決めること」は次のように決着した:
 > - **コマンド表面**: `contest prepare` 新設ではなく、既存 `atcoder new` を拡張して `new abc <contest>` モードにした (引数なしは従来の当日 dir 作成のまま)。

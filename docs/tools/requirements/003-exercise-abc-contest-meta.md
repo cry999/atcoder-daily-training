@@ -4,7 +4,7 @@
 
 ABC 本番開始直後に、コンテスト 1 つ分のサンプル取得・キャッシュ・解答スケルトン生成を **1 コマンド** で済ませられるようにする。あわせて、コンテスト単位の情報 (タスクリスト・開始 / 終了時刻・URL) を **コンテストメタ** として 1 か所に保存し、Phase 2 の E (本番モード判定) / G (タイマー) の前提を整える。
 
-`docs/tools/abc-todo.md` の MVP "B. コンテストメタの取り扱い" の要件詳細。MVP "A" (`docs/tools/exercise-abc-layout-requirements.md`) で導入した ABC レイアウトと、既存の fetch / cache 基盤 (`internal/testexec`) の上に乗せる。
+`docs/tools/abc-todo.md` の MVP "B. コンテストメタの取り扱い" の要件詳細。MVP "A" (`docs/tools/requirements/002-exercise-abc-layout.md`) で導入した ABC レイアウトと、既存の fetch / cache 基盤 (`internal/testexec`) の上に乗せる。
 
 ## 背景・目的
 
@@ -246,6 +246,6 @@ func Fetch(contest string) (*Meta, error)
 ## 関連ドキュメント
 
 - `docs/tools/abc-todo.md` (上位ロードマップ。MVP "B" の要件詳細が本書)
-- `docs/tools/exercise-abc-layout-requirements.md` (MVP "A" ABC レイアウト要件。ID 用語・レイアウト Strategy の定義元)
-- `docs/tools/exercise-test-requirements.md` (既存 test サブコマンド要件。fetch / cache / meta の基盤)
+- `docs/tools/requirements/002-exercise-abc-layout.md` (MVP "A" ABC レイアウト要件。ID 用語・レイアウト Strategy の定義元)
+- `docs/tools/requirements/001-exercise-test.md` (既存 test サブコマンド要件。fetch / cache / meta の基盤)
 - `docs/tools/todo.md` (テンプレート連携 H の移管先)

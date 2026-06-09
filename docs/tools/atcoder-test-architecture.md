@@ -2,7 +2,7 @@
 
 要件 / 利用手引はそれぞれ以下を参照:
 
-- 要件定義: [exercise-test-requirements.md](./exercise-test-requirements.md)
+- 要件定義: [001-exercise-test.md](./requirements/001-exercise-test.md)
 - 利用手引: [atcoder-test-usage.md](./atcoder-test-usage.md)
 
 このドキュメントは `cmd/atcoder` ツールの内部設計、特に `test` サブコマンドのパッケージ構成・依存方向・型設計を扱う。
