@@ -1,4 +1,4 @@
-# Test fixtures for `atcoder test` / `atcoder run`
+# Test fixtures for `atcoder test` (samples + ad-hoc/interactive modes)
 
 ツール自身の挙動をスモークテストするための fixture 一式と、それを走らせるスクリプト。
 
@@ -23,7 +23,7 @@
 | `fixture_debug` (`-d` 無し) | `5` | `10` | `[DEBUG]` 行で汚染 → FAIL、exit 1 |
 | `fixture_debug` (`-d` 付き) | `5` | `10` | `[DEBUG]` がフィルタされ PASS、exit 0 |
 | `fixture_multi` | `1`/`2`/`3` | `2`/`4`/`6` | 3 ケース持ちで `--case` フィルタの動作確認用 |
-| `fixture_interactive` | 任意 | 任意 | 簡易インタラクティブ (query/response loop) — `run --stdin -` 用 |
+| `fixture_interactive` | 任意 | 任意 | 簡易インタラクティブ (query/response loop) — `test --interactive` 用 |
 | `fixture_diff` | `1` | 3 行 (`1 2 3 4 5` / `hello world` / `last line`) | 複数行 + 行内 1 token 違いの誤答。`delta` 風の intra-line token highlight を視覚確認するため |
 
 > フラグ単位の経路も `run.sh` で smoke する。例: `fixture_pass --watch` は run.sh の出力が非 TTY のため `exit 2` で拒否されることを確認 (watch ループ本体は常駐してブロックするため fixture では回さない)。

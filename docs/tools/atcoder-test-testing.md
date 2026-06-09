@@ -77,6 +77,6 @@
 ## 制約と非対象
 
 - 表示の見た目 (色や配置) はスモークテストで検証できない。`CLICOLOR_FORCE=1` で手動目視を推奨。
-- `atcoder run --stdin -` の **chat TUI** は TTY を要するため `fixtures/run.sh` ではカバーされない (スクリプト内の interactive ケースは非TTY passthrough のみ試験する)。手動確認は端末から `atcoder run fixture --task interactive --stdin -` を直接叩く。
+- `atcoder test --interactive` の **chat TUI** は TTY を要するため `fixtures/run.sh` ではカバーされない (スクリプト内の interactive ケースは非TTY passthrough のみ試験する)。手動確認は端末から `atcoder test fixture --task interactive --interactive` を直接叩く。
 - 並列実行や HTTP fetch の挙動は対象外 (fixtures は事前生成済みのキャッシュを使う想定)。
 - Python 以外の言語の Runner はまだ存在しないので未対象。追加されたら言語ごとの fixture を増やす。

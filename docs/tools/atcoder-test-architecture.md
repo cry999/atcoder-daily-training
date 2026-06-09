@@ -31,7 +31,7 @@ internal/ui/
   progress.go    # bubbletea ライブ進捗 (ケース一覧のスピナー + プログレスバー。TTY 時)
   watch.go       # watch モードの画面クリア・ヘッダ/フッタ・TTY 判定ヘルパー
   diff.go        # delta 風 unified diff (LCS + intra-line token highlight)
-  chat.go        # bubbletea ベース chat TUI (`atcoder run --stdin -` の TTY モード)
+  chat.go        # bubbletea ベース chat TUI (`atcoder test --interactive` の TTY モード)
   style.go       # lipgloss スタイル定義
 
 internal/runexec/
@@ -48,7 +48,7 @@ internal/cachepath/
   cachepath.go   # キャッシュ配置 (XDG_CACHE_HOME / ~/.cache / atcoder-tools 配下) の解決
 ```
 
-> 補足: `internal/runexec` は `atcoder run` サブコマンドの実装。`testexec` と並列の位置付けで、判定 (PASS/FAIL) を行わず単発実行に特化する。詳細は [atcoder-run-usage.md](./atcoder-run-usage.md)。
+> 補足: `internal/runexec` は `atcoder test` の **ad-hoc / 対話モード** の実装 (旧 `atcoder run` サブコマンド。[ADR 0005](./decisions/0005-unify-test-run-into-test.md) で `test` に統合・廃止)。`testexec` (サンプル判定) と並列の位置付けで、判定 suite を行わず単発実行に特化する。`cmd/atcoder/test.go` がフラグ (`--in`/`--out`/`--interactive`) を見て `testexec.Run` / `runexec.Run` のどちらに振り分けるかを決め、ad-hoc 結線は `cmd/atcoder/adhoc.go` が持つ。詳細は [atcoder-test-usage.md](./atcoder-test-usage.md) の「モード」節。
 
 ## 依存方向
 

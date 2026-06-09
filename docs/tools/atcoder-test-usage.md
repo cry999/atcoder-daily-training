@@ -1,8 +1,8 @@
 # `atcoder test` 利用手引
 
-`atcoder` ツールの `test` サブコマンドの使い方をまとめる。
+`atcoder` ツールの `test` サブコマンドの使い方をまとめる。`test` は解答を走らせる唯一の入口で、**既定はサンプル判定**、`--in` / `--out` / `--interactive` を付けると ad-hoc 実行・対話モードになる (旧 `atcoder run` は `test` に統合・廃止)。
 
-仕様の詳細は [001-exercise-test.md](./requirements/001-exercise-test.md) を参照。
+仕様の詳細は [001-exercise-test.md](./requirements/001-exercise-test.md)、統一の経緯は [013-unify-test-run.md](./requirements/013-unify-test-run.md) / [ADR 0005](./decisions/0005-unify-test-run-into-test.md) を参照。
 
 ## 前提
 
@@ -51,7 +51,11 @@ exercise/YYYY/MM/DD/
 ## コマンド
 
 ```
-atcoder test <contest> --task <task> [-v] [-d] [-s] [-c <N[,M,...]>] [--refresh] [--timeout <dur>] [--tolerance <eps>] [--layout <auto|abc|exercise>] [-j <n>] [-w]
+atcoder test <contest> --task <task>            # 既定: DL 済みサンプルを判定
+    [サンプル: -c <N[,M,...]> | --refresh | -j <n> | -w | -s]
+    [ad-hoc:  --in <path>|- | --out <path>]
+    [対話:    --interactive]
+    [共通:    -v | -d | --timeout <dur> | --tolerance <eps> | --layout <auto|abc|exercise>]
 ```
 
 ### 引数
@@ -70,10 +74,57 @@ atcoder test <contest> --task <task> [-v] [-d] [-s] [-c <N[,M,...]>] [--refresh]
 | `--layout <auto\|abc\|exercise>` | | 解答ファイルの配置規約。`auto` (既定) は `abc<NNN>` なら `abc`、それ以外は `exercise`。`exercise`=当日 `exercise/YYYY/MM/DD/<task>.py`、`abc`=`abc/<num>/<letter>.py` |
 | `-j` / `--jobs <n>` | | テストケースを並列実行する数。`0` (既定) は CPU 数 (ケース数で頭打ち)。`-j 1` で逐次 |
 | `-w` / `--watch` | | 解答ファイルの保存を監視し、変更のたびにテストを自動再実行。`Ctrl+C` で終了。**端末 (TTY) が必要** |
+| `--in` / `-i <path>` | | **ad-hoc モード**に切替。自前入力で 1 回実行 (`-` で stdin)。判定はしない (`--out` 併用時のみ) |
+| `--out` / `-o <path>` | | **ad-hoc モード** (判定付き)。stdout を期待出力ファイルと突合せ。`--in` 省略時は stdin を読む |
+| `--interactive` / `-I` | | **対話モード**。子の stdin/stdout を親に直結 (TTY なら chat TUI)。`--out` / ファイル `--in` とは併用不可 |
+
+> `--in`/`--out`/`--interactive` を**明示**したときだけ ad-hoc/対話になる。付けなければ既定のサンプル判定で、stdin がパイプされていてもモードは変わらない (ad-hoc にしたいときは `--in -`)。サンプル専用フラグ (`--refresh`/`-c`/`-j`/`-w`/`-s`) と ad-hoc フラグの併用は `exit 2`。詳細は下の「モード」節。
 
 ### 解答ファイルの特定
 
 ツールは **当日 (ローカル時刻) の `exercise/YYYY/MM/DD/<task>.py`** を解答ファイルとして使う。指定された日付の解答だけをテストする想定であり、過去日の解答は (現時点では) テストできない。
+
+## モード: サンプル判定 (既定) / ad-hoc / 対話
+
+`test` は入力ソースで 3 モードに分かれる。**既定はサンプル判定**で、`--in`/`--out`/`--interactive` を明示したときだけ ad-hoc / 対話に切り替わる。
+
+| モード | トリガ | 内容 |
+|---|---|---|
+| サンプル判定 (既定) | フラグ無し | DL 済みサンプル群を判定 (PASS/FAIL/TLE/RE) |
+| ad-hoc | `--in <path>` / `--in -` / `--out <path>` | 自前入力で 1 回実行。`--out` 指定時のみ突合せ判定 |
+| 対話 | `--interactive` (`-I`) | 子の stdin/stdout を親に直結。TTY なら chat TUI |
+
+- stdin がパイプされていてもモードは変わらない。stdin から ad-hoc 入力したいときは `--in -` を明示する。
+- サンプル専用フラグ (`--refresh`/`-c`/`-j`/`-w`/`-s`) と ad-hoc フラグの併用は `exit 2`。
+- 対話は `--out` ともファイル `--in <path>` とも併用不可 (`exit 2`)。`--in -` は可。
+
+### ad-hoc 実行
+
+```sh
+# 自前ケースで動かして出力を見る (判定なし)
+atcoder test abc325 --task d --in my_case.txt
+
+# stdin から (パイプ/リダイレクト)。--in - を明示する
+echo "5" | atcoder test abc325 --task d --in -
+atcoder test abc325 --task d --in - < my_case.txt
+
+# 期待出力と突合せ (1 件 judge)
+atcoder test abc325 --task d --in my_case.txt --out expected.txt
+```
+
+出力ステータスは `OK` / `TLE` / `RE`。`-v` で渡した入力も表示、`-d` で `DEBUG=1`。
+
+### 対話モード
+
+`--interactive` (`-I`) で子プロセスと live 対話する。入力は親 stdin から読む。
+
+- **TTY (端末から直接)**: bubbletea ベースの chat TUI。入力ボックスに 1 行 → `Enter` で送信、子の出力は届き次第表示。`↑`/`↓` で入力履歴、`Ctrl+D` で EOF、`Ctrl+C` で終了。子は `PYTHONUNBUFFERED=1` 付きで起動するので `flush()` 不要。
+- **非 TTY (パイプ/リダイレクト)**: passthrough + tee。送った各行を `> <input>` と echo してから子に転送する batch-friendly モード (厳密な交互表示は保証されない。チャットらしさが要るなら TTY か `expect`(1))。
+
+```sh
+atcoder test abc999 --task a --interactive                      # chat TUI
+printf "3\nok\nok\nok\n" | atcoder test abc999 --task a --interactive
+```
 
 ## 動作
 
@@ -290,6 +341,6 @@ true
 - 要件定義: [001-exercise-test.md](./requirements/001-exercise-test.md)
 - アーキテクチャ: [atcoder-test-architecture.md](./atcoder-test-architecture.md)
 - テスト戦略: [atcoder-test-testing.md](./atcoder-test-testing.md)
-- ad-hoc 実行コマンド: [atcoder-run-usage.md](./atcoder-run-usage.md)
+- test/run 統一の経緯: [013-unify-test-run.md](./requirements/013-unify-test-run.md) / [ADR 0005](./decisions/0005-unify-test-run-into-test.md)
 - コミットコマンド: [atcoder-commit-usage.md](./atcoder-commit-usage.md)
 - ツール本体: [`cmd/atcoder/main.go`](../../cmd/atcoder/main.go)
