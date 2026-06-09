@@ -40,7 +40,6 @@ git worktree add ../atcoder-daily-training.worktrees/fix-<slug> -b fix-<slug>
 
 - **実コマンドで再現** — `go run ./cmd/atcoder <cmd> ...` を実際に叩き、stdout/stderr と exit code (`echo $?`) を観測する。期待値と実際値を 1 行ずつ書き出す。
 - **入力を最小化** — どの引数・どのサンプル・どの環境変数で出るかを削って絞る。ネットワーク絡みは `--no-fetch` 等オフライン経路で切り分け、AtCoder への実アクセスは避ける。
-- **ログインまわりのバグは `ATCODER_DEBUG`** — `internal/atcoder/login.go` は `ATCODER_DEBUG` が立っているとき AtCoder の拒否理由を表に出す。認証系の不具合はこれを使って原因を絞る。
 - 再現条件 (コマンド・入力・期待・実際・exit code) を一旦メモしておく。これがそのまま次のテストケースになる。
 
 ### 2. 原因を特定する
@@ -48,8 +47,8 @@ git worktree add ../atcoder-daily-training.worktrees/fix-<slug> -b fix-<slug>
 再現条件から、症状が生まれる場所まで遡る。
 
 - ディスパッチは `cmd/atcoder/main.go` の `switch os.Args[1]`。サブコマンド本体は `cmd/atcoder/<cmd>.go` (`cmdXxx(args []string) (code int, err error)` 形)。
-- ドメインロジックは `internal/` に分かれている: `runner/` (プロセス実行)、`testexec/` (test の orchestration・judge・meta・fetch)、`runexec/` (run)、`atcoder/` (ログイン・session・submit)、`contestmeta/` (contest.toml)、`layout/` (解答パス解決)、`cachepath/` (XDG キャッシュ位置)、`ui/` (Reporter・diff・chat)、`stats/`・`review/`・`complete/`・`selfupdate/`・`watch/`・`config/`。
-- 既存の `*_test.go` (例 `internal/atcoder/login_test.go`, `internal/layout/layout_test.go`) を読むと、その機構の期待挙動と境界が分かる。原因の当たりがついたら該当パッケージのテストを `go test ./internal/<pkg>/` で回して挙動を確かめる。
+- ドメインロジックは `internal/` に分かれている: `runner/` (プロセス実行)、`testexec/` (test の orchestration・judge・meta・fetch)、`runexec/` (run)、`contestmeta/` (contest.toml)、`layout/` (解答パス解決)、`cachepath/` (XDG キャッシュ位置)、`ui/` (Reporter・diff・chat)、`stats/`・`review/`・`complete/`・`selfupdate/`・`watch/`・`config/`。
+- 既存の `*_test.go` (例 `internal/stats/stats_test.go`, `internal/layout/layout_test.go`) を読むと、その機構の期待挙動と境界が分かる。原因の当たりがついたら該当パッケージのテストを `go test ./internal/<pkg>/` で回して挙動を確かめる。
 
 ### 3. 失敗するテストを先に書く (赤にする)
 
