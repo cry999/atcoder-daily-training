@@ -173,18 +173,21 @@ func renderTokenLine(ops []diffOp, n int, minus bool) string {
 	lineStyle := diffPlusLineStyle
 	emphStyle := diffPlusEmphStyle
 	signStyle := diffPlusSignStyle
+	lineNumStyle := diffPlusLineNumStyle
 	if minus {
 		lineStyle = diffMinusLineStyle
 		emphStyle = diffMinusEmphStyle
 		signStyle = diffMinusSignStyle
+		lineNumStyle = diffMinusLineNumStyle
 	}
 
 	var sb strings.Builder
 	// レイアウト: "<3d 行番号> <sign> │ <内容>" — sign を gutter の右ではなく
 	// 行番号の隣に置くことで、左半 ("行を識別する情報") と右半 ("実際の出力") を
-	// 視覚的に分離する。
+	// 視覚的に分離する。行番号自体も "-"/"+" の色 (red/green) に着色して
+	// どちら側の行か一目で判別できるようにする。
 	sb.WriteString("         ")
-	sb.WriteString(diffLineNumStyle.Render(fmt.Sprintf("%3d", n)))
+	sb.WriteString(lineNumStyle.Render(fmt.Sprintf("%3d", n)))
 	sb.WriteString(" ")
 	if minus {
 		sb.WriteString(signStyle.Render("-"))
@@ -254,7 +257,8 @@ func renderDiffSideBySide(expected, actual string, full bool) string {
 			if full {
 				left := renderSBContextSide(ops[i].Text, half)
 				right := renderSBContextSide(ops[i].Text, half)
-				sb.WriteString(diffSBIndent + left + renderSBCenter(expN, actN) + right + "\n")
+				// context: 両側とも dim neutral
+				sb.WriteString(diffSBIndent + left + renderSBCenter(expN, actN, diffLineNumStyle, diffLineNumStyle) + right + "\n")
 			}
 			i++
 			continue
@@ -284,36 +288,40 @@ func renderDiffSideBySide(expected, actual string, full bool) string {
 			tokOps := lcsDiff(expToks, actToks)
 			left := renderSBPairSide(tokOps, true, half)
 			right := renderSBPairSide(tokOps, false, half)
-			sb.WriteString(diffSBIndent + left + renderSBCenter(expN, actN) + right + "\n")
+			// paired: 左 red, 右 green
+			sb.WriteString(diffSBIndent + left + renderSBCenter(expN, actN, diffMinusLineNumStyle, diffPlusLineNumStyle) + right + "\n")
 		}
 		for k := pairs; k < len(dels); k++ {
 			expN++
 			left := renderSBSoloSide(dels[k], true, half)
 			right := strings.Repeat(" ", half)
-			sb.WriteString(diffSBIndent + left + renderSBCenter(expN, 0) + right + "\n")
+			// solo del: 左だけ red
+			sb.WriteString(diffSBIndent + left + renderSBCenter(expN, 0, diffMinusLineNumStyle, diffLineNumStyle) + right + "\n")
 		}
 		for k := pairs; k < len(adds); k++ {
 			actN++
 			left := strings.Repeat(" ", half)
 			right := renderSBSoloSide(adds[k], false, half)
-			sb.WriteString(diffSBIndent + left + renderSBCenter(0, actN) + right + "\n")
+			// solo add: 右だけ green
+			sb.WriteString(diffSBIndent + left + renderSBCenter(0, actN, diffLineNumStyle, diffPlusLineNumStyle) + right + "\n")
 		}
 	}
 	return sb.String()
 }
 
 // renderSBCenter は中央の "<expN> │ <actN>" ブロックを 12 桁に揃えて返す。
-// 0 が渡された側は空白に。
-func renderSBCenter(expN, actN int) string {
+// 0 が渡された側は空白に。style 引数で各側の line number 着色を切り替える
+// (paired/solo は red/green、context は dim neutral)。
+func renderSBCenter(expN, actN int, expStyle, actStyle lipgloss.Style) string {
 	es := "   "
 	as := "   "
 	if expN > 0 {
-		es = fmt.Sprintf("%3d", expN)
+		es = expStyle.Render(fmt.Sprintf("%3d", expN))
 	}
 	if actN > 0 {
-		as = fmt.Sprintf("%3d", actN)
+		as = actStyle.Render(fmt.Sprintf("%3d", actN))
 	}
-	return " " + diffLineNumStyle.Render(es) + diffGutterStyle.Render(" │ ") + diffLineNumStyle.Render(as) + " "
+	return " " + es + diffGutterStyle.Render(" │ ") + as + " "
 }
 
 // renderSBContextSide は match 行の半側を返す ("  <text>" を dim、width に pad)。
