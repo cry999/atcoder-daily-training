@@ -325,6 +325,9 @@ func renderDiffSideBySide(expected, actual string, full bool) string {
 // renderSBCenter は中央ブロック " │ <expN> │<+><-> │ <actN> │ " (18 桁) を返す。
 // 行番号は "│" で囲われ、kind に応じて行番号の背景色 (minus/plus bg) と
 // sigil の +/- の active 状態を決める。前景色は dim neutral で統一。
+// 左半 (" │ <es> │") は paired/soloDel で minus の薄い行 bg、右半
+// ("│ <as> │ ") は paired/soloAdd で plus の薄い行 bg を持つ。中央 sigil の
+// "+-" 2 文字は bg を持たず、左右 bg の継ぎ目になる。
 func renderSBCenter(expN, actN int, kind sbRowKind) string {
 	// 行番号スタイル: 前景は dim、背景で minus/plus を識別
 	expStyle := diffLineNumStyle
@@ -348,7 +351,8 @@ func renderSBCenter(expN, actN int, kind sbRowKind) string {
 		as = actStyle.Render(fmt.Sprintf("%3d", actN))
 	}
 
-	// sigil "│<plus><minus>│" — active な sign だけ色付き、それ以外は空白
+	// sigil "│<plus><minus>│" — active な sign だけ色付き、それ以外は空白。
+	// "+"/"-" 自体は bg を持たないので、左右 bg の中間の "通路" として機能する。
 	plusCh := " "
 	minusCh := " "
 	switch kind {
@@ -362,23 +366,38 @@ func renderSBCenter(expN, actN int, kind sbRowKind) string {
 	}
 	bar := diffGutterStyle.Render("│")
 
-	// " │ <es> │<+><-> │ <as> │ "
-	// 中央の "│+-│" は左 expN 囲いの右辺 "│" と右 actN 囲いの左辺 "│" を共有する
-	return " " + bar + " " + es + " " + bar + plusCh + minusCh + bar + " " + as + " " + bar + " "
+	// 左 chunk: " │ <es> │" / 右 chunk: "│ <as> │ "
+	// 中央の "│+-│" の左 "│" は左 chunk の末尾、右 "│" は右 chunk の先頭。
+	leftChunk := " " + bar + " " + es + " " + bar
+	rightChunk := bar + " " + as + " " + bar + " "
+	switch kind {
+	case sbRowPaired:
+		leftChunk = diffMinusLineStyle.Render(leftChunk)
+		rightChunk = diffPlusLineStyle.Render(rightChunk)
+	case sbRowSoloDel:
+		leftChunk = diffMinusLineStyle.Render(leftChunk)
+	case sbRowSoloAdd:
+		rightChunk = diffPlusLineStyle.Render(rightChunk)
+	}
+	return leftChunk + plusCh + minusCh + rightChunk
 }
 
 // renderSBContextSide は match 行の半側を返す (dim 本文を width に pad)。
+// context は変化なしなので行 bg は付けない。
 func renderSBContextSide(line string, width int) string {
 	return padToWidth(diffContextStyle.Render(line), width)
 }
 
-// renderSBPairSide は paired diff の半側を返す。SBS では sign が中央 sigil に
-// 集約されているので各側は **本文のみ** を返す。SBS は行 bg を持たないので、
-// intra-line emph は背景なし fg only スタイル (*FgStyle) を使う。
+// renderSBPairSide は paired diff の半側を返す。SBS でも行全体に薄い行 bg
+// (diffMinusBg / diffPlusBg) を当てて minus/plus を識別する。intra-line emph
+// は行 bg を保ったまま fg のみ red/green に上書きする (diffMinusEmphStyle /
+// diffPlusEmphStyle)。
 func renderSBPairSide(ops []diffOp, minus bool, width int) string {
-	emphStyle := diffPlusEmphFgStyle
+	lineStyle := diffPlusLineStyle
+	emphStyle := diffPlusEmphStyle
 	if minus {
-		emphStyle = diffMinusEmphFgStyle
+		lineStyle = diffMinusLineStyle
+		emphStyle = diffMinusEmphStyle
 	}
 	var sb strings.Builder
 	first := true
@@ -399,7 +418,8 @@ func renderSBPairSide(ops []diffOp, minus bool, width int) string {
 			sb.WriteString(emphStyle.Render(op.Text))
 		}
 	}
-	return padToWidth(sb.String(), width)
+	// Width(width) で bg 込みで右まで pad
+	return lineStyle.Width(width).Render(sb.String())
 }
 
 // renderSBSoloSide はペア相手がいない 1 行の半側を返す (全 token を強調)。
