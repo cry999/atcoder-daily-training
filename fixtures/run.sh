@@ -85,16 +85,24 @@ run_case "fixture_float (1e-6 tol)"   0 test fixture --task float
 # `exercise run` (ad-hoc stdin) smoke tests
 INPUT_FILE="$STAGE/run-input.txt"
 echo "5" > "$INPUT_FILE"
-run_case "run fixture_pass --stdin"   0 run fixture --task pass --stdin "$INPUT_FILE"
-run_case "run fixture_re   --stdin"   1 run fixture --task re   --stdin "$INPUT_FILE"
-run_case "run fixture_tle  --stdin"   1 run fixture --task tle  --stdin "$INPUT_FILE"
+run_case "run fixture_pass --in"      0 run fixture --task pass --in "$INPUT_FILE"
+run_case "run fixture_re   --in"      1 run fixture --task re   --in "$INPUT_FILE"
+run_case "run fixture_tle  --in"      1 run fixture --task tle  --in "$INPUT_FILE"
 
-# Interactive mode: --stdin - で fd を直結。piped 入力でも query/response の交互が成立することを確認。
-run_piped "run fixture_interactive --stdin -"  0 "3
+# --out judge: fixture_pass は 5 → 10 を出すので、 expected=10 で PASS、99 で FAIL。
+OK_OUT="$STAGE/run-expected-ok.txt"
+NG_OUT="$STAGE/run-expected-ng.txt"
+echo "10" > "$OK_OUT"
+echo "99" > "$NG_OUT"
+run_case "run fixture_pass --in --out (PASS)" 0 run fixture --task pass --in "$INPUT_FILE" --out "$OK_OUT"
+run_case "run fixture_pass --in --out (FAIL)" 1 run fixture --task pass --in "$INPUT_FILE" --out "$NG_OUT"
+
+# Interactive mode: --in - で fd を直結。piped 入力でも query/response の交互が成立することを確認。
+run_piped "run fixture_interactive --in -"  0 "3
 ok
 ok
 ok
-" run fixture --task interactive --stdin -
+" run fixture --task interactive --in -
 
 echo
 if [[ "$failures" -gt 0 ]]; then

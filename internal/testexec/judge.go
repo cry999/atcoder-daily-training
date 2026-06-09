@@ -37,6 +37,29 @@ type CaseResult struct {
 	OriginalLimitMs int    // problem の本来の制限時間 (ms)。Status==Pass で Elapsed が超えていたら本来 TLE。
 }
 
+// Judge は実行結果の stdout (生) を expected (生) と比較する公開 API。
+// `exercise run --out <file>` のように、testexec のフル test ループに乗らない
+// ad-hoc な judge 用途で再利用する。
+//   - expected / actual は normalize 前 (改行や末尾空白そのまま) で渡してよい
+//   - debug=true なら actual から [DEBUG] 行を取り除いて比較する
+//   - tolerance ≤ 0 なら DefaultTolerance を使う
+//
+// 返り値: 一致したか、正規化済み expected、正規化済み actual、debug 行 (debug=false なら "")。
+func Judge(expected, actual string, debug bool, tolerance float64) (pass bool, expectedNorm, actualNorm, debugOut string) {
+	if tolerance <= 0 {
+		tolerance = DefaultTolerance
+	}
+	if debug {
+		actual, debugOut = splitDebug(actual)
+	}
+	expN := normalizeOutput(expected)
+	actN := normalizeOutput(actual)
+	if expN == actN || tokensMatch(expN, actN, tolerance) {
+		return true, expN, actN, debugOut
+	}
+	return false, expN, actN, debugOut
+}
+
 func judge(name, input, expected string, pr *runner.ProcessResult, debug bool, tolerance float64) CaseResult {
 	if tolerance <= 0 {
 		tolerance = DefaultTolerance

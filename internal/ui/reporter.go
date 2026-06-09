@@ -139,7 +139,7 @@ type RunReporter struct {
 
 func NewRunReporter(verbose bool) *RunReporter { return &RunReporter{verbose: verbose} }
 
-func (r *RunReporter) Header(task, contest string, timeLimitMs, timeoutMs int, interactive bool) {
+func (r *RunReporter) Header(task, contest string, timeLimitMs, timeoutMs int, mode string) {
 	parts := []string{
 		headerTitleStyle.Render(task),
 		keyStyle.Render("contest=") + valueStyle.Render(contest),
@@ -148,18 +148,16 @@ func (r *RunReporter) Header(task, contest string, timeLimitMs, timeoutMs int, i
 	if timeoutMs != timeLimitMs {
 		parts = append(parts, overrideStyle.Render(fmt.Sprintf("timeout=%dms", timeoutMs)))
 	}
-	mode := "(ad-hoc stdin)"
-	if interactive {
-		mode = "(interactive)"
+	if mode != "" {
+		parts = append(parts, infoStyle.Render(mode))
 	}
-	parts = append(parts, infoStyle.Render(mode))
 	fmt.Println(strings.Join(parts, "  "))
 	fmt.Println()
 }
 
 func (r *RunReporter) Result(res runexec.Result) {
 	fmt.Printf("%s  %s\n",
-		runStatusBadge(res.Status),
+		runResultBadge(res),
 		elapsedStyle.Render(fmt.Sprintf("%d ms", res.Elapsed.Milliseconds())),
 	)
 	if r.verbose {
@@ -169,9 +167,25 @@ func (r *RunReporter) Result(res runexec.Result) {
 	if res.Debug != "" {
 		printContent("debug:", res.Debug)
 	}
+	// judge モード (--out 指定時) で不一致のとき、diff を出す。
+	if res.Compared && !res.OutputMatch && res.Status == runexec.Ok {
+		printDiff(res.Expected, res.Stdout, r.verbose, false)
+	}
 	if res.Status == runexec.Crashed {
 		printStderr(res.Stderr)
 	}
+}
+
+// runResultBadge は run の結果バッジを返す。judge モード (Compared) で正常
+// 終了かつ不一致なら FAIL、一致なら PASS。それ以外は実行ステータス由来。
+func runResultBadge(res runexec.Result) string {
+	if res.Compared && res.Status == runexec.Ok {
+		if res.OutputMatch {
+			return passBadge.Render("PASS")
+		}
+		return failBadge.Render("FAIL")
+	}
+	return runStatusBadge(res.Status)
 }
 
 func runStatusBadge(s runexec.Status) string {

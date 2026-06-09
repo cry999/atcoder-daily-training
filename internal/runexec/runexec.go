@@ -1,7 +1,8 @@
 // Package runexec implements the `exercise run` subcommand: execute a solution
-// against an arbitrary stdin (file or pipe) without any expected-output
-// comparison. Use this when you want to feed a custom input to a solution and
-// just see what comes back (for debugging or manual exploration).
+// against an arbitrary stdin (file or pipe), optionally comparing the stdout
+// against an expected-output file (--out). Without --out, this is purely a
+// "feed a custom input and see what comes back" tool for debugging or manual
+// exploration; with --out, it acts as an ad-hoc judge for one input/output pair.
 package runexec
 
 import (
@@ -18,6 +19,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/cry999/atcoder-daily-training/internal/cachepath"
 	"github.com/cry999/atcoder-daily-training/internal/runner"
+	"github.com/cry999/atcoder-daily-training/internal/testexec"
 )
 
 type Executor interface {
@@ -29,7 +31,7 @@ type Executor interface {
 type ExecutorFor func(sourcePath string) (Executor, error)
 
 type Reporter interface {
-	Header(task, contest string, timeLimitMs, timeoutMs int, interactive bool)
+	Header(task, contest string, timeLimitMs, timeoutMs int, mode string)
 	Result(r Result)
 }
 
@@ -55,8 +57,10 @@ type ChatRunner func(spawn ChatSpawner, header ChatHeader) (*runner.ProcessResul
 type Options struct {
 	Contest     string
 	Task        string
-	StdinFile   string        // "" / "-" → 親プロセスの stdin、それ以外はそのファイルを読む
+	InFile      string        // "" / "-" → 親プロセスの stdin、それ以外はそのファイルを読む
+	OutFile     string        // 非空のとき、stdout をこのファイルの内容と比較 (judge モード)
 	Timeout     time.Duration // 0 → meta.toml.time_limit_ms か 2 秒のデフォルト
+	Tolerance   float64       // float トークン比較の誤差。0 以下なら testexec.DefaultTolerance
 	Debug       bool          // DEBUG=1 と [DEBUG] フィルタ (test と同じ規約)
 	ExecutorFor ExecutorFor
 	Reporter    Reporter
@@ -79,6 +83,10 @@ type Result struct {
 	Debug    string
 	Elapsed  time.Duration
 	ExitCode int
+	// 以下は --out 指定時 (judge モード) のみ意味を持つ。
+	Compared    bool   // 判定を行ったか
+	Expected    string // 正規化済みの期待出力
+	OutputMatch bool   // 期待出力と一致したか
 }
 
 const defaultTimeLimitMs = 2000
@@ -115,7 +123,7 @@ func Run(opts Options) (int, error) {
 		extraEnv = []string{"DEBUG=1"}
 	}
 
-	interactive := opts.StdinFile == "-"
+	interactive := opts.InFile == "-"
 
 	// chat モード: stdin が "-" かつ TTY、かつ ChatRunner が注入されているとき。
 	// バブルティーの TUI を起動するため、ヘッダは TUI 側で描画する (ここでは何も
@@ -124,7 +132,13 @@ func Run(opts Options) (int, error) {
 		return runChatMode(opts, executor, solutionPath, timeLimitMs, extraEnv)
 	}
 
-	opts.Reporter.Header(opts.Task, opts.Contest, timeLimitMs, int(timeout/time.Millisecond), interactive)
+	mode := "(ad-hoc stdin)"
+	if interactive {
+		mode = "(interactive)"
+	} else if opts.OutFile != "" {
+		mode = fmt.Sprintf("(judging vs %s)", opts.OutFile)
+	}
+	opts.Reporter.Header(opts.Task, opts.Contest, timeLimitMs, int(timeout/time.Millisecond), mode)
 	if interactive {
 		return runInteractive(opts, executor, solutionPath, timeout, extraEnv)
 	}
@@ -158,7 +172,7 @@ func runChatMode(opts Options, executor Executor, solutionPath string, timeLimit
 }
 
 func runBatch(opts Options, executor Executor, solutionPath string, timeout time.Duration, extraEnv []string) (int, error) {
-	input, err := readStdin(opts.StdinFile)
+	input, err := readStdin(opts.InFile)
 	if err != nil {
 		return 1, err
 	}
@@ -168,24 +182,39 @@ func runBatch(opts Options, executor Executor, solutionPath string, timeout time
 		return 1, err
 	}
 
-	stdout := pr.Stdout
-	var debugOut string
-	if opts.Debug {
-		stdout, debugOut = splitDebug(stdout)
-	}
-
 	res := Result{
 		Input:    strings.TrimRight(string(input), "\n"),
-		Stdout:   strings.TrimRight(stdout, "\n"),
 		Stderr:   pr.Stderr,
-		Debug:    debugOut,
 		Elapsed:  pr.Elapsed,
 		ExitCode: pr.ExitCode,
 	}
 	res.Status = classify(pr)
 
+	// --out 指定時は judge を回し、Stdout / Debug / Expected を judge 側の
+	// 正規化結果で埋める。--out 未指定なら従来通り stdout を見せるだけ。
+	if opts.OutFile != "" {
+		expected, err := os.ReadFile(opts.OutFile)
+		if err != nil {
+			return 1, fmt.Errorf("--out のファイルを読み込めませんでした: %w", err)
+		}
+		pass, expN, actN, debugOut := testexec.Judge(string(expected), pr.Stdout, opts.Debug, opts.Tolerance)
+		res.Compared = true
+		res.Expected = expN
+		res.Stdout = actN
+		res.Debug = debugOut
+		res.OutputMatch = pass
+	} else {
+		stdout := pr.Stdout
+		var debugOut string
+		if opts.Debug {
+			stdout, debugOut = splitDebug(stdout)
+		}
+		res.Stdout = strings.TrimRight(stdout, "\n")
+		res.Debug = debugOut
+	}
+
 	opts.Reporter.Result(res)
-	if res.Status != Ok {
+	if res.Status != Ok || (res.Compared && !res.OutputMatch) {
 		return 1, nil
 	}
 	return 0, nil
@@ -277,11 +306,11 @@ func classify(pr *runner.ProcessResult) Status {
 	return Ok
 }
 
-func readStdin(stdinFile string) ([]byte, error) {
-	if stdinFile == "" || stdinFile == "-" {
+func readStdin(inFile string) ([]byte, error) {
+	if inFile == "" || inFile == "-" {
 		return io.ReadAll(os.Stdin)
 	}
-	return os.ReadFile(stdinFile)
+	return os.ReadFile(inFile)
 }
 
 // runMeta は testexec の meta と同じ TOML 形式のサブセット。time_limit_ms だけ取り出せれば十分。

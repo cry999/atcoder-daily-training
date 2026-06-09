@@ -21,8 +21,14 @@ func cmdRun(args []string) (int, error) {
 
 	flags := flag.NewFlagSet("run", flag.ContinueOnError)
 	taskFlag := flags.String("task", "", `AtCoder task ID, or short form (e.g. "d" expands to "<contest>_d")`)
-	stdinFlag := flags.String("stdin", "", "Input file (use '-' or omit for parent stdin)")
+	var inFile string
+	flags.StringVar(&inFile, "in", "", "Input file (use '-' or omit for parent stdin)")
+	flags.StringVar(&inFile, "i", "", "Input file (use '-' or omit for parent stdin)")
+	var outFile string
+	flags.StringVar(&outFile, "out", "", "Expected output file. When set, stdout is judged against this file.")
+	flags.StringVar(&outFile, "o", "", "Expected output file. When set, stdout is judged against this file.")
 	timeoutFlag := flags.Duration("timeout", 0, "Override time limit (e.g. 5s, 500ms). Defaults to the problem's time limit or 2s if no meta.toml.")
+	tolFlag := flags.Float64("tolerance", 0, "Absolute/relative tolerance for float token comparison in --out judge mode (e.g. 1e-9). 0 or unset → use default 1e-6.")
 	var verbose bool
 	flags.BoolVar(&verbose, "v", false, "Show the input that was fed in as well")
 	flags.BoolVar(&verbose, "verbose", false, "Show the input that was fed in as well")
@@ -45,8 +51,10 @@ func cmdRun(args []string) (int, error) {
 	return runexec.Run(runexec.Options{
 		Contest:     contest,
 		Task:        task,
-		StdinFile:   *stdinFlag,
+		InFile:      inFile,
+		OutFile:     outFile,
 		Timeout:     *timeoutFlag,
+		Tolerance:   *tolFlag,
 		Debug:       debug,
 		ExecutorFor: selectRunExecutor,
 		Reporter:    ui.NewRunReporter(verbose),
