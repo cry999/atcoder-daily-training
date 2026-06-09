@@ -2,7 +2,7 @@
 
 `atcoder completion <shell>` でシェル補完スクリプトを生成し、サブコマンド・フラグ・`<contest>`・`--task` などを Tab 補完できるようにする。
 
-- 要件定義: [requirements/008-atcoder-completion.md](./requirements/008-atcoder-completion.md)
+- 要件定義: [requirements/008-atcoder-completion.md](./requirements/008-atcoder-completion.md), [requirements/012-completion-descriptions.md](./requirements/012-completion-descriptions.md) (候補の説明文)
 - 決定記録: [ADR 0004](./decisions/0004-shell-completion-no-framework.md) (CLI フレームワークを足さず手書きにした理由)
 
 ## インストール
@@ -59,9 +59,28 @@ $ atcoder test abc457 --task <Tab># → a b c d e f g
 $ atcoder new <Tab>               # → abc
 ```
 
+### 候補の説明 (zsh / fish)
+
+サブコマンド・フラグ・`--layout` の値・シェル・`config` の sub-subcommand といった**静的候補には一言説明が付く**。fzf-tab を入れた zsh や fish では、候補の隣に説明が並ぶ。
+
+```
+$ atcoder <Tab>          # zsh + fzf-tab
+  test        -- run a solution against downloaded samples
+  run         -- run a solution on ad-hoc stdin
+  submit      -- open the AtCoder submission page
+  stats       -- show daily practice statistics
+  completion  -- print a shell completion script
+```
+
+- **zsh**: `_describe` 経由で説明を出す。標準の補完メニューでも fzf-tab でも表示される。
+- **fish**: `候補<TAB>説明` をネイティブに「候補 — 説明」と表示する。
+- **bash**: 素の補完では候補ごとの説明を並べられないため、**bash は候補名のみ** (説明は出さない)。
+- contest_id・letter などの動的候補には説明は付かない (候補名のみ)。
+
 ## 仕組み
 
 - 補完候補は隠しヘルパ `atcoder __complete -- <words...>` が生成する。各シェルのスクリプトは現在のトークン列をこのヘルパに渡し、返ってきた候補を並べるだけの薄いラッパ。
+- `__complete` の出力は 1 行 1 候補で、説明がある候補は `値<TAB>説明` 形式。説明を出せる zsh/fish はこれを表示し、bash は値列だけを使う。
 - `__complete` は**常に終了コード 0**。内部で I/O エラーが起きても握りつぶして空候補を返し、補完を壊さない。
 - **読み取り専用・オフライン**。ディレクトリとキャッシュを読むだけで、ネットワーク・認証・解答ファイルに一切触れない。
 - contest 候補はカレントディレクトリ (リポジトリルート想定) 基準。repo 外で実行すると手元のディレクトリ分は出ず、キャッシュ分のみになる (エラーにはならない)。
