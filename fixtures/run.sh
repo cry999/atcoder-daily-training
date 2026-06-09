@@ -267,8 +267,9 @@ run_case "stats -m -g"                 0 stats -m -g
 run_case "stats --last 2w -g"          0 stats --last 2w -g
 run_case "stats -g -w --month reject"  2 stats -g -w --month
 
-# `atcoder review <category>` smoke: 上の exercise ツリー (abc457_d, arc180_c) を
-# コンテスト単位で列挙する読み取り専用コマンド。カテゴリは必須の位置引数。
+# `atcoder review <category>` smoke: exercise ツリー (abc457_d, 日付あり) と
+# カテゴリツリー abc/999/a.py (日付なし) を横断してコンテスト単位で列挙する。
+# 非 TTY (run.sh の出力) では一括テキスト出力を踏む。カテゴリは必須の位置引数。
 run_case "review abc"                  0 review abc
 run_case "review arc"                  0 review arc
 run_case "review abc --month"          0 review abc --month
@@ -277,6 +278,12 @@ run_case "review xyz (0 件・成功)"      0 review xyz
 run_case "review (no category) reject" 2 review
 run_case "review abc -w --month rej"   2 review abc -w --month
 run_case "review abc --last 0d reject" 2 review abc --last 0d
+# 横断の中身: abc/999 (カテゴリツリー由来・日付なし) が出て last solved が "—" になる。
+# (全期間なら現在日に依存せず常に含まれる。)
+check_output "review reads abc/ category tree" 0 has "abc999" -- review abc
+check_output "review undated row shows dash"   0 has "—"      -- review abc
+# 期間フィルタ (--year) では日付なしの abc/999 は必ず落ちる (時刻に依存しない不変則)。
+check_output "review --year drops undated abc999" 0 hasnot "abc999" -- review abc --year
 
 # `atcoder status` / `login` / `logout` smoke (ネットワーク非依存)。
 # XDG_CONFIG_HOME は空隔離 dir なので session.json は存在せず、status は

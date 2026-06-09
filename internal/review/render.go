@@ -16,7 +16,13 @@ var (
 	revHeadStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("#7f849c"))
 	revContestSt  = lipgloss.NewStyle().Foreground(lipgloss.Color("#89b4fa"))
 	revInfoStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("#7f849c")).Italic(true)
+	// revUndatedSt は日付なし (カテゴリツリー由来) のマス ■ の色。recency の緑とも
+	// 未解の薄灰 · とも別の中立色にして 3 状態を見分けられるようにする。
+	revUndatedSt = lipgloss.NewStyle().Foreground(lipgloss.Color("#9399b2"))
 )
+
+// undatedGlyph は日付なしで解いたマスの中立色 ■。
+func undatedGlyph() string { return revUndatedSt.Render("■") }
 
 // Render は Report を人間向けテーブルとして w に書き出す (非 TTY / 一括出力用)。
 // TTY ではページに収まるスクロール表示 (RunTUI) を使う。マスは recency で着色。
@@ -84,22 +90,30 @@ func (r Report) rowLines(contestW int) []string {
 			if i > 0 {
 				cells.WriteString(" ")
 			}
-			if solved, ok := row.Solved[col]; ok {
-				cells.WriteString(stats.ShadeGlyph(recencyLevel(solved, r.Now)))
-			} else {
+			switch solved, ok := row.Solved[col]; {
+			case !ok:
 				cells.WriteString(stats.ShadeGlyph(0)) // 未解は ·
+			case solved.IsZero():
+				cells.WriteString(undatedGlyph()) // 日付なしは中立色 ■
+			default:
+				cells.WriteString(stats.ShadeGlyph(recencyLevel(solved, r.Now)))
 			}
 		}
+		last := "—"
+		if !row.LastSolved.IsZero() {
+			last = row.LastSolved.Format("2006-01-02")
+		}
 		lines = append(lines, "  "+revContestSt.Render(fmt.Sprintf("%-*s", contestW, row.Contest))+
-			"   "+cells.String()+"   "+revHeadStyle.Render(row.LastSolved.Format("2006-01-02")))
+			"   "+cells.String()+"   "+revHeadStyle.Render(last))
 	}
 	return lines
 }
 
-// legendLine は recency の凡例行。
+// legendLine は recency の凡例行 (recency / 日付なし / 未解 の 3 状態)。
 func (r Report) legendLine() string {
 	return "  " + revInfoStyle.Render("older ") + recencyLegend() +
-		revInfoStyle.Render(" newer   ") + stats.ShadeGlyph(0) + revInfoStyle.Render("=未着手")
+		revInfoStyle.Render(" newer   ") + undatedGlyph() + revInfoStyle.Render("=日付なし   ") +
+		stats.ShadeGlyph(0) + revInfoStyle.Render("=未着手")
 }
 
 // footerLine は件数フッタ行。

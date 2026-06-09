@@ -43,10 +43,16 @@ func cmdReview(args []string) (int, error) {
 		return 2, err
 	}
 
+	// 日付あり (exercise/) と日付なし (<category>/ ツリー) を結合して横断集計する。
 	solves, err := stats.Scan("exercise")
 	if err != nil {
 		return 1, err
 	}
+	catSolves, err := review.ScanCategoryTree(category)
+	if err != nil {
+		return 1, err
+	}
+	solves = append(solves, catSolves...)
 
 	rep := review.Build(solves, review.Options{
 		Category: category,

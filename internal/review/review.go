@@ -48,8 +48,9 @@ type Report struct {
 // abcLetters は ABC の固定列 (a–g)。解いていない letter も列として出し、穴を見せる。
 var abcLetters = []string{"a", "b", "c", "d", "e", "f", "g"}
 
-// contestNumRE は contest_id 末尾の数字 (contest_num) を捕捉する。
-var contestNumRE = regexp.MustCompile(`([0-9]+)$`)
+// contestNumRE は contest_id 中の最初の数字列 (contest_num) を捕捉する。
+// "abc447" → 447、"awc0001-beta" → 1 (先頭の数字列)。
+var contestNumRE = regexp.MustCompile(`[0-9]+`)
 
 // statsOptions は review.Options から stats の期間窓判定に渡す Options を作る。
 func (o Options) statsOptions() stats.Options {
@@ -90,11 +91,19 @@ func Build(solves []stats.Solve, opts Options) Report {
 			row = &Row{Contest: s.Contest, Solved: map[string]time.Time{}}
 			byContest[s.Contest] = row
 		}
-		// 同一 (contest, letter) が複数日にあれば最終日を採用。
-		if cur, ok := row.Solved[s.Letter]; !ok || s.Date.After(cur) {
+		// (contest, letter) ごとに最良の日付を採る。日付あり (exercise) を優先し、
+		// 日付なし (カテゴリツリー) では既存を上書きしない。複数日付なら最大。
+		cur, ok := row.Solved[s.Letter]
+		switch {
+		case !ok:
+			row.Solved[s.Letter] = s.Date
+		case s.Date.IsZero():
+			// 日付なしは既存 (dated/undated 問わず) を上書きしない。
+		case cur.IsZero() || s.Date.After(cur):
 			row.Solved[s.Letter] = s.Date
 		}
-		if s.Date.After(row.LastSolved) {
+		// LastSolved は dated のみで決める (全部 undated ならゼロ → "—")。
+		if !s.Date.IsZero() && s.Date.After(row.LastSolved) {
 			row.LastSolved = s.Date
 		}
 	}
