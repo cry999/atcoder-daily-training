@@ -45,7 +45,7 @@ atcoder completion fish > ~/.config/fish/completions/atcoder.fish
 
 | 位置 | 補完内容 | ソース |
 |---|---|---|
-| サブコマンド | `new test login logout status stats config commit completion update version` | 静的 |
+| サブコマンド | `new test stats review config commit completion update version` | 静的 |
 | フラグ (`-` 始まり) | そのサブコマンドのフラグ (`--task`, `--layout`, `--watch` …) | 静的 (実フラグと手動同期) |
 | `<contest>` | `abc457` 等の contest_id | 手元の `abc/`・`arc/`・`awc/` ディレクトリ + fetch 済みキャッシュ |
 | `--task <値>` | letter (`a`〜`g` 等) | 既存解答ファイル + `contest.toml` の tasks。無ければ既定の `a`〜`g` |
@@ -66,8 +66,8 @@ $ atcoder new <Tab>               # → abc
 ```
 $ atcoder <Tab>          # zsh + fzf-tab
   test        -- run a solution (samples by default; --in/--out/--interactive for ad-hoc; --submit to submit)
-  status      -- show the judge verdict of your submission
   stats       -- show daily practice statistics
+  review      -- list practiced contests of a category
   completion  -- print a shell completion script
 ```
 

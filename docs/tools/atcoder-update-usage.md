@@ -41,7 +41,7 @@ $ atcoder update --local
 - **`go` コマンドが `PATH` 上にあること。** 更新は go ツールチェインに委譲する。
 - **ネットワークが要るのは `update` と `--check` のみ** (go module proxy / GitHub にアクセス)。`atcoder version` はオフラインで動く。
 - インストール先は `go install` の規定 (`$GOBIN` または `$GOPATH/bin`)。`atcoder` がそこから動いている前提 (= 既に `PATH` 上にある)。
-- AtCoder には一切アクセスしない (`login`/`status` とは無関係)。`GOBIN` 等の go 環境変数は尊重する。ただし **このツール自身のモジュールだけは `GOPRIVATE` に入れて proxy を介さず git remote へ直接問い合わせる** (理由は下記)。依存モジュールは通常どおり proxy + sumdb 経由。
+- AtCoder には一切アクセスしない (触る外部は Go module proxy / GitHub のみ)。`GOBIN` 等の go 環境変数は尊重する。ただし **このツール自身のモジュールだけは `GOPRIVATE` に入れて proxy を介さず git remote へ直接問い合わせる** (理由は下記)。依存モジュールは通常どおり proxy + sumdb 経由。
 
 ## 使用例
 
