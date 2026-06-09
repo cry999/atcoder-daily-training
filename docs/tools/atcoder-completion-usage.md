@@ -3,7 +3,7 @@
 `atcoder completion <shell>` でシェル補完スクリプトを生成し、サブコマンド・フラグ・`<contest>`・`--task` などを Tab 補完できるようにする。
 
 - 要件定義: [requirements/008-atcoder-completion.md](./requirements/008-atcoder-completion.md)
-- ロードマップ: [todo.md](./todo.md) の項目 L
+- 決定記録: [ADR 0004](./decisions/0004-shell-completion-no-framework.md) (CLI フレームワークを足さず手書きにした理由)
 
 ## インストール
 
@@ -75,4 +75,4 @@ $ atcoder new <Tab>               # → abc
 ## 関連
 
 - [requirements/008-atcoder-completion.md](./requirements/008-atcoder-completion.md) — 要件定義
-- [exercise-test-testing.md](./exercise-test-testing.md) — `fixtures/run.sh` に completion の smoke を追加済み
+- [atcoder-test-testing.md](./atcoder-test-testing.md) — `fixtures/run.sh` に completion の smoke を追加済み

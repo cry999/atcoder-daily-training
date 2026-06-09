@@ -237,6 +237,6 @@ func Render(w io.Writer, r Report) error
 
 ## 関連ドキュメント
 
-- `docs/tools/todo.md` (上位ロードマップ。本項目を記載)
+- `docs/tools/decisions/0002-stats-readonly-exercise-tree.md` (決定記録。完了に伴い todo.md の項目 J から移動)
 - `docs/tools/requirements/002-exercise-abc-layout.md` (`layout.Letter` 等 ID 抽出の定義元)
 - `docs/tools/atcoder-stats-usage.md` (利用手引)

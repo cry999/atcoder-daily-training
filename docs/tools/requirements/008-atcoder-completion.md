@@ -193,6 +193,6 @@ func Complete(root string, words []string) []string
 
 - `docs/tools/requirements/003-exercise-abc-contest-meta.md` (要件雛形 / contest.toml・キャッシュ配置)
 - `docs/tools/requirements/006-rename-cli-to-atcoder.md` (CLI 名 `atcoder` 化)
-- `docs/tools/todo.md` (一般 TODO。項目 L が本要件)
-- `docs/tools/exercise-test-testing.md` (fixture 追加手順)
+- `docs/tools/decisions/0004-shell-completion-no-framework.md` (決定記録。完了に伴い todo.md の項目 L から移動)
+- `docs/tools/atcoder-test-testing.md` (fixture 追加手順)
 - `docs/tools/atcoder-completion-usage.md` (利用手引。本機能で新設)

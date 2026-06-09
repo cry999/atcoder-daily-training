@@ -175,7 +175,7 @@ func (w *Watcher) WaitForChange(ctx context.Context) bool
 
 ## 関連ドキュメント
 
-- `docs/tools/todo.md` (上位ロードマップ。「I. `test` watch モード」の要件詳細が本書)
+- `docs/tools/decisions/0001-test-watch-mtime-polling.md` (決定記録。完了に伴い todo.md の「I. `test` watch モード」から移動)
 - `docs/tools/requirements/001-exercise-test.md` (test サブコマンドの基盤要件)
 - `docs/tools/atcoder-test-usage.md` (利用手引。`--watch` を追記)
 - `docs/tools/atcoder-test-architecture.md` (内部設計。watch ループの位置づけを追記)

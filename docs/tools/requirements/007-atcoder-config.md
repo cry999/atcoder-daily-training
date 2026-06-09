@@ -187,7 +187,7 @@ func Load() (*Config, error)
 
 ## 関連ドキュメント
 
-- `docs/tools/todo.md` (上位ロードマップ。「K. ユーザ設定ファイル」の要件詳細が本書)
+- `docs/tools/decisions/0003-user-config-xdg-toml.md` (決定記録。完了に伴い todo.md の「K. ユーザ設定ファイル」から移動)
 - `docs/tools/requirements/001-exercise-test.md` (test サブコマンドの基盤要件。side-by-side diff の `-s` 定義元)
 - `docs/tools/atcoder-test-usage.md` (利用手引。設定ファイルの使い方を追記)
 - `docs/tools/atcoder-test-architecture.md` (内部設計。`internal/config` の位置づけを追記)
