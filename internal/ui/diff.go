@@ -223,16 +223,17 @@ func renderTokenLine(ops []diffOp, n int, minus bool) string {
 //
 // レイアウト (1 行):
 //
-//	<indent><左 content padded>  <expN> │+-│ <actN>  <右 content>
+//	<indent><左 content padded> │ <expN> │+-│ <actN> │ <右 content>
 //
-// 期待値ライン (左) と実際のライン (右) を直接並べ、中央に両方の行番号と
-// sigil "│+-│" を出す。sigil の "+"/"-" は active なときだけ色付きで出す
-// (paired は両方、solo は片方のみ、context は両方空白):
+// 期待値ライン (左) と実際のライン (右) を直接並べ、中央には両方の行番号
+// を "│" で囲って出す。行番号自体は前景を dim neutral に保ち、minus/plus
+// の識別は背景色 (薄い赤 / 緑) で示す。中央 sigil "│+-│" は行番号囲いの
+// "│" を共有する形になっており、active な sign だけ色付きで出す:
 //
-//	paired :  │+-│   (+=green / -=red)
-//	solo + :  │+ │
-//	solo - :  │ -│
-//	context:  │  │
+//	paired :  │ N │+-│ N │   (+=green / -=red)
+//	solo + :  │   │+ │ N │
+//	solo - :  │ N │ -│   │
+//	context:  │ N │  │ N │
 
 type sbRowKind int
 
@@ -245,8 +246,9 @@ const (
 
 const (
 	diffSBIndent = "  "
-	// 中央ブロックの幅: " " + 3桁 + " " + "│+-│"(4) + " " + 3桁 + " " = 14
-	diffSBCenterWidth = 14
+	// 中央ブロックの幅: " │ <3d> │<2-char sigil>│ <3d> │ "
+	//   = 1+1+1+3+1+1+2+1+1+3+1+1+1 = 18
+	diffSBCenterWidth = 18
 )
 
 // renderDiffSideBySide は expected を左、actual を右、中央に両方の行番号 +
@@ -320,10 +322,11 @@ func renderDiffSideBySide(expected, actual string, full bool) string {
 	return sb.String()
 }
 
-// renderSBCenter は中央ブロック " <expN> │<+><-> │ <actN> " (14 桁) を返す。
-// kind に応じて行番号の色と sigil の +/- の active 状態を決める。
+// renderSBCenter は中央ブロック " │ <expN> │<+><-> │ <actN> │ " (18 桁) を返す。
+// 行番号は "│" で囲われ、kind に応じて行番号の背景色 (minus/plus bg) と
+// sigil の +/- の active 状態を決める。前景色は dim neutral で統一。
 func renderSBCenter(expN, actN int, kind sbRowKind) string {
-	// 行番号の色を決める
+	// 行番号スタイル: 前景は dim、背景で minus/plus を識別
 	expStyle := diffLineNumStyle
 	actStyle := diffLineNumStyle
 	switch kind {
@@ -358,9 +361,10 @@ func renderSBCenter(expN, actN int, kind sbRowKind) string {
 		minusCh = diffMinusSignFgStyle.Render("-")
 	}
 	bar := diffGutterStyle.Render("│")
-	sigil := bar + plusCh + minusCh + bar
 
-	return " " + es + " " + sigil + " " + as + " "
+	// " │ <es> │<+><-> │ <as> │ "
+	// 中央の "│+-│" は左 expN 囲いの右辺 "│" と右 actN 囲いの左辺 "│" を共有する
+	return " " + bar + " " + es + " " + bar + plusCh + minusCh + bar + " " + as + " " + bar + " "
 }
 
 // renderSBContextSide は match 行の半側を返す (dim 本文を width に pad)。

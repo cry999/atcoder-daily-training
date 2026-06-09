@@ -59,9 +59,10 @@ var (
 	diffMinusBg = "#3a2030" // Mocha Base にうっすら赤を乗せた色 (line bg)
 	diffPlusBg  = "#1f3a2a" // 同上、green tint
 
-	diffLineNumStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay0)) // 文脈・通常時の dim neutral
-	diffMinusLineNumStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaRed))      // "-" 行の番号
-	diffPlusLineNumStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaGreen))    // "+" 行の番号
+	// 行番号は前景色を dim neutral に揃え、minus/plus の識別は背景色で行う。
+	diffLineNumStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay0))
+	diffMinusLineNumStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay0)).Background(lipgloss.Color(diffMinusBg))
+	diffPlusLineNumStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay0)).Background(lipgloss.Color(diffPlusBg))
 	diffGutterStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaSurface2))
 	diffMinusLineStyle = lipgloss.NewStyle().Background(lipgloss.Color(diffMinusBg)).Foreground(lipgloss.Color(mochaText))
 	diffPlusLineStyle  = lipgloss.NewStyle().Background(lipgloss.Color(diffPlusBg)).Foreground(lipgloss.Color(mochaText))
