@@ -144,8 +144,10 @@ rm -rf "$CFG_DIR" "$BAD_CFG_DIR"
 export XDG_CONFIG_HOME="$CONFIG_HOME"
 
 # ----- config サブコマンド (show / get / set / path) -----
-# 空 config では show が既定値を出す。
+# 空 config では show が既定値を出す。layout 未設定は auto に見える (実効既定値)。
 check_output "config show (default)"   0 has   "side_by_side = false" -- config show
+check_output "config show layout=auto" 0 has   "layout = auto"        -- config show
+check_output "config get layout (default auto)" 0 has "auto"          -- config get layout
 # path は config.toml の所在を出す。
 check_output "config path"             0 has   "config.toml"          -- config path
 # 未知サブコマンド / キー / 型不一致 / 引数不足は exit 2。
@@ -154,6 +156,7 @@ run_case    "config bogus (unknown sub)"    2 config bogus
 run_case    "config get unknown key"        2 config get bogus.key
 run_case    "config set unknown key"        2 config set bogus.key x
 run_case    "config set invalid bool value" 2 config set test.side_by_side notabool
+run_case    "config set invalid layout value" 2 config set layout junk
 run_case    "config get (missing key arg)"  2 config get
 run_case    "config set (missing value)"    2 config set test.side_by_side
 
@@ -162,12 +165,33 @@ CFGW="$(mktemp -d)"
 XDG_CONFIG_HOME="$CFGW" run_case     "config set test.side_by_side true"  0 config set test.side_by_side true
 XDG_CONFIG_HOME="$CFGW" check_output "config get reads back the set value" 0 has "true" -- config get test.side_by_side
 XDG_CONFIG_HOME="$CFGW" check_output "config set propagates to test"       1 has "side-by-side" -- test fixture --task diff
+XDG_CONFIG_HOME="$CFGW" run_case     "config set layout abc"              0 config set layout abc
+XDG_CONFIG_HOME="$CFGW" check_output "config get layout reads back abc"   0 has "abc" -- config get layout
 rm -rf "$CFGW"
 export XDG_CONFIG_HOME="$CONFIG_HOME"
 
 # ABC layout smoke: --layout=auto picks abc/<num>/<letter>.py for abc<NNN> contest IDs.
 run_case "abc999/a test (--layout auto)"    0 test abc999 --task a
 run_case "abc999/a test (--layout abc)"     0 test abc999 --task a --layout abc
+
+# ----- 既定レイアウトの解決順 (--layout > $ATCODER_LAYOUT > config layout > auto) -----
+# 不正な layout 値はどの出所でも layout.Resolve が Parse 前に弾いて exit 2。
+# precedence は「上位が valid なら下位の不正値は評価されない (=exit 0)」で検証する。
+# (abc999 は cache 済みで abc/999/a.py = n→n*2 が PASS する。)
+LAYCFG="$(mktemp -d)"; mkdir -p "$LAYCFG/atcoder-daily-training"
+printf 'layout = "junk"\n' > "$LAYCFG/atcoder-daily-training/config.toml"
+# flag/env 未指定なら config 層が読まれ、不正値で exit 2。
+XDG_CONFIG_HOME="$LAYCFG" run_case "config layout=junk → resolve error"   2 test abc999 --task a
+# env が config より優先: env=abc なら config の junk は評価されず PASS。
+XDG_CONFIG_HOME="$LAYCFG" ATCODER_LAYOUT=abc run_case "env abc beats config junk" 0 test abc999 --task a
+unset ATCODER_LAYOUT
+export XDG_CONFIG_HOME="$CONFIG_HOME"
+# env 単体の不正値も exit 2。
+ATCODER_LAYOUT=junk run_case "env layout=junk → resolve error"           2 test abc999 --task a
+# flag が env より優先: flag=abc なら env の junk は評価されず PASS。
+ATCODER_LAYOUT=junk run_case "flag abc beats env junk"                   0 test abc999 --task a --layout abc
+unset ATCODER_LAYOUT
+rm -rf "$LAYCFG"
 
 # `atcoder new abc` (contest prepare) smoke, offline via --no-fetch so no network.
 # abc998 has no pre-populated cache; --no-fetch + --tasks builds a minimal contest.toml
@@ -315,6 +339,12 @@ run_case "__complete (always exit 0)"    0 __complete -- te
     || { echo "  ✗ __complete -- '' missing 'completion'"; failures=$((failures + 1)); }
 "$BIN" __complete -- test abc999 --layout "" | cut -f1 | grep -qx "abc" \
     || { echo "  ✗ __complete --layout did not yield 'abc'"; failures=$((failures + 1)); }
+# config の layout キーは値補完 (enum) を持つ: `config set layout <TAB>` → abc/auto/exercise。
+"$BIN" __complete -- config set layout "" | cut -f1 | grep -qx "exercise" \
+    || { echo "  ✗ __complete config set layout did not yield 'exercise'"; failures=$((failures + 1)); }
+# config の既知キー補完に layout が出る。
+"$BIN" __complete -- config get "" | cut -f1 | grep -qx "layout" \
+    || { echo "  ✗ __complete config get did not yield 'layout'"; failures=$((failures + 1)); }
 # abc000 は staging にもキャッシュにも無いので、既定 letter (a〜g) 経路を踏む。
 "$BIN" __complete -- test abc000 --task "" | cut -f1 | grep -qx "d" \
     || { echo "  ✗ __complete --task did not yield default letters"; failures=$((failures + 1)); }

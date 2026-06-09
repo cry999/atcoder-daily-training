@@ -139,3 +139,45 @@ func Detect(contestID string) Layout {
 	}
 	return Exercise{}
 }
+
+// Names は既知レイアウト名を正規順 (auto, abc, exercise) で返す。
+// 検証 (Known) と補完候補・config の値候補がここを単一情報源とすることで、
+// 受理されるレイアウト名の一覧を二重管理しないで済む。
+func Names() []string {
+	return []string{"auto", "abc", "exercise"}
+}
+
+// Known はレイアウト名が既知 (auto/abc/exercise) かを返す (config set の検証用)。
+func Known(name string) bool {
+	for _, n := range Names() {
+		if name == n {
+			return true
+		}
+	}
+	return false
+}
+
+// Resolve は既定レイアウトの precedence を 1 か所に集約する純粋関数。
+// 優先順は flag > env > config > auto で、最初に空でない値を採用する
+// (どれも空なら "auto")。採用した値を Parse して Layout を返す。
+//
+// value は採用したレイアウト名、source はその出所
+// ("flag"/"env"/"config"/"default") で、診断に使う。値が未知なら Parse が
+// エラーを返す。
+func Resolve(flag, env, cfg, contestID string) (lay Layout, value, source string, err error) {
+	switch {
+	case flag != "":
+		value, source = flag, "flag"
+	case env != "":
+		value, source = env, "env"
+	case cfg != "":
+		value, source = cfg, "config"
+	default:
+		value, source = "auto", "default"
+	}
+	lay, err = Parse(value, contestID)
+	if err != nil {
+		return nil, value, source, err
+	}
+	return lay, value, source, nil
+}

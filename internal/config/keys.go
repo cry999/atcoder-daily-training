@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+	"github.com/cry999/atcoder-daily-training/internal/layout"
 )
 
 // 設定キーの操作で返す sentinel error。呼び出し側 (cmd/atcoder/config.go) が
@@ -31,7 +32,10 @@ type KeyValue struct {
 // キーを足すときは fields に 1 エントリ追加するだけで config / 補完が対応する。
 type field struct {
 	key  string // ドットキー (例 "test.side_by_side")
-	kind string // 型名。エラーメッセージと値候補に使う ("bool" 等)
+	kind string // 型名。エラーメッセージと値候補に使う ("bool" / "enum" 等)
+	// cands は enum キーの取りうる値 (補完候補かつ set のバリデーション元)。
+	// 空なら kind=="bool" の既定挙動 (true/false) に委ねる。
+	cands []string
 	// repr は読み込み済み Config から現在値を文字列で返す (get / show 用)。
 	repr func(*Config) string
 	// set は raw 文字列をパースし、汎用 map の該当パスへ書き込む (set 用)。
@@ -41,6 +45,28 @@ type field struct {
 
 // fields は既知設定キーの登録簿 (単一情報源)。
 var fields = []field{
+	{
+		// layout は test/run/submit 横断の既定レイアウト (トップレベルキー)。
+		// 解決順 flag > env > config > auto は layout.Resolve に集約され、ここでは
+		// config 層の値だけを読み書きする。未設定 ("") の repr は auto を返す。
+		key:   "layout",
+		kind:  "enum",
+		cands: layout.Names(),
+		repr: func(c *Config) string {
+			if c.Layout == "" {
+				return "auto"
+			}
+			return c.Layout
+		},
+		set: func(m map[string]any, raw string) error {
+			v := strings.TrimSpace(raw)
+			if !layout.Known(v) {
+				return fmt.Errorf("%w: %q (layout は %s)", ErrInvalidValue, raw, strings.Join(layout.Names(), "/"))
+			}
+			setNested(m, []string{"layout"}, v)
+			return nil
+		},
+	},
 	{
 		key:  "test.side_by_side",
 		kind: "bool",
@@ -123,12 +149,17 @@ func Set(key, raw string) error {
 	return saveRaw(m)
 }
 
-// ValueCandidates は補完用に key の値候補を返す。bool キーは ["false","true"]、
-// 候補が定まらない型は nil。
+// ValueCandidates は補完用に key の値候補を返す。enum キーは登録された候補、
+// bool キーは ["false","true"]、候補が定まらない型は nil。
 func ValueCandidates(key string) []string {
 	f := lookup(key)
 	if f == nil {
 		return nil
+	}
+	if len(f.cands) > 0 {
+		out := append([]string(nil), f.cands...)
+		sort.Strings(out)
+		return out
 	}
 	if f.kind == "bool" {
 		return []string{"false", "true"}

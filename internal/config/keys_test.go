@@ -111,6 +111,70 @@ func TestValueCandidates(t *testing.T) {
 	}
 }
 
+// layout キーは set → get で round-trip し、config.toml に書かれる。
+func TestLayoutSetThenGet(t *testing.T) {
+	writeConfig(t, "")
+	if err := Set("layout", "abc"); err != nil {
+		t.Fatalf("Set layout failed: %v", err)
+	}
+	v, err := Get("layout")
+	if err != nil {
+		t.Fatalf("Get layout failed: %v", err)
+	}
+	if v != "abc" {
+		t.Fatalf("expected layout = abc, got %q", v)
+	}
+}
+
+// 未設定の layout は get / show 上 auto に見える (実効既定値)。
+func TestLayoutDefaultsToAuto(t *testing.T) {
+	writeConfig(t, "")
+	v, err := Get("layout")
+	if err != nil {
+		t.Fatalf("Get layout failed: %v", err)
+	}
+	if v != "auto" {
+		t.Fatalf("expected unset layout to read as auto, got %q", v)
+	}
+}
+
+// 不正なレイアウト値は ErrInvalidValue (書き込まない)。
+func TestLayoutInvalidValue(t *testing.T) {
+	writeConfig(t, "")
+	if err := Set("layout", "junk"); !errors.Is(err, ErrInvalidValue) {
+		t.Fatalf("expected ErrInvalidValue, got %v", err)
+	}
+}
+
+// layout は enum キーなので ValueCandidates が auto/abc/exercise を返す。
+func TestLayoutValueCandidates(t *testing.T) {
+	got := ValueCandidates("layout")
+	want := []string{"abc", "auto", "exercise"} // ソート済み
+	if len(got) != len(want) {
+		t.Fatalf("ValueCandidates(layout) = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("ValueCandidates(layout) = %v, want %v", got, want)
+		}
+	}
+}
+
+// layout はトップレベルキーなので、set しても [test] セクションを壊さない。
+func TestLayoutPreservesTestSection(t *testing.T) {
+	writeConfig(t, "[test]\nside_by_side = true\n")
+	if err := Set("layout", "exercise"); err != nil {
+		t.Fatalf("Set layout failed: %v", err)
+	}
+	v, err := Get("test.side_by_side")
+	if err != nil {
+		t.Fatalf("Get test.side_by_side failed: %v", err)
+	}
+	if v != "true" {
+		t.Fatalf("expected test.side_by_side preserved as true, got %q", v)
+	}
+}
+
 // All は全キー × 現在値を返す。
 func TestAll(t *testing.T) {
 	writeConfig(t, "[test]\nside_by_side = true\n")

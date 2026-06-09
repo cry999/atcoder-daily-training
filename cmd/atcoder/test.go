@@ -94,7 +94,7 @@ func cmdTest(args []string) (int, error) {
 		task = contest + "_" + task
 	}
 
-	lay, err := layout.Parse(*layoutFlag, contest)
+	lay, err := resolveLayout(*layoutFlag, contest)
 	if err != nil {
 		return 2, err
 	}

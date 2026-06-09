@@ -92,6 +92,63 @@ func TestExerciseSolutionPath(t *testing.T) {
 	}
 }
 
+func TestKnown(t *testing.T) {
+	for _, n := range Names() {
+		if !Known(n) {
+			t.Errorf("Known(%q) = false, want true (Names に含まれる)", n)
+		}
+	}
+	for _, n := range []string{"", "junk", "ABC", "arc"} {
+		if Known(n) {
+			t.Errorf("Known(%q) = true, want false", n)
+		}
+	}
+}
+
+func TestResolve(t *testing.T) {
+	cases := []struct {
+		name                         string
+		flag, env, cfg, contest      string
+		wantName, wantValue, wantSrc string
+		wantErr                      bool
+	}{
+		// precedence: flag > env > config > auto。
+		{"flag wins", "abc", "exercise", "exercise", "arc170", "abc", "abc", "flag", false},
+		{"env over config", "", "exercise", "abc", "abc457", "exercise", "exercise", "env", false},
+		{"config when no flag/env", "", "", "abc", "arc170", "abc", "abc", "config", false},
+		{"empty env ignored", "", "", "exercise", "abc457", "exercise", "exercise", "config", false},
+		{"all empty -> auto abc", "", "", "", "abc457", "abc", "auto", "default", false},
+		{"all empty -> auto exercise", "", "", "", "arc170", "exercise", "auto", "default", false},
+		{"auto flag explicit", "auto", "abc", "abc", "arc170", "exercise", "auto", "flag", false},
+		{"invalid flag", "junk", "", "", "abc457", "", "junk", "flag", true},
+		{"invalid env", "", "junk", "", "abc457", "", "junk", "env", true},
+		{"invalid config", "", "", "junk", "abc457", "", "junk", "config", true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			lay, value, source, err := Resolve(c.flag, c.env, c.cfg, c.contest)
+			if value != c.wantValue {
+				t.Errorf("value = %q, want %q", value, c.wantValue)
+			}
+			if source != c.wantSrc {
+				t.Errorf("source = %q, want %q", source, c.wantSrc)
+			}
+			if c.wantErr {
+				if err == nil {
+					t.Errorf("Resolve(...) = %v, want error", lay)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if lay.Name() != c.wantName {
+				t.Errorf("layout = %q, want %q", lay.Name(), c.wantName)
+			}
+		})
+	}
+}
+
 func TestParse(t *testing.T) {
 	cases := []struct {
 		name, contest, wantName string
