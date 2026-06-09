@@ -75,6 +75,16 @@ func Login(user, password string) (*Session, error) {
 	}
 	resp.Body.Close()
 	dbg("POST /login -> %d Location=%q", resp.StatusCode, resp.Header.Get("Location"))
+	for _, c := range resp.Cookies() {
+		if c.Name == "REVEL_FLASH" && c.Value != "" {
+			if dec, e := url.QueryUnescape(c.Value); e == nil {
+				dbg("REVEL_FLASH=%q", dec)
+			} else {
+				dbg("REVEL_FLASH=%q", c.Value)
+			}
+		}
+	}
+	dbgLoginError(client) // ATCODER_DEBUG 時、再描画される /login のエラー文言を出す。
 
 	// 成功/失敗いずれも AtCoder は 302 を返す (成功は / へ、失敗は /login へ)。
 	// 4xx/5xx が返るのは資格情報以前の拒否 (CSRF/ヘッダ不備・レート制限等) なので、
@@ -157,6 +167,41 @@ func loggedIn(client *http.Client) (bool, error) {
 	dbg("GET /settings -> %d Location=%q", resp.StatusCode, resp.Header.Get("Location"))
 	// 未ログインだと /login へ 302。ログイン済みなら 200。
 	return resp.StatusCode == http.StatusOK, nil
+}
+
+// dbgLoginError は ATCODER_DEBUG 時、ログイン失敗後に再描画される /login の
+// エラー文言 (flash の alert) を拾って出す。AtCoder が拒否した理由 (パスワード
+// 誤り / レート制限など) を見るための診断。秘密情報は出さない。
+func dbgLoginError(client *http.Client) {
+	if os.Getenv("ATCODER_DEBUG") == "" {
+		return
+	}
+	req, err := http.NewRequest(http.MethodGet, loginURL, nil)
+	if err != nil {
+		return
+	}
+	req.Header.Set("User-Agent", userAgent)
+	resp, err := client.Do(req)
+	if err != nil {
+		dbg("login error fetch failed: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+	doc, err := htmlquery.Parse(resp.Body)
+	if err != nil {
+		return
+	}
+	found := false
+	for _, n := range htmlquery.Find(doc, `//div[contains(@class,"alert")]`) {
+		t := strings.Join(strings.Fields(htmlquery.InnerText(n)), " ")
+		if t != "" {
+			dbg("login page alert: %q", t)
+			found = true
+		}
+	}
+	if !found {
+		dbg("login page alert: (なし — エラー文言が描画されていない)")
+	}
 }
 
 // revelSession は jar から atcoder.jp の REVEL_SESSION を "name=value" 形で返す。
