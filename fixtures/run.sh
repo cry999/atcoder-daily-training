@@ -139,6 +139,11 @@ ok
 run_case "run --interactive + --out (reject)"  2 run fixture --task pass --interactive --out "$OK_OUT"
 run_case "run --interactive + file --in (reject)" 2 run fixture --task pass --interactive --in "$INPUT_FILE"
 
+# `exercise submit` smoke: 全テスト通過なら exit 0、未通過なら中止して exit 1。
+# --no-open でブラウザは開かないが、通過ケースは OS のクリップボードを書き換える点に注意。
+run_case "submit fixture pass --no-open"  0 submit fixture --task pass --no-open
+run_case "submit fixture fail --no-open"  1 submit fixture --task fail --no-open
+
 echo
 if [[ "$failures" -gt 0 ]]; then
     echo "${failures} case(s) failed"

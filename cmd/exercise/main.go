@@ -29,6 +29,12 @@ func main() {
 			fmt.Fprintln(os.Stderr, "exercise run:", err)
 		}
 		os.Exit(code)
+	case "submit":
+		code, err := cmdSubmit(os.Args[2:])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "exercise submit:", err)
+		}
+		os.Exit(code)
 	case "commit":
 		code, err := cmdCommit(os.Args[2:])
 		if err != nil {
@@ -47,5 +53,6 @@ func usage() {
   exercise new abc <contest> [--tasks <list>] [--refresh] [--no-skeleton] [--no-fetch]
   exercise test   <contest> --task <task> [-v] [-d] [-s] [-c <N[,M,...]>] [--refresh] [--timeout <dur>] [--tolerance <eps>] [--layout <auto|abc|exercise>]
   exercise run    <contest> --task <task> [-v] [-d] [--in <path>|-] [--out <path>] [--tolerance <eps>] [--timeout <dur>] [--layout <auto|abc|exercise>]
+  exercise submit <contest> --task <task> [--refresh] [--tolerance <eps>] [--no-open] [--layout <auto|abc|exercise>]
   exercise commit`)
 }
