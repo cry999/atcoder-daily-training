@@ -87,6 +87,9 @@ type chatModel struct {
 	endedOut    bool
 	endedErr    bool
 	awaitingRestart bool // 子終了後の "press [r] to restart / any other key to quit" 待ち状態
+	autoRestart     bool // R 押下後の sticky モード。以後 streamEndMsg は自動で restart() を発火
+	autoHintShown   bool // auto-restart 突入時のヒント表示済みフラグ
+	quitOnChildExit bool // Ctrl+D で auto-restart を解除したあと、次の child 終了で素直に Quit する
 	sessionN    int      // 1 始まり。restart で incr して区切りに番号を出す
 	width       int
 	height      int
@@ -160,6 +163,11 @@ func (m *chatModel) restart() tea.Cmd {
 	m.awaitingRestart = false
 	m.sessionN++
 	m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: fmt.Sprintf("─── session #%d ───", m.sessionN)})
+	// auto-restart 突入時の一回だけヒントを出す。
+	if m.autoRestart && !m.autoHintShown {
+		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(auto-restart on — Ctrl+D to stop after current session, Ctrl+C to abort)"})
+		m.autoHintShown = true
+	}
 	m.refreshViewport()
 	return tea.Batch(
 		readLineCmd(m.outScanner, kindOut),
@@ -188,9 +196,12 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		// 子プロセス終了後の "press [r] to restart / any other key to quit" 待ちは
 		// 通常のキー処理より先に処理する。
+		// R 押下は sticky モードに突入: 以後は子終了するたびに自動再起動し、
+		// 抜けるには現セッションで Ctrl+D (graceful) または Ctrl+C (kill) を使う。
 		if m.awaitingRestart {
 			for _, r := range msg.Runes {
 				if r == 'r' || r == 'R' {
+					m.autoRestart = true
 					return m, m.restart()
 				}
 			}
@@ -204,7 +215,16 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if !m.stdinClosed {
 				_ = m.handle.Stdin.Close()
 				m.stdinClosed = true
-				m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(stdin closed)"})
+				// auto-restart 中の Ctrl+D は「もう連続実行は不要、子が綺麗に
+				// 終わったら quit」というシグナル。autoRestart を解除して
+				// quitOnChildExit を立てる。
+				if m.autoRestart {
+					m.autoRestart = false
+					m.quitOnChildExit = true
+					m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(stdin closed; auto-restart disabled, exiting after this session)"})
+				} else {
+					m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(stdin closed)"})
+				}
 				m.refreshViewport()
 			}
 		case tea.KeyEnter:
@@ -274,7 +294,14 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.endedErr = true
 		}
 		if m.endedOut && m.endedErr {
-			// spawner があれば再起動の選択肢を提示、無ければそのまま終了。
+			// 優先度: quitOnChildExit > autoRestart > prompt > fallback quit。
+			if m.quitOnChildExit {
+				return m, tea.Quit
+			}
+			if m.autoRestart && m.spawn != nil {
+				// プロンプト無しでそのまま再起動。
+				return m, m.restart()
+			}
 			if m.spawn != nil {
 				m.awaitingRestart = true
 				m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(child exited; press [r] to run again, any other key to quit)"})
