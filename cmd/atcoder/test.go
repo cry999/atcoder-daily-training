@@ -39,7 +39,7 @@ func cmdTest(args []string) (int, error) {
 	}
 
 	flags := flag.NewFlagSet("test", flag.ContinueOnError)
-	taskFlag := flags.String("task", "", `AtCoder task ID, or short form (e.g. "d" expands to "<contest>_d")`)
+	taskFlag := addTaskFlag(flags)
 	refresh := flags.Bool("refresh", false, "Force refetch sample cases")
 	timeoutFlag := flags.Duration("timeout", 0, "Override time limit (e.g. 5s, 500ms). Defaults to the problem's time limit.")
 	var verbose bool
@@ -57,7 +57,7 @@ func cmdTest(args []string) (int, error) {
 	var sideBySide bool
 	flags.BoolVar(&sideBySide, "s", cfg.Test.SideBySide, "Show diff side-by-side (expected on left, actual on right)")
 	flags.BoolVar(&sideBySide, "side-by-side", cfg.Test.SideBySide, "Show diff side-by-side (expected on left, actual on right)")
-	layoutFlag := flags.String("layout", "auto", "Solution file layout (auto, abc, exercise). auto picks abc for abc<NNN>, exercise otherwise.")
+	layoutFlag := addLayoutFlag(flags)
 	var jobs int
 	flags.IntVar(&jobs, "jobs", 0, "Number of test cases to run in parallel. 0 → number of CPUs (capped at the case count).")
 	flags.IntVar(&jobs, "j", 0, "Number of test cases to run in parallel. 0 → number of CPUs (capped at the case count).")

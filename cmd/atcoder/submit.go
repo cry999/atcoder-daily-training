@@ -26,10 +26,10 @@ func cmdSubmit(args []string) (int, error) {
 	contest := args[0]
 
 	flags := flag.NewFlagSet("submit", flag.ContinueOnError)
-	taskFlag := flags.String("task", "", `AtCoder task ID, or short form (e.g. "d" expands to "<contest>_d")`)
+	taskFlag := addTaskFlag(flags)
 	refresh := flags.Bool("refresh", false, "Force refetch sample cases")
 	tolFlag := flags.Float64("tolerance", 0, "Absolute/relative tolerance for float token comparison (e.g. 1e-9). 0 or unset → use default 1e-6.")
-	layoutFlag := flags.String("layout", "auto", "Solution file layout (auto, abc, exercise). auto picks abc for abc<NNN>, exercise otherwise.")
+	layoutFlag := addLayoutFlag(flags)
 	noOpen := flags.Bool("no-open", false, "Do not open the submit page in a browser")
 	flags.SetOutput(os.Stderr)
 

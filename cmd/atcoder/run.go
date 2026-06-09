@@ -21,7 +21,7 @@ func cmdRun(args []string) (int, error) {
 	contest := args[0]
 
 	flags := flag.NewFlagSet("run", flag.ContinueOnError)
-	taskFlag := flags.String("task", "", `AtCoder task ID, or short form (e.g. "d" expands to "<contest>_d")`)
+	taskFlag := addTaskFlag(flags)
 	var inFile string
 	flags.StringVar(&inFile, "in", "", "Input file. Use '-' or omit for parent stdin (both read-all as a batch).")
 	flags.StringVar(&inFile, "i", "", "Input file. Use '-' or omit for parent stdin (both read-all as a batch).")
@@ -39,7 +39,7 @@ func cmdRun(args []string) (int, error) {
 	var debug bool
 	flags.BoolVar(&debug, "d", false, "Run with DEBUG=1 and split [DEBUG]-prefixed lines into a separate section")
 	flags.BoolVar(&debug, "debug", false, "Run with DEBUG=1 and split [DEBUG]-prefixed lines into a separate section")
-	layoutFlag := flags.String("layout", "auto", "Solution file layout (auto, abc, exercise). auto picks abc for abc<NNN>, exercise otherwise.")
+	layoutFlag := addLayoutFlag(flags)
 	flags.SetOutput(os.Stderr)
 
 	if err := flags.Parse(args[1:]); err != nil {
