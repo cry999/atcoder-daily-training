@@ -76,6 +76,10 @@ func cmdTest(args []string) (int, error) {
 	var watchMode bool
 	flags.BoolVar(&watchMode, "watch", false, "Re-run the tests whenever the solution file changes. Ctrl+C to quit. Requires a terminal.")
 	flags.BoolVar(&watchMode, "w", false, "Re-run the tests whenever the solution file changes. Ctrl+C to quit. Requires a terminal.")
+	// 提出準備 (旧 submit コマンド)。サンプル全通過時にコピー + 提出ページ起動。
+	var submit bool
+	flags.BoolVar(&submit, "submit", false, "After all samples pass, copy the solution to the clipboard and open the submit page.")
+	noOpen := flags.Bool("no-open", false, "With --submit, do not open the browser (just print the submit URL).")
 	flags.SetOutput(os.Stderr)
 
 	if err := flags.Parse(args[1:]); err != nil {
@@ -109,10 +113,15 @@ func cmdTest(args []string) (int, error) {
 		return false
 	}
 	if interactive || inFile != "" || outFile != "" {
-		if setAny("refresh", "case", "c", "jobs", "j", "watch", "w", "s", "side-by-side") {
-			return 2, errors.New("--refresh/--case/--jobs/--watch/--side-by-side are sample-mode flags and cannot be combined with --in/--out/--interactive")
+		if setAny("refresh", "case", "c", "jobs", "j", "watch", "w", "s", "side-by-side", "submit", "no-open") {
+			return 2, errors.New("--refresh/--case/--jobs/--watch/--side-by-side/--submit are sample-mode flags and cannot be combined with --in/--out/--interactive")
 		}
 		return runAdHoc(contest, task, lay, inFile, outFile, interactive, debug, verbose, *timeoutFlag, *tolFlag)
+	}
+
+	// --submit は一回限りの提出準備なので、常駐する --watch とは併用不可。
+	if submit && watchMode {
+		return 2, errors.New("--submit cannot be combined with --watch")
 	}
 
 	var cases []string
@@ -147,6 +156,16 @@ func cmdTest(args []string) (int, error) {
 	}
 
 	code, err := testexec.Run(buildOpts(*refresh))
+	if err != nil {
+		return code, err
+	}
+	// --submit: サンプル全通過 (code==0) のときだけ提出準備を行う。
+	if submit && code == 0 {
+		return prepareSubmission(contest, task, lay, *noOpen)
+	}
+	if submit {
+		fmt.Fprintln(os.Stderr, "テストが全通過していないため提出準備を中止しました。")
+	}
 	return code, err
 }
 

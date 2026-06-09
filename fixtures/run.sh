@@ -224,10 +224,16 @@ run_case "test --interactive + file --in (reject)" 2 test fixture --task pass --
 # 旧 `run` サブコマンドは削除済み → 未知サブコマンドで exit 2。
 run_case "run subcommand removed" 2 run fixture --task pass
 
-# `atcoder submit` smoke: 全テスト通過なら exit 0、未通過なら中止して exit 1。
-# --no-open でブラウザは開かないが、通過ケースは OS のクリップボードを書き換える点に注意。
-run_case "submit fixture pass --no-open"  0 submit fixture --task pass --no-open
-run_case "submit fixture fail --no-open"  1 submit fixture --task fail --no-open
+# 提出準備 (旧 submit) は `test --submit` に畳んだ。全通過なら exit 0、未通過なら
+# 提出準備せず exit 1。--no-open でブラウザは開かないが、通過ケースは OS の
+# クリップボードを書き換える点に注意。
+run_case "test --submit (pass)"  0 test fixture --task pass --submit --no-open
+run_case "test --submit (fail)"  1 test fixture --task fail --submit --no-open
+# --submit はサンプルモード専用 → ad-hoc / watch との併用は exit 2。
+run_case "test --submit + --in (reject)" 2 test fixture --task pass --submit --no-open --in "$INPUT_FILE"
+run_case "test --submit + --watch (reject)" 2 test fixture --task pass --submit -w
+# 旧 `submit` サブコマンドは削除済み → 未知サブコマンドで exit 2。
+run_case "submit subcommand removed" 2 submit fixture --task pass
 
 # `atcoder stats` smoke: exercise/ ツリーを集計する読み取り専用コマンド。
 # STAGE には当日 dir の fixture_*.py が居るので集計対象がある。過去日も足して

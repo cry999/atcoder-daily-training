@@ -56,8 +56,7 @@ var configSubCands = []Candidate{
 // subcommandCands は補完対象のサブコマンド名 (説明付き)。__complete は隠すので含めない。
 var subcommandCands = []Candidate{
 	{"new", "scaffold today's exercise dir (or an abc contest)"},
-	{"test", "run a solution (samples by default; --in/--out/--interactive for ad-hoc)"},
-	{"submit", "open the AtCoder submission page"},
+	{"test", "run a solution (samples by default; --in/--out/--interactive for ad-hoc; --submit to submit)"},
 	{"login", "log in to AtCoder and save a session"},
 	{"logout", "delete the saved AtCoder session"},
 	{"status", "show the judge verdict of your submission"},
@@ -112,12 +111,8 @@ var subFlags = map[string][]Candidate{
 		{"-o", "judge a single ad-hoc run against this expected output"},
 		{"--interactive", "interactive mode (live I/O; chat TUI on a TTY)"},
 		{"-I", "interactive mode (live I/O; chat TUI on a TTY)"},
-	},
-	"submit": {
-		{"--task", "task ID or short letter (e.g. d)"},
-		{"--refresh", "force refetch sample cases"},
-		{"--layout", "solution file layout"},
-		{"--no-open", "do not open the page in a browser"},
+		{"--submit", "after all samples pass, copy + open the submit page"},
+		{"--no-open", "with --submit, print the URL instead of opening a browser"},
 	},
 	"stats": {
 		{"--week", "limit to this week"},
@@ -149,7 +144,7 @@ var subFlags = map[string][]Candidate{
 }
 
 // takesContest はそのサブコマンドが <contest> 位置引数を取るか。
-var takesContest = map[string]bool{"test": true, "submit": true, "status": true}
+var takesContest = map[string]bool{"test": true, "status": true}
 
 // Subcommands は補完対象のサブコマンド名を返す (__complete は隠すので含めない)。
 func Subcommands() []string {
@@ -311,7 +306,7 @@ func contestOf(sub string, pos []string) string {
 		if len(pos) >= 2 && pos[0] == "abc" {
 			return pos[1]
 		}
-	case "test", "submit":
+	case "test":
 		if len(pos) >= 1 {
 			return pos[0]
 		}
