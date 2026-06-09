@@ -88,6 +88,10 @@ run_case "fixture_multi --case 99"    1 test fixture --task multi --case 99
 run_case "fixture_diff (multi-line)"  1 test fixture --task diff
 run_case "fixture_float (1e-6 tol)"   0 test fixture --task float
 
+# watch モードは TTY 必須。run.sh の出力は非 TTY なので --watch は exit 2 で拒否される。
+# (watch ループ本体は常駐してブロックするため、ここでは回さない。)
+run_case "fixture_pass --watch (non-TTY reject)" 2 test fixture --task pass --watch
+
 # ABC layout smoke: --layout=auto picks abc/<num>/<letter>.py for abc<NNN> contest IDs.
 run_case "abc999/a test (--layout auto)"    0 test abc999 --task a
 run_case "abc999/a test (--layout abc)"     0 test abc999 --task a --layout abc

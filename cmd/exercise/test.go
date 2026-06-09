@@ -1,17 +1,27 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/cry999/atcoder-daily-training/internal/layout"
 	"github.com/cry999/atcoder-daily-training/internal/runner"
 	"github.com/cry999/atcoder-daily-training/internal/testexec"
 	"github.com/cry999/atcoder-daily-training/internal/ui"
+	"github.com/cry999/atcoder-daily-training/internal/watch"
+)
+
+const (
+	// watch モードのポーリング間隔とデバウンス待機。
+	watchPollInterval = 200 * time.Millisecond
+	watchDebounce     = 120 * time.Millisecond
 )
 
 func cmdTest(args []string) (int, error) {
@@ -41,6 +51,9 @@ func cmdTest(args []string) (int, error) {
 	var jobs int
 	flags.IntVar(&jobs, "jobs", 0, "Number of test cases to run in parallel. 0 → number of CPUs (capped at the case count).")
 	flags.IntVar(&jobs, "j", 0, "Number of test cases to run in parallel. 0 → number of CPUs (capped at the case count).")
+	var watchMode bool
+	flags.BoolVar(&watchMode, "watch", false, "Re-run the tests whenever the solution file changes. Ctrl+C to quit. Requires a terminal.")
+	flags.BoolVar(&watchMode, "w", false, "Re-run the tests whenever the solution file changes. Ctrl+C to quit. Requires a terminal.")
 	flags.SetOutput(os.Stderr)
 
 	if err := flags.Parse(args[1:]); err != nil {
@@ -69,19 +82,67 @@ func cmdTest(args []string) (int, error) {
 		}
 	}
 
-	return testexec.Run(testexec.Options{
-		Contest:     contest,
-		Task:        task,
-		Layout:      lay,
-		Refresh:     *refresh,
-		Timeout:     *timeoutFlag,
-		Debug:       debug,
-		Cases:       cases,
-		Tolerance:   *tolFlag,
-		Concurrency: jobs,
-		ExecutorFor: selectExecutor,
-		Reporter:    ui.NewTestReporter(verbose, sideBySide),
-	})
+	// buildOpts は 1 回分の実行オプションを作る。watch では毎回新しい Reporter を
+	// 作り直し (ライブ表示のプログラムを使い回さない)、refresh は呼び出し側が制御する。
+	buildOpts := func(refresh bool) testexec.Options {
+		return testexec.Options{
+			Contest:     contest,
+			Task:        task,
+			Layout:      lay,
+			Refresh:     refresh,
+			Timeout:     *timeoutFlag,
+			Debug:       debug,
+			Cases:       cases,
+			Tolerance:   *tolFlag,
+			Concurrency: jobs,
+			ExecutorFor: selectExecutor,
+			Reporter:    ui.NewTestReporter(verbose, sideBySide),
+		}
+	}
+
+	if watchMode {
+		return runTestWatch(contest, task, lay, *refresh, buildOpts)
+	}
+
+	code, err := testexec.Run(buildOpts(*refresh))
+	return code, err
+}
+
+// runTestWatch は解答ファイルの保存を監視し、変更のたびにテストを再実行する。
+// Ctrl+C で抜けて exit 0。判定結果 (FAIL/RE/TLE) ではループを止めない。
+func runTestWatch(contest, task string, lay layout.Layout, refresh bool, buildOpts func(refresh bool) testexec.Options) (int, error) {
+	if !ui.IsStdoutTerminal() {
+		return 2, errors.New("--watch requires a terminal (stdout is not a TTY)")
+	}
+	solutionPath, err := lay.SolutionPath(contest, task)
+	if err != nil {
+		return 2, err
+	}
+
+	// Ctrl+C で監視ループを抜ける。各回の実行中 (bubbletea) でも SIGINT は届く。
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
+	w := watch.New(solutionPath, watchPollInterval, watchDebounce)
+	firstRun := true
+	for {
+		ui.ClearScreen()
+		ui.WatchHeader(solutionPath)
+
+		// 初回だけ --refresh を効かせる (毎保存での再 fetch を避ける)。
+		if _, err := testexec.Run(buildOpts(refresh && firstRun)); err != nil {
+			fmt.Fprintln(os.Stderr, "exercise test:", err)
+		}
+		firstRun = false
+
+		ui.WatchFooter(solutionPath)
+
+		if !w.WaitForChange(ctx) {
+			// Ctrl+C: 改行して正常終了。
+			fmt.Println()
+			return 0, nil
+		}
+	}
 }
 
 func selectExecutor(sourcePath string) (testexec.Executor, error) {

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"golang.org/x/term"
 
 	"github.com/cry999/atcoder-daily-training/internal/runexec"
 	"github.com/cry999/atcoder-daily-training/internal/testexec"
@@ -30,7 +29,7 @@ func NewTestReporter(verbose, sideBySide bool) *TestReporter {
 	return &TestReporter{
 		verbose:    verbose,
 		sideBySide: sideBySide,
-		live:       term.IsTerminal(int(os.Stdout.Fd())),
+		live:       isTerminal(os.Stdout),
 	}
 }
 

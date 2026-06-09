@@ -96,4 +96,8 @@ var (
 	pendingStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay0))
 	runningStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaSubtext0))
 	countStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaBlue))
+
+	// watch モード (watch.go) 用のスタイル。
+	watchHeaderStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(mochaMauve))
+	watchFooterStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay1)).Italic(true)
 )

@@ -51,7 +51,7 @@ func usage() {
 	fmt.Fprintln(os.Stderr, `Usage:
   exercise new
   exercise new abc <contest> [--tasks <list>] [--refresh] [--no-skeleton] [--no-fetch]
-  exercise test   <contest> --task <task> [-v] [-d] [-s] [-c <N[,M,...]>] [--refresh] [--timeout <dur>] [--tolerance <eps>] [--layout <auto|abc|exercise>]
+  exercise test   <contest> --task <task> [-v] [-d] [-s] [-c <N[,M,...]>] [--refresh] [--timeout <dur>] [--tolerance <eps>] [--layout <auto|abc|exercise>] [-j <n>] [-w]
   exercise run    <contest> --task <task> [-v] [-d] [--in <path>|-] [--out <path>] [--tolerance <eps>] [--timeout <dur>] [--layout <auto|abc|exercise>]
   exercise submit <contest> --task <task> [--refresh] [--tolerance <eps>] [--no-open] [--layout <auto|abc|exercise>]
   exercise commit`)
