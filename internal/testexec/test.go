@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/cry999/atcoder-daily-training/internal/cachepath"
+	"github.com/cry999/atcoder-daily-training/internal/layout"
 	"github.com/cry999/atcoder-daily-training/internal/runner"
 )
 
@@ -24,6 +25,7 @@ type ExecutorFor func(sourcePath string) (Executor, error)
 type Options struct {
 	Contest     string
 	Task        string
+	Layout      layout.Layout // nil なら layout.Exercise{} 相当 (旧挙動)
 	Refresh     bool
 	Timeout     time.Duration // 0 → use the problem's time_limit_ms from meta.toml
 	Debug       bool          // true → DEBUG=1 を子プロセスに渡し、stdout から [DEBUG] 行を除外して比較
@@ -34,13 +36,14 @@ type Options struct {
 }
 
 func Run(opts Options) (int, error) {
-	y, m, d := time.Now().Local().Date()
-	dateDir := filepath.Join("exercise",
-		fmt.Sprintf("%04d", y),
-		fmt.Sprintf("%02d", m),
-		fmt.Sprintf("%02d", d),
-	)
-	solutionPath := filepath.Join(dateDir, opts.Task+".py")
+	lay := opts.Layout
+	if lay == nil {
+		lay = layout.Exercise{}
+	}
+	solutionPath, err := lay.SolutionPath(opts.Contest, opts.Task)
+	if err != nil {
+		return 1, err
+	}
 	if _, err := os.Stat(solutionPath); err != nil {
 		return 1, fmt.Errorf("解答ファイルが見つかりません: %s", solutionPath)
 	}

@@ -18,6 +18,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/cry999/atcoder-daily-training/internal/cachepath"
+	"github.com/cry999/atcoder-daily-training/internal/layout"
 	"github.com/cry999/atcoder-daily-training/internal/runner"
 	"github.com/cry999/atcoder-daily-training/internal/testexec"
 )
@@ -59,6 +60,7 @@ type Options struct {
 	Task        string
 	InFile      string        // "" / "-" → 親プロセスの stdin、それ以外はそのファイルを読む
 	OutFile     string        // 非空のとき、stdout をこのファイルの内容と比較 (judge モード)
+	Layout      layout.Layout // nil なら layout.Exercise{} 相当 (旧挙動)
 	Timeout     time.Duration // 0 → meta.toml.time_limit_ms か 2 秒のデフォルト
 	Tolerance   float64       // float トークン比較の誤差。0 以下なら testexec.DefaultTolerance
 	Debug       bool          // DEBUG=1 と [DEBUG] フィルタ (test と同じ規約)
@@ -92,13 +94,14 @@ type Result struct {
 const defaultTimeLimitMs = 2000
 
 func Run(opts Options) (int, error) {
-	y, m, d := time.Now().Local().Date()
-	dateDir := filepath.Join("exercise",
-		fmt.Sprintf("%04d", y),
-		fmt.Sprintf("%02d", m),
-		fmt.Sprintf("%02d", d),
-	)
-	solutionPath := filepath.Join(dateDir, opts.Task+".py")
+	lay := opts.Layout
+	if lay == nil {
+		lay = layout.Exercise{}
+	}
+	solutionPath, err := lay.SolutionPath(opts.Contest, opts.Task)
+	if err != nil {
+		return 1, err
+	}
 	if _, err := os.Stat(solutionPath); err != nil {
 		return 1, fmt.Errorf("解答ファイルが見つかりません: %s", solutionPath)
 	}

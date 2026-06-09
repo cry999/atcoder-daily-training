@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/cry999/atcoder-daily-training/internal/layout"
 	"github.com/cry999/atcoder-daily-training/internal/runexec"
 	"github.com/cry999/atcoder-daily-training/internal/runner"
 	"github.com/cry999/atcoder-daily-training/internal/ui"
@@ -35,6 +36,7 @@ func cmdRun(args []string) (int, error) {
 	var debug bool
 	flags.BoolVar(&debug, "d", false, "Run with DEBUG=1 and split [DEBUG]-prefixed lines into a separate section")
 	flags.BoolVar(&debug, "debug", false, "Run with DEBUG=1 and split [DEBUG]-prefixed lines into a separate section")
+	layoutFlag := flags.String("layout", "auto", "Solution file layout (auto, abc, exercise). auto picks abc for abc<NNN>, exercise otherwise.")
 	flags.SetOutput(os.Stderr)
 
 	if err := flags.Parse(args[1:]); err != nil {
@@ -48,9 +50,15 @@ func cmdRun(args []string) (int, error) {
 		task = contest + "_" + task
 	}
 
+	lay, err := layout.Parse(*layoutFlag, contest)
+	if err != nil {
+		return 2, err
+	}
+
 	return runexec.Run(runexec.Options{
 		Contest:     contest,
 		Task:        task,
+		Layout:      lay,
 		InFile:      inFile,
 		OutFile:     outFile,
 		Timeout:     *timeoutFlag,

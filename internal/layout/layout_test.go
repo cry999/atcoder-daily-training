@@ -1,0 +1,122 @@
+package layout
+
+import (
+	"testing"
+	"time"
+)
+
+func TestTaskID(t *testing.T) {
+	cases := []struct {
+		contest, task, want string
+	}{
+		{"abc457", "d", "abc457_d"},
+		{"abc457", "abc457_d", "abc457_d"},
+		{"adt_2026_06_15_2000", "g", "adt_2026_06_15_2000_g"},
+	}
+	for _, c := range cases {
+		if got := TaskID(c.contest, c.task); got != c.want {
+			t.Errorf("TaskID(%q, %q) = %q, want %q", c.contest, c.task, got, c.want)
+		}
+	}
+}
+
+func TestLetter(t *testing.T) {
+	cases := []struct {
+		in, want string
+		wantErr  bool
+	}{
+		{"d", "d", false},
+		{"D", "d", false},
+		{"abc457_d", "d", false},
+		{"abc457_D", "d", false},
+		{"abc457_", "", true},
+		{"", "", true},
+	}
+	for _, c := range cases {
+		got, err := Letter(c.in)
+		if c.wantErr {
+			if err == nil {
+				t.Errorf("Letter(%q) = %q, want error", c.in, got)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("Letter(%q) returned unexpected error: %v", c.in, err)
+		}
+		if got != c.want {
+			t.Errorf("Letter(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+func TestABCSolutionPath(t *testing.T) {
+	cases := []struct {
+		contest, task, want string
+		wantErr             bool
+	}{
+		{"abc457", "d", "abc/457/d.py", false},
+		{"abc457", "abc457_d", "abc/457/d.py", false},
+		{"abc457", "D", "abc/457/d.py", false},
+		{"abc999", "g", "abc/999/g.py", false},
+		{"arc170", "d", "", true},          // 非 ABC
+		{"abc", "d", "", true},             // 数字なし
+		{"abc457", "", "", true},           // 空 task
+	}
+	for _, c := range cases {
+		got, err := ABC{}.SolutionPath(c.contest, c.task)
+		if c.wantErr {
+			if err == nil {
+				t.Errorf("ABC.SolutionPath(%q, %q) = %q, want error", c.contest, c.task, got)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("ABC.SolutionPath(%q, %q) returned unexpected error: %v", c.contest, c.task, err)
+		}
+		if got != c.want {
+			t.Errorf("ABC.SolutionPath(%q, %q) = %q, want %q", c.contest, c.task, got, c.want)
+		}
+	}
+}
+
+func TestExerciseSolutionPath(t *testing.T) {
+	fixed := time.Date(2026, 6, 9, 12, 0, 0, 0, time.Local)
+	e := Exercise{Today: fixed}
+	got, err := e.SolutionPath("abc457", "d")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := "exercise/2026/06/09/abc457_d.py"
+	if got != want {
+		t.Errorf("Exercise.SolutionPath = %q, want %q", got, want)
+	}
+}
+
+func TestParse(t *testing.T) {
+	cases := []struct {
+		name, contest, wantName string
+		wantErr                 bool
+	}{
+		{"", "abc457", "abc", false},
+		{"auto", "abc457", "abc", false},
+		{"auto", "arc170", "exercise", false},
+		{"abc", "anything", "abc", false},
+		{"exercise", "abc457", "exercise", false},
+		{"junk", "abc457", "", true},
+	}
+	for _, c := range cases {
+		lay, err := Parse(c.name, c.contest)
+		if c.wantErr {
+			if err == nil {
+				t.Errorf("Parse(%q, %q) = %v, want error", c.name, c.contest, lay)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("Parse(%q, %q) returned unexpected error: %v", c.name, c.contest, err)
+		}
+		if lay.Name() != c.wantName {
+			t.Errorf("Parse(%q, %q).Name() = %q, want %q", c.name, c.contest, lay.Name(), c.wantName)
+		}
+	}
+}

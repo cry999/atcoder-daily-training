@@ -24,6 +24,12 @@ DATE_DIR="exercise/$(date +%Y/%m/%d)"
 mkdir -p "$STAGE/$DATE_DIR"
 cp "$FIXTURES/"fixture_*.py "$STAGE/$DATE_DIR/"
 
+# Stage an ABC-layout solution at abc/999/a.py so we can exercise --layout=auto/abc.
+# Reuses fixture_pass.py (n → n*2). The cache for abc999_a is already pre-populated
+# in fixtures/cache/atcoder-tools/abc999/abc999_a/ (input 5 → expected 10).
+mkdir -p "$STAGE/abc/999"
+cp "$FIXTURES/fixture_pass.py" "$STAGE/abc/999/a.py"
+
 # Stage pre-populated cache (meta.toml + tests/) under a private XDG_CACHE_HOME.
 CACHE_HOME="$(mktemp -d)"
 cp -R "$FIXTURES/cache/." "$CACHE_HOME/"
@@ -82,6 +88,10 @@ run_case "fixture_multi --case 99"    1 test fixture --task multi --case 99
 run_case "fixture_diff (multi-line)"  1 test fixture --task diff
 run_case "fixture_float (1e-6 tol)"   0 test fixture --task float
 
+# ABC layout smoke: --layout=auto picks abc/<num>/<letter>.py for abc<NNN> contest IDs.
+run_case "abc999/a test (--layout auto)"    0 test abc999 --task a
+run_case "abc999/a test (--layout abc)"     0 test abc999 --task a --layout abc
+
 # `exercise run` (ad-hoc stdin) smoke tests
 INPUT_FILE="$STAGE/run-input.txt"
 echo "5" > "$INPUT_FILE"
@@ -96,6 +106,9 @@ echo "10" > "$OK_OUT"
 echo "99" > "$NG_OUT"
 run_case "run fixture_pass --in --out (PASS)" 0 run fixture --task pass --in "$INPUT_FILE" --out "$OK_OUT"
 run_case "run fixture_pass --in --out (FAIL)" 1 run fixture --task pass --in "$INPUT_FILE" --out "$NG_OUT"
+
+# ABC layout: abc999_a is the same N→N*2 program. Test exercise run end-to-end on ABC layout.
+run_case "abc999/a run --in --out PASS"       0 run abc999 --task a --in "$INPUT_FILE" --out "$OK_OUT"
 
 # Interactive mode: --in - で fd を直結。piped 入力でも query/response の交互が成立することを確認。
 run_piped "run fixture_interactive --in -"  0 "3

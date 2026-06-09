@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/cry999/atcoder-daily-training/internal/layout"
 	"github.com/cry999/atcoder-daily-training/internal/runner"
 	"github.com/cry999/atcoder-daily-training/internal/testexec"
 	"github.com/cry999/atcoder-daily-training/internal/ui"
@@ -36,6 +37,7 @@ func cmdTest(args []string) (int, error) {
 	var sideBySide bool
 	flags.BoolVar(&sideBySide, "s", false, "Show diff side-by-side (expected on left, actual on right)")
 	flags.BoolVar(&sideBySide, "side-by-side", false, "Show diff side-by-side (expected on left, actual on right)")
+	layoutFlag := flags.String("layout", "auto", "Solution file layout (auto, abc, exercise). auto picks abc for abc<NNN>, exercise otherwise.")
 	flags.SetOutput(os.Stderr)
 
 	if err := flags.Parse(args[1:]); err != nil {
@@ -50,6 +52,11 @@ func cmdTest(args []string) (int, error) {
 		task = contest + "_" + task
 	}
 
+	lay, err := layout.Parse(*layoutFlag, contest)
+	if err != nil {
+		return 2, err
+	}
+
 	var cases []string
 	if caseStr != "" {
 		for _, p := range strings.Split(caseStr, ",") {
@@ -62,6 +69,7 @@ func cmdTest(args []string) (int, error) {
 	return testexec.Run(testexec.Options{
 		Contest:     contest,
 		Task:        task,
+		Layout:      lay,
 		Refresh:     *refresh,
 		Timeout:     *timeoutFlag,
 		Debug:       debug,
