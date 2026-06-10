@@ -37,8 +37,11 @@ atcoder start <contest> --task <task> [--until-pass] [--refresh] [-d] [-s] [-j <
 |---|---|
 | 文字入力 + `Enter` | 下ペインの chat に送信 (子の stdin へ) |
 | `↑` / `↓` | chat の入力履歴 |
+| `Ctrl+S` | **提出準備** (`test --submit` 相当: 解答をクリップボードへコピー + 提出ページをブラウザで起動)。子は止めず chat に留まり、結果を 1 行表示。**実提出 (POST) はしない** |
 | `Ctrl+D` / `Ctrl+C` | 全体を終了 (exit 0) |
 | (解答を保存) | 上ペイン (watch) を自動再判定 + 下ペインの chat を最新コードで reload |
+
+> `Ctrl+S` の提出準備は**サンプル全通過を待たない** (`test --submit` のゲートと違い、対話中はバッチ判定が走っていないため)。提出前に確認したいときは上ペインのサンプル結果を見るか、一度抜けて `atcoder test <contest> --task <task> --submit` を使う。
 
 `start` は `new` (ファイル用意) と watch (サンプル自動判定) と chat (対話) を**1 画面に合成**した薄いコマンドで、新しい判定・実行ロジックは持たない。
 

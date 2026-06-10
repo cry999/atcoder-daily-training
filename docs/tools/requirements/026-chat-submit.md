@@ -2,12 +2,12 @@
 
 ## 概要
 
-インタラクティブ chat (`atcoder test --interactive` / `atcoder start` → `i`) の中から、**`Ctrl+S` キー一発**で提出準備 (`test --submit` 相当) を起動できるようにする。提出準備＝**解答ファイルをクリップボードへコピー + 提出ページをブラウザで起動**で、`test --submit` と同じ `prepareSubmission` の中身を再利用する (**実 POST はしない** — 認証は Cloudflare Turnstile 保護で programmatic 不可、todo.md「K」)。chat を抜けずにその場で実行でき、**走行中の子プロセスは kill しない**。新サブコマンド・新フラグは増やさず、chat の予約キーを 1 つ足すだけ。
+インタラクティブ chat (`atcoder test --interactive` の chat TUI / `atcoder start` 分割画面の下ペイン) の中から、**`Ctrl+S` キー一発**で提出準備 (`test --submit` 相当) を起動できるようにする。提出準備＝**解答ファイルをクリップボードへコピー + 提出ページをブラウザで起動**で、`test --submit` と同じ `prepareSubmission` の中身を再利用する (**実 POST はしない** — 認証は Cloudflare Turnstile 保護で programmatic 不可、todo.md「K」)。chat を抜けずにその場で実行でき、**走行中の子プロセスは kill しない**。新サブコマンド・新フラグは増やさず、chat の予約キーを 1 つ足すだけ。
 
 ## 背景・目的
 
 - chat で対話的に挙動を確かめて「よし提出だ」となったとき、今は一度 chat を抜けて (`Ctrl+D`)、ブラウザを自分で開くか `atcoder test --submit` を別途叩く必要がある。`test --submit` は**サンプルモード専用で `--interactive` と併用不可** (`exit 2`) なので、対話中からは使えない。
-- `start` → `i` → chat という入れ子で対話していると、提出のためだけに chat を畳むのは編集リズムを切る。「対話で確かめる → そのまま提出準備」が 1 画面で完結するのが自然。
+- `start` の分割画面 (下ペイン = chat) で対話していると、提出のためだけに chat を畳むのは編集リズムを切る。「対話で確かめる → そのまま提出準備」が 1 画面で完結するのが自然。
 - 提出準備の中身 (`prepareSubmission`: コピー + ブラウザ起動) は既にあり、chat から呼ぶ口を足すだけで済む。実 POST を伴わないので副作用は軽い (クリップボード上書き + ブラウザのタブが 1 つ開く)。
 
 ## スコープ
@@ -20,7 +20,7 @@
 | 実 POST | しない (ブラウザに委ねる) | Turnstile を解けるブラウザ自動化が前提。当面不可 (K) |
 | `--no-open` 相当 | MVP は常にブラウザを開く | config キー (`[submit] no_open`) で制御 |
 | 子プロセス | kill しない・chat 継続 | — |
-| 適用範囲 | `test --interactive` と `start` → `i` の chat (両方 `runAdHoc` 経由) | — |
+| 適用範囲 | `test --interactive` の chat と `start` 分割画面下ペインの chat | — |
 
 ### 024 (ケースビルダー) との関係
 
@@ -36,7 +36,7 @@
 
 ```
 atcoder test <contest> --task <task> --interactive   # chat 中に Ctrl+S で提出準備
-atcoder start <contest> --task <task>  → i → chat    # 同上
+atcoder start <contest> --task <task>                # 分割画面の下ペイン chat 中に Ctrl+S
 ```
 
 ### chat のキー (追加分)
@@ -50,7 +50,7 @@ atcoder start <contest> --task <task>  → i → chat    # 同上
 ### 処理ステップ (`Ctrl+S` 押下時)
 
 1. chat が注入された submit コールバック (`ChatHeader.Submit`) を呼ぶ。
-2. コールバック (composition root = `adhoc.go` 側) が `submitPrepCore(contest, task, lay)` を実行:
+2. コールバック (composition root = `cmd/atcoder` の `chatSubmitFunc`) が `submitPrepCore(contest, task, lay)` を実行:
    - 解答ファイルを読み、クリップボードへ書く。
    - 提出 URL (`https://atcoder.jp/contests/<contest>/submit?taskScreenName=<task>`) を組み、ブラウザで開く (best-effort)。
    - 結果 (コピーしたパス・URL・ブラウザを開けたか・エラー) を返す。
@@ -77,7 +77,7 @@ atcoder start <contest> --task <task>  → i → chat    # 同上
 |---|---|
 | サンプルゲート | **無し**。chat submit は無条件にコピー + ブラウザ起動 (対話中はバッチ判定が走らないため)。`test --submit` (ゲートあり) と意図的に挙動が異なる |
 | 子プロセス | kill しない。submit は副作用アクションで chat セッションは継続 (024 の「コマンドモードは子を触らない」原則と整合) |
-| 入れ子 | `start` → `i` → chat → `Ctrl+S` → (chat に留まる) → `Ctrl+D` → start watch。submit は chat 内で完結し、start ループにも子にも触らない。auto-restart 中でも押せる |
+| 入れ子 | `start` 分割画面 (下 = chat) で `Ctrl+S` → chat に留まる (上ペインの watch も継続)。`Ctrl+D`/`Ctrl+C` で start 全体を終了。submit は chat 内で完結し、子にも上ペインにも触らない。auto-restart 中でも押せる。split モデルの `default:` 分岐が `KeyMsg` を chat へ委譲するので start でも届く |
 | クリップボード失敗 | エラー行を表示して chat 継続 (致命的でない) |
 | ブラウザ起動失敗 | コピーは済んでいるので、URL を含む案内行を表示して chat 継続 |
 | `Submit` 未注入 (nil) | `Ctrl+S` は「提出準備は利用できません」を 1 行表示 (基本は常に注入されるので通常起きない) |
@@ -90,7 +90,8 @@ atcoder start <contest> --task <task>  → i → chat    # 同上
 |---|---|
 | `internal/ui/chat.go` | `ChatHeader` に `Submit SubmitFunc` 追加。`SubmitFunc` 型と `SubmitResult` 構造体を定義。`Update` の `tea.KeyMsg` に `case tea.KeyCtrlS` を足し、コールバックを呼んで結果を `chatLine` 化。入力 placeholder / 初期 info 行に「Ctrl+S で提出準備」を追記 |
 | `cmd/atcoder/submitprep.go` | `prepareSubmission` から**非印字 core** `submitPrepCore(contest, task, lay) submitOutcome` を切り出す。CLI 経路 (`test --submit`) は core + 印字、chat 経路は core + 行描画 |
-| `cmd/atcoder/adhoc.go` | `interactive` 時に `ui.SubmitFunc` クロージャ (contest/task/lay を捕捉) を構築し `ChatHeader.Submit` に注入 (`test --interactive` と `start`→`i` の両方をここでカバー) |
+| `cmd/atcoder/adhoc.go` | `chatSubmitFunc(contest, task, lay)` を追加し、`makeChatRunner` 経由で `test --interactive` の chat の `ChatHeader.Submit` に注入 |
+| `cmd/atcoder/start.go` | `start` は分割画面 (`ui.RunStartSplit`) で `runAdHoc` を通らないため、`ChatHeader` に同じ `chatSubmitFunc(contest, task, lay)` を別途注入 |
 | `internal/ui/chat_test.go` | `Ctrl+S` で `Submit` が呼ばれ結果行が追加されることを、スタブ `SubmitFunc` で検証 (TUI を起動せず model の `Update` に `tea.KeyMsg{Type: tea.KeyCtrlS}` を送る) |
 | `cmd/atcoder/submitprep_test.go` | `submitPrepCore` の URL / 解答パス組み立てを単体検証 (ブラウザは開かない経路) |
 | `docs/tools/atcoder-test-usage.md` / `atcoder-start-usage.md` | interactive 節に `Ctrl+S` = 提出準備を追記 |
@@ -152,7 +153,7 @@ func submitPrepCore(contest, task string, lay layout.Layout, noOpen bool) (submi
 ## 用語
 
 - **提出準備**: サンプルゲートの後の「クリップボードコピー + 提出ページ起動」。実提出 (POST) は含まない (015 / ADR 0006 と同義)。
-- **chat**: `test --interactive` / `start`→`i` で開く対話 TUI (`internal/ui/chat.go`)。
+- **chat**: `test --interactive` の chat TUI / `start` 分割画面の下ペインで開く対話 TUI (`internal/ui/chat.go`)。
 - (`contest_id` / `task_id` / `letter` / `layout` は既存要件に準拠)
 
 ## 関連ドキュメント
