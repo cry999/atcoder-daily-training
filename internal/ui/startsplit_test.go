@@ -86,3 +86,27 @@ func TestStartSplitChatHeight(t *testing.T) {
 		}
 	}
 }
+
+// 再ターゲット後 (epoch 進行) は、旧ターゲットの遅延サンプル結果 (古い epoch) を破棄し、
+// 現世代の結果だけを反映する (要件 027 の target epoch)。
+func TestStartSplitStaleSampleDiscarded(t *testing.T) {
+	m := &startSplitModel{epoch: 1, sampleInFlight: true}
+
+	// 旧世代 (epoch 0) の結果は破棄される。
+	m.Update(splitSampleMsg{summary: SampleSummary{Passed: 9, Total: 9, AllPassed: true}, epoch: 0})
+	if m.haveSummary {
+		t.Errorf("stale sample (epoch 0) should be discarded, but summary was applied: %+v", m.summary)
+	}
+	if !m.sampleInFlight {
+		t.Errorf("stale sample should not clear sampleInFlight")
+	}
+
+	// 現世代 (epoch 1) の結果は反映される。
+	m.Update(splitSampleMsg{summary: SampleSummary{Passed: 2, Total: 2, AllPassed: true}, epoch: 1})
+	if !m.haveSummary || m.summary.Passed != 2 || m.summary.Total != 2 {
+		t.Errorf("fresh sample should be applied, got haveSummary=%v summary=%+v", m.haveSummary, m.summary)
+	}
+	if m.sampleInFlight {
+		t.Errorf("fresh sample should clear sampleInFlight")
+	}
+}

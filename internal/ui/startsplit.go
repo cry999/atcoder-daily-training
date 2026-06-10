@@ -9,6 +9,8 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/cry999/atcoder-daily-training/internal/watch"
 )
 
 // CaseVerdict は 1 サンプルケースの判定結果 (watch ペインの per-case 表示用)。
@@ -27,16 +29,30 @@ type SampleSummary struct {
 	Err           error         // 判定自体が失敗 (テスト無し等)
 }
 
-// StartSplitConfig は分割画面の起動設定。ui は testexec / watch に依存しないため、
-// サンプル判定 (RunSamples) と保存検知 (Changed) は closure として受け取る。
+// StartTarget は分割画面 1 つ分のターゲット (初期起動・再ターゲット共通)。要件 027。
+// layout 解決・着手 (空ファイル生成)・runner spawn は cmd/atcoder が済ませて組み立てる
+// (internal/ui は cmd/atcoder を import できない層境界を保つ)。
+type StartTarget struct {
+	ContestID, Task string
+	SolutionPath    string
+	Spawn           Spawner              // chat 用の子プロセス起動 (auto-restart)
+	Header          ChatHeader           // NavEnabled=true で渡す
+	RunSamples      func() SampleSummary // サンプル再判定 (stdout に書かない)
+	Watcher         *watch.Watcher       // 解答ファイルの保存検知
+	InfoLines       []string             // 再ターゲット時に chat へ出す案内行 (移動先 + 着手)
+}
+
+// Navigate は現ターゲットと要求から次のターゲットを解決する (cmd/atcoder が注入)。
+// 境界・非対応・不正 spec は error (TUI 内 1 行表示に使う)。internal/ui は中身を知らない。
+type Navigate func(contestID, task string, req NavRequest) (StartTarget, error)
+
+// StartSplitConfig は分割画面の起動設定。初期ターゲット (Initial) と、コマンドモードの
+// ナビゲーション解決 (Navigate) を受け取る。Navigate が nil ならナビは無効。
 type StartSplitConfig struct {
-	SolutionPath string
-	Spawn        Spawner              // chat 用の子プロセス起動 (auto-restart)
-	Header       ChatHeader           // AutoRestart=true で渡す
-	RunSamples   func() SampleSummary // 保存検知時のサンプル再判定 (stdout に書かない)
-	Changed      func() bool          // 解答ファイルの保存検知 (watch.Changed)
-	UntilPass    bool                 // 全通過で終了
-	Poll         time.Duration        // 保存検知のポーリング間隔 (0 → 既定)
+	Initial   StartTarget   // 起動時の問題
+	Navigate  Navigate      // :next/:prev/... の解決 (nil ならナビ無効)
+	UntilPass bool          // 全通過で終了
+	Poll      time.Duration // 保存検知のポーリング間隔 (0 → 既定)
 }
 
 // 分割画面のレイアウト予約行数。
@@ -46,19 +62,29 @@ const (
 )
 
 type splitTickMsg struct{}
-type splitSampleMsg struct{ summary SampleSummary }
+
+// splitSampleMsg は非同期サンプル判定の結果。epoch は発行時の再ターゲット世代で、
+// 現行と不一致なら旧ターゲットの遅延結果として破棄する (要件 027 の target epoch)。
+type splitSampleMsg struct {
+	summary SampleSummary
+	epoch   int
+}
 
 type startSplitModel struct {
 	chat         *chatModel
+	contestID    string // 現ターゲットの contest_id (ナビ解決の起点)
+	task         string // 現ターゲットの task_id (ナビ解決の起点)
 	solutionPath string
 	runSamples   func() SampleSummary
 	changed      func() bool
+	navigate     Navigate // nil ならナビ無効
 	untilPass    bool
 	poll         time.Duration
 
 	summary        SampleSummary
 	haveSummary    bool
 	sampleInFlight bool
+	epoch          int // 再ターゲット世代。旧ターゲットの遅延サンプル結果を破棄する
 
 	width, height int
 	ready         bool
@@ -79,12 +105,16 @@ func RunStartSplit(cfg StartSplitConfig) (int, error) {
 	if poll <= 0 {
 		poll = 250 * time.Millisecond
 	}
+	t := cfg.Initial
 	// 下ペインの chat は遅延起動 (入力が来るまで子を起動しない)。
 	m := &startSplitModel{
-		chat:         initialChatModel(cfg.Header, cfg.Spawn),
-		solutionPath: cfg.SolutionPath,
-		runSamples:   cfg.RunSamples,
-		changed:      cfg.Changed,
+		chat:         initialChatModel(t.Header, t.Spawn),
+		contestID:    t.ContestID,
+		task:         t.Task,
+		solutionPath: t.SolutionPath,
+		runSamples:   t.RunSamples,
+		changed:      changedFunc(t.Watcher),
+		navigate:     cfg.Navigate,
 		untilPass:    cfg.UntilPass,
 		poll:         poll,
 	}
@@ -92,6 +122,14 @@ func RunStartSplit(cfg StartSplitConfig) (int, error) {
 		return 1, err
 	}
 	return 0, nil
+}
+
+// changedFunc は watcher の保存検知 closure を返す (watcher が nil なら nil)。
+func changedFunc(w *watch.Watcher) func() bool {
+	if w == nil {
+		return nil
+	}
+	return w.Changed
 }
 
 // chatHeight は chat ペインに割り当てる高さ (端末高さから watch + help を引く)。
@@ -114,7 +152,44 @@ func (m *startSplitModel) tickCmd() tea.Cmd {
 
 func (m *startSplitModel) runSamplesCmd() tea.Cmd {
 	run := m.runSamples
-	return func() tea.Msg { return splitSampleMsg{summary: run()} }
+	epoch := m.epoch // 発行時の世代を焼き込む (再ターゲット後の遅延結果を破棄するため)
+	return func() tea.Msg { return splitSampleMsg{summary: run(), epoch: epoch} }
+}
+
+// retarget は移動先ターゲットに watch ペイン・chat ペインを切り替える (要件 027)。
+// 旧 chat の子を片付け、chat を新ターゲットで作り直し (遅延起動を維持)、watch 要約を
+// リセットして 1 回サンプル判定する。epoch を進めて旧ターゲットの遅延結果は破棄する。
+func (m *startSplitModel) retarget(t StartTarget) tea.Cmd {
+	m.chat.shutdown() // 旧問題の子プロセスを kill+wait
+
+	m.contestID = t.ContestID
+	m.task = t.Task
+	m.solutionPath = t.SolutionPath
+	m.runSamples = t.RunSamples
+	m.changed = changedFunc(t.Watcher)
+
+	// chat を新ターゲットで作り直す (遅延起動: 入力が来るまで子は起動しない)。
+	m.chat = initialChatModel(t.Header, t.Spawn)
+	var cmds []tea.Cmd
+	if m.ready {
+		// 現在のウィンドウサイズで再レイアウトする (chat を ready にして viewport を作る)。
+		cm, cmd := m.chat.Update(tea.WindowSizeMsg{Width: m.width, Height: m.chatHeight()})
+		m.chat = cm.(*chatModel)
+		cmds = append(cmds, cmd)
+	}
+	cmds = append(cmds, m.chat.Init())
+	for _, line := range t.InfoLines {
+		m.chat.addInfoLine(line)
+	}
+	m.chat.refreshViewport()
+
+	// watch 要約を未判定に戻し、新ターゲットで 1 回判定する (初回判定で lazy fetch)。
+	m.summary = SampleSummary{}
+	m.haveSummary = false
+	m.epoch++
+	m.sampleInFlight = true
+	cmds = append(cmds, m.runSamplesCmd())
+	return tea.Batch(cmds...)
 }
 
 func (m *startSplitModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -136,6 +211,9 @@ func (m *startSplitModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(cmds...)
 
 	case splitSampleMsg:
+		if msg.epoch != m.epoch {
+			return m, nil // 旧ターゲットの遅延サンプル結果 → 破棄
+		}
 		m.summary = msg.summary
 		m.haveSummary = true
 		m.sampleInFlight = false
@@ -143,6 +221,20 @@ func (m *startSplitModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 		return m, nil
+
+	case NavMsg:
+		// コマンドモードのナビゲーション (要件 027)。注入された Navigate で移動先を解決し、
+		// 成功なら再ターゲット、失敗 (境界・非対応・不正 spec) は chat に 1 行出して継続する。
+		if m.navigate == nil {
+			return m, nil
+		}
+		target, err := m.navigate(m.contestID, m.task, msg.Req)
+		if err != nil {
+			m.chat.addErrLine("(" + err.Error() + ")")
+			m.chat.refreshViewport()
+			return m, nil
+		}
+		return m, m.retarget(target)
 
 	default:
 		// KeyMsg / chatLineMsg / streamEndMsg などは chat に委譲し、Cmd を伝播する。

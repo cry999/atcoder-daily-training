@@ -28,6 +28,7 @@ type ChatHeader struct {
 	Submit      SubmitFunc // 非 nil なら Ctrl+S で提出準備を呼べる。composition root が注入する
 	TaskDir     string     // cache の <contest>/<task> dir。非空なら :w でケースを tests-extra に保存できる (要件 024)
 	Tolerance   float64    // ライブ検証の許容誤差 (0 なら既定 1e-6)
+	NavEnabled  bool       // true なら :next/:prev/:fwd/:back/:e で問題ナビ可 (start 分割画面限定。要件 027)
 }
 
 // SubmitResult は chat の Ctrl+S 提出準備の結果。chat はこれを 1 行に整形して表示する。
@@ -306,6 +307,27 @@ func (m *chatModel) submitPrep() {
 		kind = kindErr
 	}
 	m.msgs = append(m.msgs, chatLine{kind: kind, text: "(提出準備: " + res.Message + ")"})
+}
+
+// addInfoLine は親 (startSplitModel) が chat に情報行を 1 つ積むためのヘルパー。
+// 再ターゲット時の移動案内・着手メッセージを新しい chat に出すのに使う (要件 027)。
+func (m *chatModel) addInfoLine(text string) {
+	m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: text})
+}
+
+// addErrLine は親が chat にエラー行を 1 つ積むためのヘルパー。ナビゲーションの
+// 境界・非対応・不正 spec を 1 行で通知するのに使う (chat は継続。要件 027)。
+func (m *chatModel) addErrLine(text string) {
+	m.msgs = append(m.msgs, chatLine{kind: kindErr, text: text})
+}
+
+// shutdown は走っている子プロセスを kill+wait する。再ターゲットで chat を作り直す前に
+// 旧問題の子を片付けるために親が呼ぶ (要件 027)。
+func (m *chatModel) shutdown() {
+	if m.handle != nil {
+		_ = m.handle.Kill()
+		_ = m.handle.Wait()
+	}
 }
 
 func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
