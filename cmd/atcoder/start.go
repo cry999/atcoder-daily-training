@@ -154,7 +154,7 @@ func runStartWatch(contest, task string, lay layout.Layout, refresh bool,
 	return ui.RunStartSplit(ui.StartSplitConfig{
 		SolutionPath: solutionPath,
 		Spawn:        ui.Spawner(spawn),
-		Header:       ui.ChatHeader{Task: task, Contest: contest, TimeLimitMs: timeLimitMs, Debug: debug, AutoRestart: true, WatchPath: solutionPath},
+		Header:       ui.ChatHeader{Task: task, Contest: contest, TimeLimitMs: timeLimitMs, Debug: debug, AutoRestart: true, WatchPath: solutionPath, Submit: chatSubmitFunc(contest, task, lay)},
 		RunSamples:   runSamples,
 		Changed:      w.Changed,
 		UntilPass:    untilPass,

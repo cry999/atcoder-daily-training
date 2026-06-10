@@ -22,10 +22,22 @@ type ChatHeader struct {
 	Task        string
 	Contest     string
 	TimeLimitMs int
-	Debug       bool   // true なら子の stdout 行のうち [DEBUG] プレフィックスを持つものを別カテゴリで表示する
-	AutoRestart bool   // true なら起動時から sticky auto-restart (子終了のたびに再起動する)
-	WatchPath   string // 非空なら解答ファイルを監視し、保存検知で子を最新ファイルで再 spawn する
+	Debug       bool       // true なら子の stdout 行のうち [DEBUG] プレフィックスを持つものを別カテゴリで表示する
+	AutoRestart bool       // true なら起動時から sticky auto-restart (子終了のたびに再起動する)
+	WatchPath   string     // 非空なら解答ファイルを監視し、保存検知で子を最新ファイルで再 spawn する
+	Submit      SubmitFunc // 非 nil なら Ctrl+S で提出準備を呼べる。composition root が注入する
 }
+
+// SubmitResult は chat の Ctrl+S 提出準備の結果。chat はこれを 1 行に整形して表示する。
+type SubmitResult struct {
+	Message string // 表示文 (例 "クリップボードにコピー abc457/d.py / 提出ページを開きました")
+	IsError bool   // true なら err 行で表示
+}
+
+// SubmitFunc は chat の Ctrl+S で呼ばれる提出準備フック。
+// internal/ui は cmd/atcoder を import できないため、composition root が注入する。
+// 提出準備の中身 (解答コピー + 提出ページ起動) はこの先で行い、結果文を返す。
+type SubmitFunc func() SubmitResult
 
 // chat の watch (解答ファイル保存検知でリロード) のポーリング間隔と debounce。
 // test --watch / start と同値。
@@ -137,8 +149,12 @@ type chatModel struct {
 // initialChatModel は遅延起動の chat モデルを作る。子プロセスは開いた時点では
 // 起動せず (handle=nil・running=false)、最初の入力 (Enter) で初めて spawn する。
 func initialChatModel(header ChatHeader, spawn Spawner) *chatModel {
+	submitHint := ""
+	if header.Submit != nil {
+		submitHint = "  /  Ctrl+S で提出準備"
+	}
 	ti := textinput.New()
-	ti.Placeholder = "Enter で送信  /  Ctrl+C で中断・再起動  /  Ctrl+D で終了"
+	ti.Placeholder = "Enter で送信  /  Ctrl+C で中断・再起動  /  Ctrl+D で終了" + submitHint
 	ti.Focus()
 	ti.Prompt = "" // プロンプト記号は View 側で描画する
 
@@ -157,7 +173,7 @@ func initialChatModel(header ChatHeader, spawn Spawner) *chatModel {
 	}
 	// 遅延起動なので「入力で起動する」ことを案内する。子はまだ動いていないので
 	// auto-restart のヒントは初回 spawn 時 (restart) に出す。
-	m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(入力を送ると解答プログラムを起動します — Ctrl+C で中断・再起動 / Ctrl+D で終了)"})
+	m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(入力を送ると解答プログラムを起動します — Ctrl+C で中断・再起動 / Ctrl+D で終了" + submitHint + ")"})
 	return m
 }
 
@@ -260,6 +276,22 @@ func (m *chatModel) restart() tea.Cmd {
 	)
 }
 
+// submitPrep は Ctrl+S の提出準備。注入された Submit フックを呼び、結果を chat の
+// 1 行 (成功=info / 失敗=err) に積む。フック未注入なら利用不可を伝える。stdout には
+// 書かない (TUI を壊さないため)。
+func (m *chatModel) submitPrep() {
+	if m.header.Submit == nil {
+		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(提出準備は利用できません)"})
+		return
+	}
+	res := m.header.Submit()
+	kind := kindInfo
+	if res.IsError {
+		kind = kindErr
+	}
+	m.msgs = append(m.msgs, chatLine{kind: kind, text: "(提出準備: " + res.Message + ")"})
+}
+
 func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
@@ -302,6 +334,11 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				_ = m.handle.Kill()
 			}
 			return m, tea.Quit
+		case tea.KeyCtrlS:
+			// Ctrl+S = 提出準備 (test --submit 相当: 解答コピー + 提出ページ起動)。
+			// 子は kill せず chat に留まる。結果は画面内の 1 行で示す (stdout には書かない)。
+			m.submitPrep()
+			m.refreshViewport()
 		case tea.KeyEnter:
 			txt := m.input.Value()
 			// 子が居なければ入力を機に (再) 起動する (遅延起動 / 子終了後の再実行)。

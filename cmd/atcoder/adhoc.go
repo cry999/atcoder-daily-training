@@ -43,19 +43,42 @@ func runAdHoc(contest, task string, lay layout.Layout, inFile, outFile string,
 		Debug:       debug,
 		ExecutorFor: selectRunExecutor,
 		Reporter:    ui.NewRunReporter(verbose),
-		ChatRunner:  runChat,
+		ChatRunner:  makeChatRunner(contest, task, lay),
 	})
 }
 
-func runChat(spawn runexec.ChatSpawner, header runexec.ChatHeader) (*runner.ProcessResult, error) {
-	return ui.RunChat(ui.Spawner(spawn), ui.ChatHeader{
-		Task:        header.Task,
-		Contest:     header.Contest,
-		TimeLimitMs: header.TimeLimitMs,
-		Debug:       header.Debug,
-		AutoRestart: header.AutoRestart,
-		WatchPath:   header.WatchPath,
-	})
+// makeChatRunner は ChatRunner クロージャを作る。chat に Ctrl+S の提出準備フックを
+// 注入するため、contest/task/lay を捕捉する (これらは runexec.ChatHeader には乗らない)。
+func makeChatRunner(contest, task string, lay layout.Layout) func(runexec.ChatSpawner, runexec.ChatHeader) (*runner.ProcessResult, error) {
+	return func(spawn runexec.ChatSpawner, header runexec.ChatHeader) (*runner.ProcessResult, error) {
+		return ui.RunChat(ui.Spawner(spawn), ui.ChatHeader{
+			Task:        header.Task,
+			Contest:     header.Contest,
+			TimeLimitMs: header.TimeLimitMs,
+			Debug:       header.Debug,
+			AutoRestart: header.AutoRestart,
+			WatchPath:   header.WatchPath,
+			Submit:      chatSubmitFunc(contest, task, lay),
+		})
+	}
+}
+
+// chatSubmitFunc は chat の Ctrl+S で呼ばれる提出準備フック。submitPrepCore (印字なし) を
+// 呼んで結果文を組む。chat は常にブラウザを開く (noOpen=false)。
+func chatSubmitFunc(contest, task string, lay layout.Layout) ui.SubmitFunc {
+	return func() ui.SubmitResult {
+		out, err := submitPrepCore(contest, task, lay, false)
+		if err != nil {
+			return ui.SubmitResult{Message: "失敗: " + err.Error(), IsError: true}
+		}
+		msg := "クリップボードにコピー " + out.CopiedPath
+		if out.Opened {
+			msg += " / 提出ページを開きました"
+		} else {
+			msg += " / 提出ページ: " + out.URL + " (ブラウザを開けませんでした、手動で開いてください)"
+		}
+		return ui.SubmitResult{Message: msg}
+	}
 }
 
 func selectRunExecutor(sourcePath string) (runexec.Executor, error) {
