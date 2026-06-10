@@ -33,7 +33,9 @@ internal/ui/
   diff.go        # delta 風 unified diff (LCS + intra-line token highlight)
   chat.go        # bubbletea ベース chat TUI (`atcoder test --interactive` の TTY モード)。
                  # 出力行ごとに直前イベント (入力送信 or 直前出力) からの経過時間を表示
-                 # (lastEventAt を基準に、行を読み出した時刻との差分。要件 019)
+                 # (lastEventAt を基準に、行を読み出した時刻との差分。要件 019)。
+                 # WatchPath が渡るとファイルを mtime ポーリングし、保存検知で子を最新
+                 # ファイルで再 spawn する (epoch=sessionN で旧 stream の残響を破棄。要件 022)
   style.go       # lipgloss スタイル定義
 
 internal/runexec/
