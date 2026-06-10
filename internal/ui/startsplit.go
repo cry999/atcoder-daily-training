@@ -6,29 +6,37 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+// CaseVerdict は 1 サンプルケースの判定結果 (watch ペインの per-case 表示用)。
+type CaseVerdict struct {
+	Name  string // ケース名 (例 "01")
+	Label string // "AC" / "WA" / "TLE" / "RE"
+	OK    bool   // AC (Pass) なら true。色分けに使う
+}
+
 // SampleSummary は分割画面 watch ペインのコンパクト要約 (diff は含まない)。
 type SampleSummary struct {
 	Passed, Total int
-	Failing       []string  // 失敗ケース名 (昇順、例 "02")
-	AllPassed     bool      // 全通過 (Total>0 && Passed==Total かつ判定成功)
-	At            time.Time // 判定時刻
-	Err           error     // 判定自体が失敗 (テスト無し等)
+	Cases         []CaseVerdict // ケース名順の per-case verdict
+	AllPassed     bool          // 全通過 (Total>0 && Passed==Total かつ判定成功)
+	At            time.Time     // 判定時刻
+	Err           error         // 判定自体が失敗 (テスト無し等)
 }
 
 // StartSplitConfig は分割画面の起動設定。ui は testexec / watch に依存しないため、
 // サンプル判定 (RunSamples) と保存検知 (Changed) は closure として受け取る。
 type StartSplitConfig struct {
 	SolutionPath string
-	Spawn        Spawner            // chat 用の子プロセス起動 (auto-restart)
-	Header       ChatHeader         // AutoRestart=true で渡す
+	Spawn        Spawner              // chat 用の子プロセス起動 (auto-restart)
+	Header       ChatHeader           // AutoRestart=true で渡す
 	RunSamples   func() SampleSummary // 保存検知時のサンプル再判定 (stdout に書かない)
-	Changed      func() bool        // 解答ファイルの保存検知 (watch.Changed)
-	UntilPass    bool               // 全通過で終了
-	Poll         time.Duration      // 保存検知のポーリング間隔 (0 → 既定)
+	Changed      func() bool          // 解答ファイルの保存検知 (watch.Changed)
+	UntilPass    bool                 // 全通過で終了
+	Poll         time.Duration        // 保存検知のポーリング間隔 (0 → 既定)
 }
 
 // 分割画面のレイアウト予約行数。
@@ -165,28 +173,41 @@ func (m *startSplitModel) renderWatchPane() string {
 	return strings.Join([]string{title, m.renderSummaryLine(), rule}, "\n")
 }
 
-// renderSummaryLine は現在のサンプル要約 1 行を着色して返す。
+// renderSummaryLine は現在のサンプル要約 1 行を着色して返す。ペイン幅を超えたら
+// 末尾を … で切り詰めて 1 行を保つ (上ペインの行数を増やさない)。
 func (m *startSplitModel) renderSummaryLine() string {
 	if !m.haveSummary {
 		return splitHelpStyle.Render("  judging…")
 	}
-	return "  " + formatSampleSummary(m.summary)
+	line := "  " + formatSampleSummary(m.summary)
+	return ansi.Truncate(line, maxInt(m.width, 1), "…")
 }
 
-// formatSampleSummary は SampleSummary をコンパクトな 1 行に整える純粋関数。
-// 着色は呼び出し側 (renderSummaryLine) ではなくここで簡易に当てる (テスト用に色は外す)。
+// formatSampleSummary は SampleSummary を per-case verdict 付きの 1 行に整える純粋関数。
+//
+//	例: "✗ 2/4   01 AC  02 WA  03 TLE  04 AC   · 12:35:10"
+//
+// AC は緑、WA/TLE/RE は赤。着色は lipgloss で当て、非 TTY (テスト) では素のテキストに落ちる。
 func formatSampleSummary(s SampleSummary) string {
 	if s.Err != nil {
 		return splitFailStyle.Render("判定不可: " + s.Err.Error())
 	}
 	var b strings.Builder
+	// 全体グリフ + passed/total。全 AC なら緑 ✓、未達なら赤 ✗。
+	overall := fmt.Sprintf("%d/%d", s.Passed, s.Total)
 	if s.AllPassed {
-		b.WriteString(splitPassStyle.Render(fmt.Sprintf("✓ PASS  %d/%d", s.Passed, s.Total)))
+		b.WriteString(splitPassStyle.Render("✓ " + overall))
 	} else {
-		b.WriteString(splitFailStyle.Render(fmt.Sprintf("✗ FAIL  %d/%d", s.Passed, s.Total)))
+		b.WriteString(splitFailStyle.Render("✗ " + overall))
 	}
-	if len(s.Failing) > 0 {
-		b.WriteString("  " + splitFailStyle.Render("fail: "+strings.Join(s.Failing, " ")))
+	// per-case verdict。
+	for _, c := range s.Cases {
+		b.WriteString("  " + splitHelpStyle.Render(c.Name) + " ")
+		if c.OK {
+			b.WriteString(splitPassStyle.Render(c.Label))
+		} else {
+			b.WriteString(splitFailStyle.Render(c.Label))
+		}
 	}
 	if !s.At.IsZero() {
 		b.WriteString(splitHelpStyle.Render("  · " + s.At.Format("15:04:05")))

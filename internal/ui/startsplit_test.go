@@ -2,33 +2,51 @@ package ui
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func TestFormatSampleSummaryAllPassed(t *testing.T) {
-	s := SampleSummary{Passed: 3, Total: 3, AllPassed: true, At: time.Date(2026, 6, 11, 12, 34, 56, 0, time.UTC)}
+	s := SampleSummary{
+		Passed: 2, Total: 2, AllPassed: true,
+		Cases: []CaseVerdict{{Name: "01", Label: "AC", OK: true}, {Name: "02", Label: "AC", OK: true}},
+		At:    time.Date(2026, 6, 11, 12, 34, 56, 0, time.UTC),
+	}
 	got := formatSampleSummary(s) // 非 TTY テストでは lipgloss が色を剥がす
-	if !strings.Contains(got, "✓ PASS  3/3") {
-		t.Errorf("got %q, want it to contain '✓ PASS  3/3'", got)
+	if !strings.Contains(got, "✓ 2/2") {
+		t.Errorf("got %q, want it to contain '✓ 2/2'", got)
+	}
+	if !strings.Contains(got, "01 AC") || !strings.Contains(got, "02 AC") {
+		t.Errorf("got %q, want per-case '01 AC' '02 AC'", got)
 	}
 	if !strings.Contains(got, "12:34:56") {
 		t.Errorf("got %q, want it to contain the judged time", got)
 	}
-	if strings.Contains(got, "fail:") {
-		t.Errorf("all-passed summary should not list failing cases: %q", got)
-	}
 }
 
-func TestFormatSampleSummaryFailing(t *testing.T) {
-	s := SampleSummary{Passed: 1, Total: 3, AllPassed: false, Failing: []string{"02", "03"}}
-	got := formatSampleSummary(s)
-	if !strings.Contains(got, "✗ FAIL  1/3") {
-		t.Errorf("got %q, want '✗ FAIL  1/3'", got)
+func TestFormatSampleSummaryPerCase(t *testing.T) {
+	s := SampleSummary{
+		Passed: 2, Total: 4, AllPassed: false,
+		Cases: []CaseVerdict{
+			{Name: "01", Label: "AC", OK: true},
+			{Name: "02", Label: "WA", OK: false},
+			{Name: "03", Label: "TLE", OK: false},
+			{Name: "04", Label: "AC", OK: true},
+		},
 	}
-	if !strings.Contains(got, "fail: 02 03") {
-		t.Errorf("got %q, want 'fail: 02 03'", got)
+	got := formatSampleSummary(s)
+	if !strings.Contains(got, "✗ 2/4") {
+		t.Errorf("got %q, want '✗ 2/4'", got)
+	}
+	for _, want := range []string{"01 AC", "02 WA", "03 TLE", "04 AC"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("got %q, want per-case %q", got, want)
+		}
 	}
 }
 
@@ -36,6 +54,19 @@ func TestFormatSampleSummaryError(t *testing.T) {
 	got := formatSampleSummary(SampleSummary{Err: errors.New("テストケースが見つかりません")})
 	if !strings.Contains(got, "判定不可") {
 		t.Errorf("got %q, want it to report '判定不可'", got)
+	}
+}
+
+// 多数のケースでペイン幅を超えても、renderSummaryLine は 1 行に収める (… で切り詰め)。
+func TestRenderSummaryLineTruncates(t *testing.T) {
+	cases := make([]CaseVerdict, 20)
+	for i := range cases {
+		cases[i] = CaseVerdict{Name: fmt.Sprintf("%02d", i+1), Label: "AC", OK: true}
+	}
+	m := &startSplitModel{width: 30, haveSummary: true, summary: SampleSummary{Passed: 20, Total: 20, AllPassed: true, Cases: cases}}
+	line := m.renderSummaryLine()
+	if w := lipgloss.Width(line); w > 30 {
+		t.Errorf("summary line width %d > pane width 30 (should be truncated): %q", w, ansi.Strip(line))
 	}
 }
 

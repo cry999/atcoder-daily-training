@@ -135,8 +135,12 @@ func runStartWatch(contest, task string, lay layout.Layout, refresh bool,
 		firstRefresh = false
 		opts.Reporter = rep
 		code, runErr := testexec.Run(opts)
-		passed, total, failing := rep.Result()
-		s := ui.SampleSummary{Passed: passed, Total: total, Failing: failing, At: time.Now()}
+		passed, total, cases := rep.Result()
+		verdicts := make([]ui.CaseVerdict, 0, len(cases))
+		for _, c := range cases {
+			verdicts = append(verdicts, ui.CaseVerdict{Name: c.Name, Label: caseLabel(c.Status), OK: c.Status == testexec.Pass})
+		}
+		s := ui.SampleSummary{Passed: passed, Total: total, Cases: verdicts, At: time.Now()}
 		if runErr != nil {
 			s.Err = runErr
 		} else {
@@ -161,6 +165,21 @@ func runStartWatch(contest, task string, lay layout.Layout, refresh bool,
 		UntilPass:    untilPass,
 		Poll:         watchPollInterval,
 	})
+}
+
+// caseLabel は per-case の判定結果を AtCoder 流の verdict 表記にする
+// (watch ペインの per-case 表示用)。Pass=AC・Fail=WA・TLE・RE。
+func caseLabel(s testexec.CaseStatus) string {
+	switch s {
+	case testexec.Pass:
+		return "AC"
+	case testexec.TLE:
+		return "TLE"
+	case testexec.RE:
+		return "RE"
+	default: // Fail
+		return "WA"
+	}
 }
 
 // ensureSolutionFile は lay/contest/task の解答パスを返し、無ければ親 dir を作って
