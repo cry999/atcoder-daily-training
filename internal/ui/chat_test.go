@@ -67,6 +67,7 @@ func TestChatOutputElapsed(t *testing.T) {
 // fakeHandle は initialChatModel が scanner を張れるだけの最小 ChatHandle (空 stream)。
 func fakeHandle() *runner.ChatHandle {
 	return &runner.ChatHandle{
+		Stdin:  nopWriteCloser{io.Discard},
 		Stdout: io.NopCloser(strings.NewReader("")),
 		Stderr: io.NopCloser(strings.NewReader("")),
 	}
@@ -77,39 +78,41 @@ func fakeSpawn() Spawner {
 }
 
 func TestInitialChatModelAutoRestartOn(t *testing.T) {
-	m := initialChatModel(fakeHandle(), ChatHeader{AutoRestart: true}, fakeSpawn())
+	m := initialChatModel(ChatHeader{AutoRestart: true}, fakeSpawn())
 	if !m.autoRestart {
 		t.Error("autoRestart should be true when header.AutoRestart && spawn != nil")
 	}
-	if !m.autoHintShown || !hasInfo(m, "auto-restart on") {
-		t.Errorf("expected the startup auto-restart hint; msgs=%v", m.msgs)
+	// 遅延起動: 開いた時点では子なし。入力を促すヒントを出す。
+	if m.running || m.handle != nil {
+		t.Error("model should start lazily (no child)")
+	}
+	if !hasInfo(m, "入力を送ると") {
+		t.Errorf("expected the lazy-start hint; msgs=%v", m.msgs)
 	}
 }
 
 func TestInitialChatModelAutoRestartOff(t *testing.T) {
-	m := initialChatModel(fakeHandle(), ChatHeader{}, fakeSpawn())
+	m := initialChatModel(ChatHeader{}, fakeSpawn())
 	if m.autoRestart {
 		t.Error("autoRestart should default to false")
-	}
-	if hasInfo(m, "auto-restart on") {
-		t.Error("no hint expected without --auto-restart")
 	}
 }
 
 func TestInitialChatModelAutoRestartNeedsSpawner(t *testing.T) {
 	// spawn == nil では再起動できないので autoRestart は立てない。
-	m := initialChatModel(fakeHandle(), ChatHeader{AutoRestart: true}, nil)
+	m := initialChatModel(ChatHeader{AutoRestart: true}, nil)
 	if m.autoRestart {
 		t.Error("autoRestart should be false when spawn == nil (cannot restart)")
 	}
 }
 
 func TestStreamEndQuitsWhenNoAutoRestart(t *testing.T) {
-	m := initialChatModel(fakeHandle(), ChatHeader{}, fakeSpawn())
+	m := initialChatModel(ChatHeader{}, fakeSpawn())
+	m.running = true
 	m.endedErr = true // err 側は既に EOF。out 側 EOF で「両ストリーム終了」になる。
 	_, cmd := m.Update(streamEndMsg{kind: kindOut, epoch: m.sessionN})
 	if !isQuit(cmd) {
-		t.Error("child exit without --auto-restart should quit (no restart prompt)")
+		t.Error("child exit without --auto-restart should quit")
 	}
 	if !hasInfo(m, "child process exited") {
 		t.Errorf("expected '(child process exited)'; msgs=%v", m.msgs)
@@ -120,7 +123,7 @@ func TestStreamEndQuitsWhenNoAutoRestart(t *testing.T) {
 // やり直す。quit せず chat に留まり、sessionN++ と中断 info 行が出る。
 // restart の Kill/Wait は fake handle (cmd=nil) で panic するため m.handle を外す。
 func TestCtrlCInterruptRestarts(t *testing.T) {
-	m := initialChatModel(fakeHandle(), ChatHeader{}, fakeSpawn())
+	m := initialChatModel(ChatHeader{}, fakeSpawn())
 	m.handle = nil // restart 内の Kill/Wait を踏ませない
 	before := m.sessionN
 	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
@@ -137,7 +140,7 @@ func TestCtrlCInterruptRestarts(t *testing.T) {
 
 // Ctrl+D = chat 終了 (要件 022 のまま): 子を kill して quit する。
 func TestCtrlDQuits(t *testing.T) {
-	m := initialChatModel(fakeHandle(), ChatHeader{}, fakeSpawn())
+	m := initialChatModel(ChatHeader{}, fakeSpawn())
 	m.handle = nil // Kill を踏ませない (nil ガード経由)
 	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyCtrlD})
 	if !isQuit(cmd) {
@@ -147,7 +150,7 @@ func TestCtrlDQuits(t *testing.T) {
 
 // spawn が無い (再起動不可) 経路では Ctrl+C は従来どおり quit にフォールバックする。
 func TestCtrlCWithoutSpawnerQuits(t *testing.T) {
-	m := initialChatModel(fakeHandle(), ChatHeader{}, nil)
+	m := initialChatModel(ChatHeader{}, nil)
 	m.handle = nil
 	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
 	if !isQuit(cmd) {
@@ -158,7 +161,7 @@ func TestCtrlCWithoutSpawnerQuits(t *testing.T) {
 // リロードで差し替えた旧セッションの streamEndMsg (epoch 不一致) は破棄され、
 // 新セッションの状態 (endedOut) を汚さない。
 func TestStaleStreamEndDropped(t *testing.T) {
-	m := initialChatModel(fakeHandle(), ChatHeader{}, fakeSpawn())
+	m := initialChatModel(ChatHeader{}, fakeSpawn())
 	m.endedErr = true
 	_, cmd := m.Update(streamEndMsg{kind: kindOut, epoch: m.sessionN + 99}) // 旧 epoch
 	if m.endedOut {
@@ -169,11 +172,12 @@ func TestStaleStreamEndDropped(t *testing.T) {
 	}
 }
 
-// 保存検知 (fileChangedMsg{changed}) で info メッセージを出して再 spawn (sessionN++) する。
+// 保存検知 (fileChangedMsg{changed}) で、子が動いていれば info を出して再 spawn する。
 // restart の Kill/Wait は fake handle (cmd=nil) で panic するため、旧 handle を外して回避する。
 func TestFileChangedReloads(t *testing.T) {
-	m := initialChatModel(fakeHandle(), ChatHeader{}, fakeSpawn())
-	m.handle = nil // restart 内の Kill/Wait を踏ませない (spawn される新 handle は触らない)
+	m := initialChatModel(ChatHeader{}, fakeSpawn())
+	m.running = true // 子が動いているときだけ reload する
+	m.handle = nil   // restart 内の Kill/Wait を踏ませない (spawn される新 handle は触らない)
 	before := m.sessionN
 	m.Update(fileChangedMsg{changed: true})
 	if m.sessionN != before+1 {
@@ -181,6 +185,17 @@ func TestFileChangedReloads(t *testing.T) {
 	}
 	if !hasInfo(m, "解答ファイルが更新されました") {
 		t.Errorf("expected file-updated message; msgs=%v", m.msgs)
+	}
+}
+
+// 子が動いていない (入力待ち) ときの保存検知は何もしない (次の入力で最新ファイルを起動)。
+func TestFileChangedNoReloadWhenIdle(t *testing.T) {
+	m := initialChatModel(ChatHeader{}, fakeSpawn())
+	// running=false (遅延起動の初期状態)
+	before := m.sessionN
+	m.Update(fileChangedMsg{changed: true})
+	if m.sessionN != before {
+		t.Errorf("idle file change should not restart: sessionN changed to %d", m.sessionN)
 	}
 }
 

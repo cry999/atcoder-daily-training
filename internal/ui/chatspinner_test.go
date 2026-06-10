@@ -69,8 +69,9 @@ func TestEnterStartsAwaiting(t *testing.T) {
 	ti := textinput.New()
 	ti.SetValue("5")
 	m := &chatModel{
-		handle: &runner.ChatHandle{Stdin: nopWriteCloser{&bytes.Buffer{}}},
-		input:  ti,
+		handle:  &runner.ChatHandle{Stdin: nopWriteCloser{&bytes.Buffer{}}},
+		input:   ti,
+		running: true, // 既に子が動いている状態 (送信のみ。再 spawn 経路は通らない)
 	}
 	gen0 := m.spinGen
 	m.Update(tea.KeyMsg{Type: tea.KeyEnter})

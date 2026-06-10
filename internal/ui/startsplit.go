@@ -67,16 +67,13 @@ var (
 // RunStartSplit は上下分割の bubbletea プログラムを駆動する。
 // 終了コード: Ctrl+C / Ctrl+D / --until-pass 全通過 = 0。
 func RunStartSplit(cfg StartSplitConfig) (int, error) {
-	handle, err := cfg.Spawn()
-	if err != nil {
-		return 1, err
-	}
 	poll := cfg.Poll
 	if poll <= 0 {
 		poll = 250 * time.Millisecond
 	}
+	// 下ペインの chat は遅延起動 (入力が来るまで子を起動しない)。
 	m := &startSplitModel{
-		chat:         initialChatModel(handle, cfg.Header, cfg.Spawn),
+		chat:         initialChatModel(cfg.Header, cfg.Spawn),
 		solutionPath: cfg.SolutionPath,
 		runSamples:   cfg.RunSamples,
 		changed:      cfg.Changed,

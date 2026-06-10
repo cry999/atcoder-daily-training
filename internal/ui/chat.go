@@ -43,18 +43,15 @@ type Spawner func() (*runner.ChatHandle, error)
 // を始める (sticky)。偽なら子終了で TUI を閉じる。最終的に最後の (= 現在の) セッション
 // の ProcessResult を返す。
 func RunChat(spawn Spawner, header ChatHeader) (*runner.ProcessResult, error) {
-	handle, err := spawn()
-	if err != nil {
-		return nil, err
-	}
-	model := initialChatModel(handle, header, spawn)
+	// 遅延起動: 開いた時点では子を起動しない。最初の入力で spawn する。
+	model := initialChatModel(header, spawn)
 	finalModel, err := tea.NewProgram(model).Run()
 	if err != nil {
 		return nil, err
 	}
 	cm, ok := finalModel.(*chatModel)
 	if !ok || cm.handle == nil {
-		return handle.Wait(), nil
+		return &runner.ProcessResult{}, nil // 子を 1 度も起動しなかった (入力なしで終了)
 	}
 	return cm.handle.Wait(), nil
 }
@@ -122,7 +119,8 @@ type chatModel struct {
 	errScanner    *bufio.Scanner
 	endedOut      bool
 	endedErr      bool
-	autoRestart   bool           // sticky モード。起動フラグ (--auto-restart) で初期化。streamEndMsg は自動で restart() を発火
+	running       bool           // 子プロセスが生きているか。遅延起動 / 入力での再実行を制御する
+	autoRestart   bool           // sticky モード。起動フラグ (--auto-restart) で初期化。子終了後は「入力で再実行」になる
 	autoHintShown bool           // auto-restart ヒント表示済みフラグ
 	watcher       *watch.Watcher // 非 nil なら解答ファイルを監視 (保存検知で reload)。nil なら watch-reload 無効
 	sessionN      int            // 1 始まり。restart で incr して区切りに番号を出す (epoch も兼ねる)
@@ -136,26 +134,20 @@ type chatModel struct {
 	ready         bool
 }
 
-func initialChatModel(handle *runner.ChatHandle, header ChatHeader, spawn Spawner) *chatModel {
+// initialChatModel は遅延起動の chat モデルを作る。子プロセスは開いた時点では
+// 起動せず (handle=nil・running=false)、最初の入力 (Enter) で初めて spawn する。
+func initialChatModel(header ChatHeader, spawn Spawner) *chatModel {
 	ti := textinput.New()
 	ti.Placeholder = "Enter で送信  /  Ctrl+C で中断・再起動  /  Ctrl+D で終了"
 	ti.Focus()
 	ti.Prompt = "" // プロンプト記号は View 側で描画する
 
-	outScan := bufio.NewScanner(handle.Stdout)
-	outScan.Buffer(make([]byte, 64*1024), 1024*1024)
-	errScan := bufio.NewScanner(handle.Stderr)
-	errScan.Buffer(make([]byte, 64*1024), 1024*1024)
-
 	m := &chatModel{
-		handle:      handle,
 		spawn:       spawn,
 		header:      header,
 		input:       ti,
 		historyPos:  0,
-		outScanner:  outScan,
-		errScanner:  errScan,
-		sessionN:    1,
+		sessionN:    0, // 最初の入力での spawn で 1 になる
 		lastEventAt: time.Now(),
 		autoRestart: header.AutoRestart && spawn != nil,
 	}
@@ -163,21 +155,16 @@ func initialChatModel(handle *runner.ChatHandle, header ChatHeader, spawn Spawne
 	if header.WatchPath != "" && spawn != nil {
 		m.watcher = watch.New(header.WatchPath, chatWatchInterval, chatWatchDebounce)
 	}
-	// auto-restart 指定時は起動直後に一度だけヒントを出す。
-	if m.autoRestart {
-		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(auto-restart on — Ctrl+C で中断・再起動 / Ctrl+D で終了)"})
-		m.autoHintShown = true
-	}
+	// 遅延起動なので「入力で起動する」ことを案内する。子はまだ動いていないので
+	// auto-restart のヒントは初回 spawn 時 (restart) に出す。
+	m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(入力を送ると解答プログラムを起動します — Ctrl+C で中断・再起動 / Ctrl+D で終了)"})
 	return m
 }
 
 func (m *chatModel) Init() tea.Cmd {
-	return tea.Batch(
-		textinput.Blink,
-		readLineCmd(m.outScanner, kindOut, m.sessionN),
-		readLineCmd(m.errScanner, kindErr, m.sessionN),
-		m.pollWatchCmd(),
-	)
+	// 遅延起動: 子はまだ無いので stream 読み出しは始めない。入力 (Enter) で spawn し、
+	// そのとき restart() が readLineCmd を発行する。
+	return tea.Batch(textinput.Blink, m.pollWatchCmd())
 }
 
 // readLineCmd は scanner から 1 行 (or EOF) を読み、対応する msg を返す tea.Cmd。
@@ -230,22 +217,24 @@ func (m *chatModel) stopAwaiting() {
 	m.awaiting = false
 }
 
-// restart は spawner で新しい子プロセスを起動し、TUI 側の状態をリセットする。
-// scrollback は保持し、区切り行 (── session #N ──) を追加してから新セッションを始める。
+// restart は spawner で子プロセスを (再) 起動し、TUI 側の状態をリセットする。
+// 遅延起動の初回も再実行 (watch-reload / 子終了後の入力) も同じ経路を通る。
+// scrollback は保持し、2 回目以降は区切り行 (── session #N ──) を入れる。
 func (m *chatModel) restart() tea.Cmd {
-	// 現セッションの子を片付ける。watch-reload では実行中の子を差し替えるため、
-	// Kill してから Wait で reap する (終了済みの子なら Kill は無害)。
+	// 既存の子が居れば片付ける。watch-reload では実行中の子を差し替えるため Kill →
+	// Wait で reap する (終了済み・初回 nil なら Kill はスキップ/無害)。
 	if m.handle != nil {
 		_ = m.handle.Kill()
 		_ = m.handle.Wait()
 	}
 	newHandle, err := m.spawn()
 	if err != nil {
-		m.msgs = append(m.msgs, chatLine{kind: kindErr, text: "restart failed: " + err.Error()})
+		m.msgs = append(m.msgs, chatLine{kind: kindErr, text: "spawn failed: " + err.Error()})
 		m.refreshViewport()
 		return tea.Quit
 	}
 	m.handle = newHandle
+	m.running = true
 	m.outScanner = bufio.NewScanner(newHandle.Stdout)
 	m.outScanner.Buffer(make([]byte, 64*1024), 1024*1024)
 	m.errScanner = bufio.NewScanner(newHandle.Stderr)
@@ -255,10 +244,13 @@ func (m *chatModel) restart() tea.Cmd {
 	m.stopAwaiting()           // 新セッションでは出力待ちをリセット (旧 tick は世代不一致で止まる)
 	m.lastEventAt = time.Now() // 新セッション開始を経過時間の基準にリセット
 	m.sessionN++
-	m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: fmt.Sprintf("─── session #%d ───", m.sessionN)})
-	// auto-restart 突入時の一回だけヒントを出す。
+	// 初回 spawn (session #1) は区切り線を出さない。再実行以降だけ仕切る。
+	if m.sessionN > 1 {
+		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: fmt.Sprintf("─── session #%d ───", m.sessionN)})
+	}
+	// auto-restart 指定時は初回 spawn で一度だけ「子終了後も入力で再実行する」旨を出す。
 	if m.autoRestart && !m.autoHintShown {
-		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(auto-restart on — Ctrl+C で中断・再起動 / Ctrl+D で終了)"})
+		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(auto-restart on — 子終了後も入力で再実行 / Ctrl+C で中断・再起動 / Ctrl+D で終了)"})
 		m.autoHintShown = true
 	}
 	m.refreshViewport()
@@ -292,6 +284,7 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Ctrl+C = プログラム中断・再起動 (要件 025)。走っている子を kill して
 			// 新しいプロセスでやり直す (新セッション)。chat には留まる。chat 終了
 			// (Ctrl+D) とは区別する。auto-restart の ON/OFF を問わず同じ挙動。
+			// 遅延起動で子が居なくても restart() が新規 spawn する (明示操作なのでループ源にならない)。
 			if m.spawn == nil {
 				// 再起動できない経路では中断後に会話を続けられないので、従来どおり
 				// kill して終了にフォールバックする。
@@ -303,7 +296,7 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(プログラムを中断しました — 再起動します)"})
 			return m, m.restart()
 		case tea.KeyCtrlD:
-			// Ctrl+D = chat の終了。子を kill して quit する (子に EOF は送らない —
+			// Ctrl+D = chat の終了。子が居れば kill して quit する (子に EOF は送らない —
 			// 要件 021)。中断 (Ctrl+C) と違い chat 自体を閉じる。
 			if m.handle != nil {
 				_ = m.handle.Kill()
@@ -311,7 +304,14 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case tea.KeyEnter:
 			txt := m.input.Value()
-			if _, err := fmt.Fprintln(m.handle.Stdin, txt); err != nil {
+			// 子が居なければ入力を機に (再) 起動する (遅延起動 / 子終了後の再実行)。
+			// これにより、入力を読まず即終了する解答でも無限ループにならない。
+			if !m.running {
+				cmds = append(cmds, m.restart())
+			}
+			if !m.running {
+				// spawn 失敗 (restart が tea.Quit を返した)。入力は送らない。
+			} else if _, err := fmt.Fprintln(m.handle.Stdin, txt); err != nil {
 				m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(write failed: " + err.Error() + ")"})
 			} else {
 				m.msgs = append(m.msgs, chatLine{kind: kindIn, text: txt})
@@ -406,11 +406,13 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.endedErr = true
 		}
 		if m.endedOut && m.endedErr {
-			// 再起動するかどうかは起動フラグ (--auto-restart) で確定済みなので、
-			// ここで対話的に選ばせることはしない (終了後プロンプトは廃止)。
+			m.running = false
+			// 子終了で即再 spawn はしない (入力を読まず終了する解答の無限ループを断つ)。
+			// auto-restart は「子終了後、次の入力で再実行」を意味する。
 			if m.autoRestart && m.spawn != nil {
-				// プロンプト無しでそのまま再起動。
-				return m, m.restart()
+				m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(解答が終了しました — 入力を送ると再実行します)"})
+				m.refreshViewport()
+				return m, nil
 			}
 			m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(child process exited)"})
 			m.refreshViewport()
@@ -418,12 +420,13 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case fileChangedMsg:
-		// 解答ファイルが保存された: 実行中の子を最新ファイルで差し替える。
-		if msg.changed {
+		// 解答ファイルが保存された: 実行中の子だけ最新ファイルで差し替える。
+		// 子が居ない (入力待ち) ときは何もしない — 次の入力で最新ファイルを起動する。
+		if msg.changed && m.running {
 			m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(解答ファイルが更新されました — 新しいプログラムを起動します)"})
 			return m, tea.Batch(m.restart(), m.pollWatchCmd())
 		}
-		// 変化なしでも、次の保存を拾うためポーリングは続ける。
+		// 変化なし or 子なしでも、次の保存を拾うためポーリングは続ける。
 		return m, m.pollWatchCmd()
 	}
 
