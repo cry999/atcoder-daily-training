@@ -116,6 +116,45 @@ func TestStreamEndQuitsWhenNoAutoRestart(t *testing.T) {
 	}
 }
 
+// Ctrl+C = プログラム中断・再起動 (要件 025): 子を kill して新しいプロセスで
+// やり直す。quit せず chat に留まり、sessionN++ と中断 info 行が出る。
+// restart の Kill/Wait は fake handle (cmd=nil) で panic するため m.handle を外す。
+func TestCtrlCInterruptRestarts(t *testing.T) {
+	m := initialChatModel(fakeHandle(), ChatHeader{}, fakeSpawn())
+	m.handle = nil // restart 内の Kill/Wait を踏ませない
+	before := m.sessionN
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+	if isQuit(cmd) {
+		t.Error("Ctrl+C should interrupt+restart, not quit")
+	}
+	if m.sessionN != before+1 {
+		t.Errorf("Ctrl+C should restart: sessionN %d → %d, want %d", before, m.sessionN, before+1)
+	}
+	if !hasInfo(m, "中断") {
+		t.Errorf("expected interrupt message; msgs=%v", m.msgs)
+	}
+}
+
+// Ctrl+D = chat 終了 (要件 022 のまま): 子を kill して quit する。
+func TestCtrlDQuits(t *testing.T) {
+	m := initialChatModel(fakeHandle(), ChatHeader{}, fakeSpawn())
+	m.handle = nil // Kill を踏ませない (nil ガード経由)
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyCtrlD})
+	if !isQuit(cmd) {
+		t.Error("Ctrl+D should quit the chat")
+	}
+}
+
+// spawn が無い (再起動不可) 経路では Ctrl+C は従来どおり quit にフォールバックする。
+func TestCtrlCWithoutSpawnerQuits(t *testing.T) {
+	m := initialChatModel(fakeHandle(), ChatHeader{}, nil)
+	m.handle = nil
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+	if !isQuit(cmd) {
+		t.Error("Ctrl+C without a spawner should fall back to quit")
+	}
+}
+
 // リロードで差し替えた旧セッションの streamEndMsg (epoch 不一致) は破棄され、
 // 新セッションの状態 (endedOut) を汚さない。
 func TestStaleStreamEndDropped(t *testing.T) {

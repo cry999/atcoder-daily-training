@@ -138,7 +138,7 @@ type chatModel struct {
 
 func initialChatModel(handle *runner.ChatHandle, header ChatHeader, spawn Spawner) *chatModel {
 	ti := textinput.New()
-	ti.Placeholder = "Enter で送信  /  Ctrl+C か Ctrl+D で終了"
+	ti.Placeholder = "Enter で送信  /  Ctrl+C で中断・再起動  /  Ctrl+D で終了"
 	ti.Focus()
 	ti.Prompt = "" // プロンプト記号は View 側で描画する
 
@@ -165,7 +165,7 @@ func initialChatModel(handle *runner.ChatHandle, header ChatHeader, spawn Spawne
 	}
 	// auto-restart 指定時は起動直後に一度だけヒントを出す。
 	if m.autoRestart {
-		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(auto-restart on — Ctrl+C or Ctrl+D to stop)"})
+		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(auto-restart on — Ctrl+C で中断・再起動 / Ctrl+D で終了)"})
 		m.autoHintShown = true
 	}
 	return m
@@ -252,13 +252,13 @@ func (m *chatModel) restart() tea.Cmd {
 	m.errScanner.Buffer(make([]byte, 64*1024), 1024*1024)
 	m.endedOut = false
 	m.endedErr = false
-	m.stopAwaiting() // 新セッションでは出力待ちをリセット (旧 tick は世代不一致で止まる)
+	m.stopAwaiting()           // 新セッションでは出力待ちをリセット (旧 tick は世代不一致で止まる)
 	m.lastEventAt = time.Now() // 新セッション開始を経過時間の基準にリセット
 	m.sessionN++
 	m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: fmt.Sprintf("─── session #%d ───", m.sessionN)})
 	// auto-restart 突入時の一回だけヒントを出す。
 	if m.autoRestart && !m.autoHintShown {
-		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(auto-restart on — Ctrl+C or Ctrl+D to stop)"})
+		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(auto-restart on — Ctrl+C で中断・再起動 / Ctrl+D で終了)"})
 		m.autoHintShown = true
 	}
 	m.refreshViewport()
@@ -288,11 +288,26 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		switch msg.Type {
-		case tea.KeyCtrlC, tea.KeyCtrlD:
-			// Ctrl+C / Ctrl+D はどちらも chat の終了。子を kill して quit する
-			// (子に EOF は送らない)。両キーに区別は無い (要件 022)。auto-restart 中も
-			// 即 quit (現セッションの完了は待たない)。
-			_ = m.handle.Kill()
+		case tea.KeyCtrlC:
+			// Ctrl+C = プログラム中断・再起動 (要件 025)。走っている子を kill して
+			// 新しいプロセスでやり直す (新セッション)。chat には留まる。chat 終了
+			// (Ctrl+D) とは区別する。auto-restart の ON/OFF を問わず同じ挙動。
+			if m.spawn == nil {
+				// 再起動できない経路では中断後に会話を続けられないので、従来どおり
+				// kill して終了にフォールバックする。
+				if m.handle != nil {
+					_ = m.handle.Kill()
+				}
+				return m, tea.Quit
+			}
+			m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(プログラムを中断しました — 再起動します)"})
+			return m, m.restart()
+		case tea.KeyCtrlD:
+			// Ctrl+D = chat の終了。子を kill して quit する (子に EOF は送らない —
+			// 要件 021)。中断 (Ctrl+C) と違い chat 自体を閉じる。
+			if m.handle != nil {
+				_ = m.handle.Kill()
+			}
 			return m, tea.Quit
 		case tea.KeyEnter:
 			txt := m.input.Value()
