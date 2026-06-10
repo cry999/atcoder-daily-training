@@ -16,7 +16,7 @@ Personal AtCoder competitive programming practice. Almost all solutions are Pyth
 
 - Run a solution against a sample: `python <path>/main.py < <path>/input-00.txt` (compare to `output-00.txt`).
 - Create today's exercise directory (`exercise/YYYY/MM/DD/`): `go run ./cmd/atcoder new`.
-- The `atcoder test <contest> [<task>]` subcommand in `cmd/atcoder/main.go` is a work-in-progress AtCoder problem fetcher (currently only parses the response, does not write tests).
+- Run a solution against downloaded samples: `go run ./cmd/atcoder test <contest> --task <task>` — on first run it fetches the samples and time limit from AtCoder and caches them, then judges (PASS/FAIL/TLE/RE). `test` also has ad-hoc (`--in`/`--out`), interactive (`--interactive`), and submit-prep (`--submit`) modes; see `docs/tools/atcoder-test-usage.md`. The full subcommand set (`new`/`start`/`test`/`stats`/`review`/`config`/`update`/`version`/`commit`/`completion`) lives in `cmd/atcoder/`.
 - Lint Python: `flake8 <path>` (configured as a dev dep, no project-specific config).
 
 There is no project-wide test runner — each problem stands alone, validated by running it against its own sample I/O files when present.

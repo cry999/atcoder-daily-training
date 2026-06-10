@@ -1,4 +1,5 @@
-// Package runexec implements the `atcoder run` subcommand: execute a solution
+// Package runexec implements `atcoder test`'s ad-hoc / interactive modes (the
+// former `atcoder run` subcommand, folded into test): execute a solution
 // against an arbitrary stdin (file or pipe), optionally comparing the stdout
 // against an expected-output file (--out). Without --out, this is purely a
 // "feed a custom input and see what comes back" tool for debugging or manual
