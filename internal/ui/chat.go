@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -61,6 +62,7 @@ const debugPrefix = "[DEBUG]"
 type chatLineMsg struct {
 	kind string
 	text string
+	at   time.Time // 行を読み出した時刻 (出力行の経過時間算出に使う)
 }
 
 type streamEndMsg struct {
@@ -68,32 +70,35 @@ type streamEndMsg struct {
 }
 
 type chatLine struct {
-	kind string
-	text string
+	kind   string
+	text   string
+	dur    time.Duration // 直前イベントからの経過時間 (出力行のみ)
+	hasDur bool          // dur が有効か (入力行 / 情報行は false)
 }
 
 type chatModel struct {
-	handle      *runner.ChatHandle
-	spawn       Spawner // 再起動時に呼ぶ。nil なら再起動不可
-	header      ChatHeader
-	input       textinput.Model
-	viewport    viewport.Model
-	msgs        []chatLine
-	history     []string
-	historyPos  int // history[historyPos] = 次に Up で出す候補。len(history) なら未編集状態。
-	stdinClosed bool
-	outScanner  *bufio.Scanner
-	errScanner  *bufio.Scanner
-	endedOut    bool
-	endedErr    bool
-	awaitingRestart bool // 子終了後の "press [r] to restart / any other key to quit" 待ち状態
-	autoRestart     bool // R 押下後の sticky モード。以後 streamEndMsg は自動で restart() を発火
-	autoHintShown   bool // auto-restart 突入時のヒント表示済みフラグ
-	quitOnChildExit bool // Ctrl+D で auto-restart を解除したあと、次の child 終了で素直に Quit する
-	sessionN    int      // 1 始まり。restart で incr して区切りに番号を出す
-	width       int
-	height      int
-	ready       bool
+	handle          *runner.ChatHandle
+	spawn           Spawner // 再起動時に呼ぶ。nil なら再起動不可
+	header          ChatHeader
+	input           textinput.Model
+	viewport        viewport.Model
+	msgs            []chatLine
+	history         []string
+	historyPos      int // history[historyPos] = 次に Up で出す候補。len(history) なら未編集状態。
+	stdinClosed     bool
+	outScanner      *bufio.Scanner
+	errScanner      *bufio.Scanner
+	endedOut        bool
+	endedErr        bool
+	awaitingRestart bool      // 子終了後の "press [r] to restart / any other key to quit" 待ち状態
+	autoRestart     bool      // R 押下後の sticky モード。以後 streamEndMsg は自動で restart() を発火
+	autoHintShown   bool      // auto-restart 突入時のヒント表示済みフラグ
+	quitOnChildExit bool      // Ctrl+D で auto-restart を解除したあと、次の child 終了で素直に Quit する
+	sessionN        int       // 1 始まり。restart で incr して区切りに番号を出す
+	lastEventAt     time.Time // 最後の入力送信 or 出力受信の時刻 (出力行の経過時間の基準)
+	width           int
+	height          int
+	ready           bool
 }
 
 func initialChatModel(handle *runner.ChatHandle, header ChatHeader, spawn Spawner) *chatModel {
@@ -108,14 +113,15 @@ func initialChatModel(handle *runner.ChatHandle, header ChatHeader, spawn Spawne
 	errScan.Buffer(make([]byte, 64*1024), 1024*1024)
 
 	return &chatModel{
-		handle:     handle,
-		spawn:      spawn,
-		header:     header,
-		input:      ti,
-		historyPos: 0,
-		outScanner: outScan,
-		errScanner: errScan,
-		sessionN:   1,
+		handle:      handle,
+		spawn:       spawn,
+		header:      header,
+		input:       ti,
+		historyPos:  0,
+		outScanner:  outScan,
+		errScanner:  errScan,
+		sessionN:    1,
+		lastEventAt: time.Now(),
 	}
 }
 
@@ -133,7 +139,9 @@ func (m *chatModel) Init() tea.Cmd {
 func readLineCmd(scanner *bufio.Scanner, kind string) tea.Cmd {
 	return func() tea.Msg {
 		if scanner.Scan() {
-			return chatLineMsg{kind: kind, text: scanner.Text()}
+			// 経過時間を正確にするため、行が読めた瞬間の時刻を記録する
+			// (Update 側の処理遅延を含めない)。
+			return chatLineMsg{kind: kind, text: scanner.Text(), at: time.Now()}
 		}
 		return streamEndMsg{kind: kind}
 	}
@@ -161,6 +169,7 @@ func (m *chatModel) restart() tea.Cmd {
 	m.endedErr = false
 	m.stdinClosed = false
 	m.awaitingRestart = false
+	m.lastEventAt = time.Now() // 新セッション開始を経過時間の基準にリセット
 	m.sessionN++
 	m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: fmt.Sprintf("─── session #%d ───", m.sessionN)})
 	// auto-restart 突入時の一回だけヒントを出す。
@@ -237,6 +246,7 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(write failed: " + err.Error() + ")"})
 				} else {
 					m.msgs = append(m.msgs, chatLine{kind: kindIn, text: txt})
+					m.lastEventAt = time.Now() // 入力を受け付けた時刻 = 次の出力の経過時間の基準
 					if txt != "" {
 						m.history = append(m.history, txt)
 					}
@@ -276,7 +286,22 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			text = strings.TrimPrefix(text, debugPrefix)
 			text = strings.TrimPrefix(text, " ")
 		}
-		m.msgs = append(m.msgs, chatLine{kind: kind, text: text})
+		line := chatLine{kind: kind, text: text}
+		// 出力行 (stdout / debug / stderr) には直前イベントからの経過時間を添える。
+		if kind == kindOut || kind == kindDebug || kind == kindErr {
+			at := msg.at
+			if at.IsZero() {
+				at = time.Now()
+			}
+			d := at.Sub(m.lastEventAt)
+			if d < 0 {
+				d = 0
+			}
+			line.dur = d
+			line.hasDur = true
+			m.lastEventAt = at
+		}
+		m.msgs = append(m.msgs, line)
 		m.refreshViewport()
 		// 同じ stream の次行を読む Cmd を再発行して継続的に吸い出す。
 		switch msg.kind {
@@ -374,11 +399,11 @@ func (m *chatModel) refreshViewport() {
 		case kindIn:
 			sb.WriteString(chatInPromptStyle.Render("→") + " " + chatInTextStyle.Render(msg.text))
 		case kindOut:
-			sb.WriteString(chatOutPromptStyle.Render("←") + " " + chatOutTextStyle.Render(msg.text))
+			sb.WriteString(chatOutPromptStyle.Render("←") + " " + durPrefix(msg) + chatOutTextStyle.Render(msg.text))
 		case kindDebug:
-			sb.WriteString(chatDebugPromptStyle.Render("*") + " " + chatDebugTextStyle.Render(msg.text))
+			sb.WriteString(chatDebugPromptStyle.Render("*") + " " + durPrefix(msg) + chatDebugTextStyle.Render(msg.text))
 		case kindErr:
-			sb.WriteString(chatErrPromptStyle.Render("✖") + " " + chatErrTextStyle.Render(msg.text))
+			sb.WriteString(chatErrPromptStyle.Render("✖") + " " + durPrefix(msg) + chatErrTextStyle.Render(msg.text))
 		case kindInfo:
 			sb.WriteString(infoStyle.Render(msg.text))
 		}
@@ -399,6 +424,46 @@ func (m *chatModel) refreshViewport() {
 	m.viewport.GotoBottom()
 }
 
+// durWidth は経過時間を右寄せで揃える固定幅 (例 "340µs" / "2.34s" が収まる)。
+const durWidth = 7
+
+// durPrefix は出力行の頭に添える dim な経過時間 (固定幅・末尾スペース付き)。
+// 経過情報が無い行 (理論上ここには来ない) では空文字を返す。
+func durPrefix(line chatLine) string {
+	if !line.hasDur {
+		return ""
+	}
+	return chatTimeStyle.Render(fmt.Sprintf("%*s", durWidth, formatDur(line.dur))) + " "
+}
+
+// formatDur は経過時間をコンパクトな適応書式にする。負値は 0 に丸める。
+//
+//	>= 1s        → "2.34s"
+//	1ms 〜 1s    → "12ms" / 1 桁台は "1.2ms"
+//	1µs 〜 1ms   → "340µs"
+//	< 1µs        → "0" / "830ns"
+func formatDur(d time.Duration) string {
+	if d < 0 {
+		d = 0
+	}
+	switch {
+	case d >= time.Second:
+		return fmt.Sprintf("%.2fs", d.Seconds())
+	case d >= time.Millisecond:
+		ms := float64(d) / float64(time.Millisecond)
+		if ms < 10 {
+			return fmt.Sprintf("%.1fms", ms)
+		}
+		return fmt.Sprintf("%.0fms", ms)
+	case d >= time.Microsecond:
+		return fmt.Sprintf("%dµs", d.Microseconds())
+	case d == 0:
+		return "0"
+	default:
+		return fmt.Sprintf("%dns", d.Nanoseconds())
+	}
+}
+
 // maxViewportHeight は scrollback (viewport) に割ける最大行数。
 // 端末高 - header 行数 - 入力エリア (上罫線 + 入力 + 下罫線 = 3 行) を返す。下限は 1。
 func (m *chatModel) maxViewportHeight() int {
@@ -417,15 +482,17 @@ func (m *chatModel) maxViewportHeight() int {
 // chat 専用のスタイル (style.go に置いてもよいが chat だけで使うので近くに置く)。
 // インディケーターは行種別の「カテゴリ」を色で示し (Blue / Green / Red)、
 // 本文は luminance のコントラストで「読みやすさの優先度」を表す:
-//   入力 (自分で打ったもの)    : 本文を dim な overlay 色に落として控えめに
-//   出力 (解答が返してきた内容): 本文を default text 色で最も明るく
-//   エラー (stderr)             : Maroon 系を維持
+//
+//	入力 (自分で打ったもの)    : 本文を dim な overlay 色に落として控えめに
+//	出力 (解答が返してきた内容): 本文を default text 色で最も明るく
+//	エラー (stderr)             : Maroon 系を維持
+//
 // 入力 vs 出力 を色 (Blue vs Green) だけで分けようとすると、寒色同士で輪郭が
 // 鈍るので、明暗差で組み合わせる。
 var (
-	chatInputPromptStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaSapphire)).Bold(true)
-	chatInputBorderStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay0)) // 入力欄を上下から挟む subtle な罫線
-	chatInPromptStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaBlue)).Bold(true)
+	chatInputPromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaSapphire)).Bold(true)
+	chatInputBorderStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay0)) // 入力欄を上下から挟む subtle な罫線
+	chatInPromptStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaBlue)).Bold(true)
 	chatInTextStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay1)).Italic(true)
 	chatOutPromptStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaGreen)).Bold(true)
 	chatOutTextStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaText))
@@ -433,4 +500,6 @@ var (
 	chatDebugTextStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaLavender))
 	chatErrPromptStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaRed)).Bold(true)
 	chatErrTextStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaMaroon))
+	// 出力行に添える経過時間。種別の色を邪魔しないよう最も dim な overlay 色。
+	chatTimeStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay0))
 )
