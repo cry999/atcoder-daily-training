@@ -29,4 +29,4 @@ command モードのトリガーは **`Esc`** とする。
 
 - 「vim 風 command モード」という体験は保ちつつ、受信確実なキーに倒せた。`Esc` → `:` → コマンド、という遷移は vim 利用者に直感的。
 - `Ctrl+:` を将来どうしても使いたくなったら、bubbletea v2 / kitty protocol 対応時に再検討する余地を残す (本 ADR を更新)。
-- `Ctrl+C` / `Ctrl+D` の終了挙動 ([022](../requirements/022-interactive-unify-quit-keys.md)) は不変。`Esc` はそれらと独立した第 3 のキーとして command モードに割り当てる。
+- `Ctrl+D` = chat 終了 ([022](../requirements/022-interactive-unify-quit-keys.md)) / `Ctrl+C` = プログラム中断・再起動 ([025](../requirements/025-interactive-ctrl-c-interrupt.md)) は不変。`Esc` はそれらと独立した第 3 のキーとして command モードに割り当てる。

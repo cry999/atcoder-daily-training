@@ -70,7 +70,7 @@ chat は 2 つの入力モードを持つ。
 | `:case` (`:c`) | **ケースビルダー画面**を開く。`.in` を現セッションの送信入力で前埋めし、`.out` 入力ペインへ | ✅ |
 | `:w [name]` | ビルダー内で現在の `.in` / `.out` を `tests-extra/` に保存 (`name` 省略時は連番)。保存後 chat に戻る | ✅ |
 | `:set verify` / `:set noverify` | ライブ検証の on/off。`:case` で `.out` を定義すると自動 on | ✅ |
-| `:q` | chat を終了 (`Ctrl+C` / `Ctrl+D` と同じ。子を kill して quit)。vim 慣れ向けの別名 | 任意 |
+| `:q` | chat を終了 (`Ctrl+D` と同じ。子を kill して quit)。vim 慣れ向けの別名 | 任意 |
 | `Esc` | command モードのキャンセル (insert へ) / ビルダーを閉じる | ✅ |
 
 未知コマンドは command line にエラー (`E492: unknown command`) を 1 行出して insert に戻る (副作用なし)。
@@ -118,14 +118,14 @@ chat は 2 つの入力モードを持つ。
 | セッション取り込み | `.in` 前埋めは現セッションの `kindIn` 行のみ (auto-restart / watch-reload で区切られた過去セッションは含めない)。送信していない (Enter 前の) 入力は対象外 |
 | ライブ検証の独立性 | 検証はメモリ上の expected で動く。**ファイル保存は必須でない** (`:case` で expected だけ入れて `Esc` でも検証は有効化できる) |
 | 既存ワークフロー共存 | command モード・ビルダーは insert モードの既存挙動 (Enter 送信・履歴 Up/Down・出力タイミング・auto-restart・watch-reload) を一切変えない。`Esc` を押さない限り全く同じ |
-| start との入れ子整合 | `start` → `i` → chat → `Esc`/`:case` → ビルダー → `:w`/`Esc` → chat → `Ctrl+C`/`Ctrl+D` → start watch、という入れ子を保つ。ビルダーは chat 内モーダルで完結し、子も start ループも触らない。auto-restart 中でもビルダーは開ける |
+| start との入れ子整合 | `start` → `i` → chat → `Esc`/`:case` → ビルダー → `:w`/`Esc` → chat → `Ctrl+D` (or `:q`) → start watch、という入れ子を保つ。`Ctrl+C` は chat 内でプログラム中断・再起動 ([025](025-interactive-ctrl-c-interrupt.md)) で start watch には戻らない。ビルダーは chat 内モーダルで完結し、子も start ループも触らない。auto-restart 中でもビルダーは開ける |
 | 消費 (test/start) | `atcoder test` / `start` は公式 `tests/` の後に `tests-extra/` を連結して判定する。並列実行・サマリ集計・exit code は既存どおり (全 PASS = 0、いずれか FAIL/RE/TLE = 1)。表示 id で公式 (`01`) と追加 (`x01`) を区別 |
 
 ## 影響範囲
 
 | ファイル / パッケージ | 変更内容 |
 |---|---|
-| `internal/ui/chat.go` | モード状態 (`insert`/`command`) を `chatModel` に追加。`Esc` で command へ、`:` プロンプト描画とコマンドパーサ、ビルダー画面 (textarea 2 ペイン)、ライブ検証 (stdout 行と expected の突き合わせ + inline インジケーター)。`Ctrl+C`/`Ctrl+D` の終了挙動 ([022](022-interactive-unify-quit-keys.md)) は不変 |
+| `internal/ui/chat.go` | モード状態 (`insert`/`command`) を `chatModel` に追加。`Esc` で command へ、`:` プロンプト描画とコマンドパーサ、ビルダー画面 (textarea 2 ペイン)、ライブ検証 (stdout 行と expected の突き合わせ + inline インジケーター)。`Ctrl+D`=終了 / `Ctrl+C`=中断・再起動 ([025](025-interactive-ctrl-c-interrupt.md)) は不変 |
 | `internal/ui/` (新規スタイル) | command line / ビルダー枠 / 検証インジケーター (`✓`/`✗`) のスタイル。`textarea` 依存を追加 (`github.com/charmbracelet/bubbles/textarea`) |
 | `internal/extracase/` (新規) | `tests-extra/` の解決・保存・列挙を担う小パッケージ。ui (保存) と testexec (列挙) の両方から使う |
 | `internal/testexec/test.go` | `listCases` を「`tests/` + `tests-extra/`」の 2 系統列挙に拡張。表示 id 付与 (`x` 接頭辞)。`ensureTests`/`--refresh` は `tests/` のみ対象のまま (tests-extra 不可侵) |
