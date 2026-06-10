@@ -47,6 +47,48 @@ atcoder start <contest> --task <task> [--until-pass] [--refresh] [-d] [-s] [-j <
 
 `start` は `new` (ファイル用意) と watch (サンプル自動判定) と chat (対話) を**1 画面に合成**した薄いコマンドで、新しい判定・実行ロジックは持たない。
 
+### コマンドモード — 隣の問題へ移動 (ナビゲーション)
+
+下ペインの chat には `test --interactive` と同じ **vim 風コマンドモード** ([024-interactive-case-builder.md](./requirements/024-interactive-case-builder.md)) がある。`Esc` で `:` 行に入り、1 行打って `Enter` で実行する。`start` の分割画面ではここに**隣の問題へ移動するナビゲーションコマンド**が増える。分割画面に居たまま、一度抜けて `atcoder start ...` を打ち直すことなく次の問題へ移れる。
+
+| コマンド (別名) | 動作 | 例 |
+|---|---|---|
+| `:next` (`:n`) | 問題記号を次へ (letter +1) | `abc457_d` → `abc457_e` |
+| `:prev` (`:p`) | 問題記号を前へ (letter −1) | `abc457_d` → `abc457_c` |
+| `:fwd` (`:f`) | コンテストを次へ (contest_num +1、letter 保持) | `abc457_d` → `abc458_d` |
+| `:back` (`:b`) | コンテストを前へ (contest_num −1、letter 保持) | `abc457_d` → `abc456_d` |
+| `:e <spec>` | 任意の問題へジャンプ | `:e f` (現コンテストの `f`) / `:e abc500_d` (コンテストごと) |
+
+- **移動の 2 軸**: letter 軸 (`:next`/`:prev`) は**同一コンテスト内の次/前の問題**、number 軸 (`:fwd`/`:back`) は**同じ letter の隣コンテスト**。AtCoder の問題 ID (`contest_num` + `letter`) の 2 成分そのままなので、移動の意味が一意に定まる。
+- **移動時に着手 + 再ターゲット**: 移動先では start と同じく**着手** (解答ファイルが無ければ空ファイルを作成。`created: <path>` を表示) し、watch ペインのサンプル判定と chat ペインの子プロセスが**新しい問題で作り直される** (再ターゲット)。chat には `(→ abc457_e に移動しました)` の案内行が出る。
+- **既存ファイルは温存**: 移動先に解答ファイルが既にあれば**上書きしない** (`solution: <path> (exists)`)。提出コードを壊さない。`--until-pass` 指定時は、移動後の新しい問題に対して全通過判定が掛かる。
+- **境界・非対応は 1 行エラーで継続**: letter `a` で `:prev`、番号が下限で `:back`、番号を持たない contest での `:fwd`/`:back`、複数文字 letter (`ex` 等) での `:next`/`:prev`、`:e` の引数が空/不正、などは**再ターゲットせず 1 行エラーを出して継続**する (start は落ちず exit code も変わらない)。
+
+移動前後の画面イメージ:
+
+```
+┌ watch ─ abc/457/d.py ─────────────────────────────────┐
+  ✓ PASS  3/3        judged 12:34:56
+└───────────────────────────────────────────────────────┘
+┌ interactive (auto-restart) ───────────────────────────┐
+  > 5
+  10
+  :next            ← Esc → `:next` を入力
+└───────────────────────────────────────────────────────┘
+
+  ↓ :next 実行後 (abc457_e へ着手・再ターゲット)
+
+┌ watch ─ abc/457/e.py ─────────────────────────────────┐
+  …  (未判定 → 初回判定でサンプル取得)
+└───────────────────────────────────────────────────────┘
+┌ interactive (auto-restart) ───────────────────────────┐
+  (→ abc457_e に移動しました)
+  > _
+└───────────────────────────────────────────────────────┘
+```
+
+> ナビゲーションは**分割画面 (start) の chat 限定**。`test --interactive` 単体の chat では `:next` 等は未知コマンド (`E492`) として無視される。既存の `:case`/`:w`/`:set`/`:q` と `Ctrl+C`/`Ctrl+D`/`Ctrl+S` は不変。
+
 ## 例
 
 ```sh
@@ -80,4 +122,4 @@ atcoder start abc457 --task d
 ## 関連
 
 - 利用手引: [atcoder-test-usage.md](./atcoder-test-usage.md) (watch モードの詳細)
-- 要件: [018-start-command.md](./requirements/018-start-command.md) / [019-start-key-actions.md](./requirements/019-start-key-actions.md) / [023-start-split-screen.md](./requirements/023-start-split-screen.md) / [004-exercise-test-watch.md](./requirements/004-exercise-test-watch.md)
+- 要件: [018-start-command.md](./requirements/018-start-command.md) / [019-start-key-actions.md](./requirements/019-start-key-actions.md) / [023-start-split-screen.md](./requirements/023-start-split-screen.md) / [027-start-problem-navigation.md](./requirements/027-start-problem-navigation.md) (コマンドモードのナビゲーション) / [004-exercise-test-watch.md](./requirements/004-exercise-test-watch.md)
