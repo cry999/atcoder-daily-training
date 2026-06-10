@@ -148,10 +148,13 @@ func runStartWatch(contest, task string, lay layout.Layout, refresh bool,
 	if timeout > 0 {
 		timeLimitMs = int(timeout / time.Millisecond)
 	}
+	// WatchPath を渡すと、保存検知で下ペインの chat も最新コードで reload する
+	// (test --interactive と同じ挙動)。上ペインの再判定 (Changed) と合わせ、
+	// 保存で対話・サンプルの両方が新コードを反映する。
 	return ui.RunStartSplit(ui.StartSplitConfig{
 		SolutionPath: solutionPath,
 		Spawn:        ui.Spawner(spawn),
-		Header:       ui.ChatHeader{Task: task, Contest: contest, TimeLimitMs: timeLimitMs, Debug: debug, AutoRestart: true},
+		Header:       ui.ChatHeader{Task: task, Contest: contest, TimeLimitMs: timeLimitMs, Debug: debug, AutoRestart: true, WatchPath: solutionPath},
 		RunSamples:   runSamples,
 		Changed:      w.Changed,
 		UntilPass:    untilPass,

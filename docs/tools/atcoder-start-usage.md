@@ -26,7 +26,7 @@ atcoder start <contest> --task <task> [--until-pass] [--refresh] [-d] [-s] [-j <
 3. **上下分割画面に入る**。**chat と watch を同時に動かし続ける**:
    - **上ペイン = watch 要約**: 起動時に 1 回サンプルを判定し、以降は**保存検知のたびに自動で再判定**。`✓ PASS 3/4` / `✗ FAIL 1/4  fail: 02` のようなコンパクト要約を出す (diff は出さない)。
    - **下ペイン = 対話 chat**: `test --interactive` と同じ chat を **auto-restart** で起動。入力ボックスに 1 行 → `Enter` で送信、子の出力は届き次第表示。子が終わるたびに自動で再実行する。
-4. 編集 → 保存すると、対話を続けたまま**上ペインだけが即更新**される (進行中の対話セッションは中断しない。新しいコードを対話で試すには `Ctrl+D` で chat を一度終わらせて再起動させる)。
+4. 編集 → 保存すると、**上ペイン (サンプル再判定) と下ペイン (chat を最新コードで reload) の両方**が新しいコードを反映する (`test --interactive` の watch-reload と同じ)。
 5. 終了:
    - `Ctrl+C` または `Ctrl+D` で全体を終了 (exit 0)。
    - `--until-pass` 指定時は、**上ペインのサンプルが全通過した回**で自動終了 (exit 0)。
@@ -38,7 +38,7 @@ atcoder start <contest> --task <task> [--until-pass] [--refresh] [-d] [-s] [-j <
 | 文字入力 + `Enter` | 下ペインの chat に送信 (子の stdin へ) |
 | `↑` / `↓` | chat の入力履歴 |
 | `Ctrl+D` / `Ctrl+C` | 全体を終了 (exit 0) |
-| (解答を保存) | 上ペイン (watch) を自動再判定。下ペインの対話は継続 |
+| (解答を保存) | 上ペイン (watch) を自動再判定 + 下ペインの chat を最新コードで reload |
 
 `start` は `new` (ファイル用意) と watch (サンプル自動判定) と chat (対話) を**1 画面に合成**した薄いコマンドで、新しい判定・実行ロジックは持たない。
 

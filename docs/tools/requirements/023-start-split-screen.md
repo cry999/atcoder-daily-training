@@ -25,7 +25,7 @@
 
 ### 境界
 
-- chat ペインの子プロセスと watch ペインのサンプル判定は**独立した別実行**。同じ解答ファイルを対象にするが、保存検知は**watch ペインのサンプル再判定だけ**を起こす (進行中の対話セッションは中断しない)。新しいコードを対話で試すには chat を再起動する (子終了で auto-restart)。
+- chat ペインの子プロセスと watch ペインのサンプル判定は**独立した別実行**だが、保存検知では**両方**が新コードを反映する: 上ペインはサンプルを再判定し、下ペインの chat も最新コードで reload する (`test --interactive` の watch-reload と同方針)。chat の reload は `ChatHeader.WatchPath` を渡して有効化する。
 - 非 TTY では start は元々 `exit 2` (TTY 必須)。分割画面も TTY 専用。
 
 ## CLI 仕様
@@ -69,7 +69,7 @@ atcoder start <contest> --task <task> [--until-pass] [--refresh] [-d] [-s] [-j <
 | 状況 | 挙動 |
 |---|---|
 | start 起動 (TTY) | 上下分割画面。上=watch 要約 (起動時に 1 回判定)、下=chat (auto-restart で対話開始) |
-| 解答ファイル保存 | 上ペインのサンプル判定を再実行して要約更新。下ペインの対話セッションは継続 (中断しない) |
+| 解答ファイル保存 | 上ペインのサンプル判定を再実行して要約更新。下ペインの chat も最新コードで reload (test --interactive と同方針) |
 | キー入力 | 下ペインの chat 入力へ送る (Enter で子へ送信、`↑`/`↓` 履歴、Ctrl+D で子 stdin close) |
 | `Ctrl+C` | 全体を終了 (exit 0)。chat の子も止める |
 | chat の子が終了 | auto-restart で再実行 (下ペインに区切り)。watch ペインは無関係に動き続ける |
