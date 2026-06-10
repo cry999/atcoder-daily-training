@@ -144,6 +144,28 @@ printf "3\nok\nok\nok\n" | atcoder test abc999 --task a --interactive
 atcoder test abc999 --task a --interactive --auto-restart       # 子が終わるたびに再実行
 ```
 
+#### ケース作成 + ライブ検証 (vim 風 command モード)
+
+chat で見つけた再現入力をその場で**追加テストケース**にできる。`Esc` で **command モード** (`:` 行) に入り、vim の ex-command のように 1 行打って `Enter` で実行する (`Esc` でキャンセル)。`Ctrl+C`/`Ctrl+D`/`Ctrl+S` は insert モードのまま不変。
+
+| コマンド (別名) | 動作 |
+|---|---|
+| `:case` (`:c`) | **ケースビルダー**を開く。`input (.in)` ペインは現セッションで送った入力で前埋め、`expected (.out)` ペインは手入力。`Tab` でペイン切替 |
+| `:w [name]` | ビルダーの内容を `tests-extra/` に保存 (`name` 省略時は連番)。保存後 `(saved tests-extra/x03)` を出して chat に戻る |
+| `:set verify` / `:set noverify` | ライブ検証の on/off。ビルダーで expected を入れて閉じると自動 on |
+| `:q` | ビルダー中なら破棄して閉じる。それ以外は chat 終了 (`Ctrl+D` 相当) |
+
+- **ビルダーの開閉**: `:case` で開く → 2 ペインを `Tab` で編集 → `Esc` で `:` 行へ → `:w` で保存 / `:q` で破棄。子プロセスには触れない (作成中も会話は裏で生きている)。
+- **保存先**: `$XDG_CACHE_HOME/atcoder-tools/<contest>/<task>/tests-extra/NN.in|NN.out`。**`--refresh` で消えない** (公式サンプルの `tests/` とは別ディレクトリ)。空の `.out` でも保存でき、その場合は「実行できること自体の確認」用ケースになる。
+- **ライブ検証**: expected を定義すると、以後の子 stdout を expected と**順序どおり**に突き合わせ、出力行の末尾に `✓` / `✗ expected …` を表示する。比較は `--tolerance` と同じ許容誤差。対話ジャッジ (入出力交互) では行対応が崩れるため `:set noverify` で切れる。
+
+```
+   2ms ← 9        ✓
+   1ms ← 7        ✗ expected 8
+```
+
+保存した追加ケースは、次回以降 `atcoder test` / `atcoder start` のサンプル判定で**公式サンプルの後ろに連結**して走る。表示 id は公式が `01`…、追加が `x01`… (接頭辞 `x`)。`-c x01` で追加ケースだけを指定することもできる。`--refresh` は公式サンプルだけを取り直し、`tests-extra/` には触れない。
+
 ### 提出準備 (`--submit`)
 
 `--submit` を付けると、サンプルが**全通過したとき**だけ続けて提出準備を行う (旧 `atcoder submit` を畳んだもの)。

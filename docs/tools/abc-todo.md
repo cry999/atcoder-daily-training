@@ -17,7 +17,7 @@
 | MVP | A. ディレクトリ / 命名規約 (`abc/<contest>/<letter>.py` を test/run の対象に) | ✅ DONE (e4b790e) |
 | MVP | B. コンテストメタの取り扱い (タスクリストの一括 fetch、コンテストメタ保存) | ✅ DONE (0596725) |
 | Phase 2 | E. 本番 vs 練習モード判定 | TODO |
-| Phase 2 | F. WA / penalty 後のワークフロー (ユーザ追加ケース) | 設計済み ([024](requirements/024-interactive-case-builder.md)) — 実装待ち |
+| Phase 2 | F. WA / penalty 後のワークフロー (ユーザ追加ケース) | ✅ DONE ([024](requirements/024-interactive-case-builder.md)) |
 | Phase 2 | G. タイマー / コンテスト状態の TUI | TODO |
 | 後回し | C. 提出 (submit) — 当面 `oj` で代替できるので困っていない | TODO |
 | 後回し | D. 認証 / セッション管理 — C と同根、同様に低優先 | TODO |
@@ -127,7 +127,7 @@
 
 ### F. WA / penalty 後のワークフロー
 
-> **設計済み → [requirements/024-interactive-case-builder.md](requirements/024-interactive-case-builder.md)** (実装は feature で着手予定)。下の「決めること」は 024 で確定した。
+> **✅ DONE → [requirements/024-interactive-case-builder.md](requirements/024-interactive-case-builder.md)**。chat の vim 風 command モード (`Esc`→`:case`) でケースを作って `tests-extra/` に保存、`atcoder test`/`start` が公式の後ろに連結して判定 (表示 id `x01`)。下の「決めたこと」は 024 で確定・実装済み。
 
 #### 解きたい問題
 

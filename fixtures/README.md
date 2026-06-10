@@ -25,6 +25,7 @@
 | `fixture_multi` | `1`/`2`/`3` | `2`/`4`/`6` | 3 ケース持ちで `--case` フィルタの動作確認用 |
 | `fixture_interactive` | 任意 | 任意 | 簡易インタラクティブ (query/response loop) — `test --interactive` 用 |
 | `fixture_diff` | `1` | 3 行 (`1 2 3 4 5` / `hello world` / `last line`) | 複数行 + 行内 1 token 違いの誤答。`delta` 風の intra-line token highlight を視覚確認するため |
+| `fixture_extra` | 公式 `5`→`10` / 追加 x01 `7`→`14` / 追加 x02 `3`→`999` | — | 解答は N\*2。`tests-extra/` のユーザ追加ケースを公式の後ろに連結して判定する経路 (表示 id `x01`/`x02`)。x02 が FAIL するので suite は exit 1、`-c x01`/`-c 01` で個別指定は exit 0 |
 
 > フラグ単位の経路も `run.sh` で smoke する。例: `fixture_pass --watch` は run.sh の出力が非 TTY のため `exit 2` で拒否されることを確認 (watch ループ本体は常駐してブロックするため fixture では回さない)。
 >

@@ -46,6 +46,7 @@
 | `fixture_tle` | `5` | `10` | TLE, exit 1 | タイムアウト発火 (`time_limit=200ms` で `sleep(2)`) |
 | `fixture_debug` (`-d` 無し) | `5` | `10` | FAIL, exit 1 | `[DEBUG]` 行が比較で汚染 |
 | `fixture_debug` (`-d` 付き) | `5` | `10` | PASS, exit 0 | DEBUG=1 env 受け渡し + `[DEBUG]` フィルタ |
+| `fixture_extra` | `5` / x01 `7` / x02 `3` | `10` / `14` / `999` | suite exit 1 (x02 FAIL) | `tests-extra/` 連結消費・表示 id `x01`/`x02`・`-c x01`/`-c 01` フィルタ |
 
 詳細は [fixtures/README.md](../../fixtures/README.md)。
 

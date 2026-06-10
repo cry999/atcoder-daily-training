@@ -36,6 +36,8 @@ internal/ui/
                  # (lastEventAt を基準に、行を読み出した時刻との差分。要件 019)。
                  # WatchPath が渡るとファイルを mtime ポーリングし、保存検知で子を最新
                  # ファイルで再 spawn する (epoch=sessionN で旧 stream の残響を破棄。要件 022)
+  chat_casebuilder.go # vim 風 command モード (`Esc`→`:`)・ケースビルダー (textarea 2 ペイン)・
+                 # ライブ検証 (tokensMatch)。`:w` で extracase.Save、保存先は tests-extra (要件 024)
   style.go       # lipgloss スタイル定義
 
 internal/runexec/
@@ -50,6 +52,10 @@ internal/config/
 
 internal/cachepath/
   cachepath.go   # キャッシュ配置 (XDG_CACHE_HOME / ~/.cache / atcoder-tools 配下) の解決
+
+internal/extracase/
+  extracase.go   # ユーザ追加ケース (tests-extra/) の場所解決・保存 (Save)・列挙 (List)。
+                 # ui (chat の :w で保存) と testexec (判定で列挙) の両方から使う (要件 024)
 ```
 
 > 補足: `internal/runexec` は `atcoder test` の **ad-hoc / 対話モード** の実装 (旧 `atcoder run` サブコマンド。[ADR 0005](./decisions/0005-unify-test-run-into-test.md) で `test` に統合・廃止)。`testexec` (サンプル判定) と並列の位置付けで、判定 suite を行わず単発実行に特化する。`cmd/atcoder/test.go` がフラグ (`--in`/`--out`/`--interactive`) を見て `testexec.Run` / `runexec.Run` のどちらに振り分けるかを決め、ad-hoc 結線は `cmd/atcoder/adhoc.go` が持つ。詳細は [atcoder-test-usage.md](./atcoder-test-usage.md) の「モード」節。
@@ -257,18 +263,23 @@ testexec.Run
   ├─ ensureTests
   │   ├─ <task>/tests/ と <task>/meta.toml が両方ある & !refresh → 使う
   │   └─ それ以外 → reporter.Fetching() → fetchProblem(contest, task) → meta.toml + tests/NN.{in,out} を書き出し
+  │       (ensureTests / --refresh は tests/ のみ対象。tests-extra/ には触れない)
   │
   ├─ selectExecutor(solutionPath) → Executor を取得
   │
+  ├─ collectCases: 公式 tests/NN (id=NN) + extracase.List → tests-extra/NN (id=x+NN) を連結
+  │
   ├─ reporter.Header(...)
   │
-  ├─ 各ケース:
+  ├─ 各ケース (caseRef = id + in/out パス):
   │   ├─ executor.Run(ctx, solutionPath, input, timeout) → *runner.ProcessResult
-  │   ├─ judge(name, expected, pr) → CaseResult
+  │   ├─ judge(id, expected, pr) → CaseResult
   │   └─ reporter.Case(cr)
   │
   └─ reporter.Summary(passed, total)
 ```
+
+> ユーザ追加ケース (`tests-extra/`) は chat のケースビルダー (`:w`) が `extracase.Save` で書き、判定時は `collectCases` が公式サンプルの後ろに連結する (表示 id は接頭辞 `x`)。`--refresh` は公式サンプル (`tests/`) だけを取り直すので追加ケースは消えない (要件 024)。
 
 ## なぜこの設計か
 
