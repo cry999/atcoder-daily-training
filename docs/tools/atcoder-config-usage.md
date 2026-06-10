@@ -78,7 +78,9 @@ $ atcoder test abc457 --task d --layout exercise
 
 ### starship に現在のレイアウトを表示する
 
-`atcoder config get layout` は現在の既定レイアウト (未設定なら `auto`) を 1 行で吐いて **exit 0** で返るので、[starship](https://starship.rs/) の [custom module](https://starship.rs/config/#custom-commands) からそのまま呼べる。`~/.config/starship.toml` に次を足すと、プロンプトに選択中のレイアウトが出る:
+`atcoder config get layout` は現在の既定レイアウト (未設定なら `auto`) を 1 行で吐いて **exit 0** で返るので、[starship](https://starship.rs/) の [custom module](https://starship.rs/config/#custom-commands) からそのまま呼べる。`~/.config/starship.toml` に次を足すと、プロンプトに選択中のレイアウトが出る。
+
+下の `format` は Catppuccin powerline 風の `[directory]` (角丸キャップ + アイコンをアクセント色・値を `surface0` に乗せる) に合わせてある。アクセント色は `[directory]` の `mauve` と区別して `peach` にしている:
 
 ```toml
 [custom.atcoder_layout]
@@ -86,14 +88,14 @@ $ atcoder test abc457 --task d --layout exercise
 command = 'echo "${ATCODER_LAYOUT:-$(atcoder config get layout)}"'
 shell = ["bash", "--noprofile", "--norc"]
 when = true
-symbol = "🗂 "
-format = "[$symbol$output]($style) "
-style = "bold yellow"
+symbol = ""
+format = "[](fg:peach)[ $symbol](fg:mantle bg:peach)[](fg:peach bg:surface0)[ $output](bg:surface0)[](fg:surface0)"
 ```
 
 - `command` を `echo "${ATCODER_LAYOUT:-...}"` にしておくと、`atcoder` 本体と同じ **env > config > auto** の優先順で表示できる (config 層だけで良ければ `atcoder config get layout` 単体でもよい)。
-- `layout` はグローバル設定なので既定では**どのディレクトリでも**出る。練習リポジトリ内だけに絞りたいなら `detect_folders = ["exercise", "abc", "arc"]` を足す (cwd にそのフォルダがある時だけ表示)。
-- `symbol` は好みの Nerd Font グリフ等に差し替えてよい。`auto` のときは隠したいなら `when = '[ "$(atcoder config get layout)" != auto ]'` のようにガードする。
+- `format` は `[directory]` と同じセグメント構成: `` 角丸左キャップ → アイコンを `peach` 背景に → `` 矢印で `surface0` へ → `$output` (レイアウト名) を `surface0` 背景に → `` 角丸右キャップ。`[directory]` の直後に置くなら、間に連結線を入れたい場合は先頭へ `[─](fg:peach)` を足す。
+- アクセント色 (`peach`) と `symbol` のグリフは好みで差し替えてよい (パレット名は `[directory]` と同じ Catppuccin を流用)。
+- `layout` はグローバル設定なので既定では**どのディレクトリでも**出る。練習リポジトリ内だけに絞りたいなら `detect_folders = ["exercise", "abc", "arc"]` を足す (cwd にそのフォルダがある時だけ表示)。`auto` のときは隠したいなら `when = '[ "$(atcoder config get layout)" != auto ]'` のようにガードする。
 
 > `atcoder` が PATH に無いと custom module は何も出さない (command 失敗で自動的に隠れる)。
 
