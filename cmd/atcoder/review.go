@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cry999/atcoder-daily-training/internal/cliargs"
 	"github.com/cry999/atcoder-daily-training/internal/review"
 	"github.com/cry999/atcoder-daily-training/internal/stats"
 	"golang.org/x/term"
@@ -15,11 +16,12 @@ import (
 // cmdReview は exercise/ を「コンテスト単位」で一覧する。<category> 必須の位置引数で
 // 絞り、contest × letter のテーブルに各回の最終解答日を添える。読み取り専用。
 func cmdReview(args []string) (int, error) {
-	// 位置引数 <category> は先頭。フラグより前に来る (status と同じ規約)。
-	if len(args) < 1 || strings.HasPrefix(args[0], "-") {
+	// 位置引数 <category> はフラグと任意順で混在できる (cliargs.Split で分離)。
+	flagArgs, positionals := cliargs.Split(args)
+	if len(positionals) < 1 {
 		return 2, errors.New("category is required (e.g. atcoder review abc)")
 	}
-	category := strings.ToLower(args[0])
+	category := strings.ToLower(positionals[0])
 
 	flags := flag.NewFlagSet("review", flag.ContinueOnError)
 	var week, month, year bool
@@ -33,7 +35,7 @@ func cmdReview(args []string) (int, error) {
 	flags.StringVar(&last, "last", "", "Rolling window from today: 7d, 2w, 1m, 1y (bare d/w/m/y = 1)")
 	flags.StringVar(&last, "l", "", "Rolling window from today: 7d, 2w, 1m, 1y (bare d/w/m/y = 1)")
 	flags.SetOutput(os.Stderr)
-	if err := flags.Parse(args[1:]); err != nil {
+	if err := flags.Parse(flagArgs); err != nil {
 		return 2, err
 	}
 

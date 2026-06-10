@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cry999/atcoder-daily-training/internal/cliargs"
 	"github.com/cry999/atcoder-daily-training/internal/config"
 	"github.com/cry999/atcoder-daily-training/internal/layout"
 	"github.com/cry999/atcoder-daily-training/internal/runner"
@@ -26,10 +27,12 @@ const (
 )
 
 func cmdTest(args []string) (int, error) {
-	if len(args) < 1 {
+	// 位置引数 (contest) とフラグを任意順で受けられるよう、flag.Parse の前に分離する。
+	flagArgs, positionals := cliargs.Split(args)
+	if len(positionals) < 1 {
 		return 2, errors.New("contest is required")
 	}
-	contest := args[0]
+	contest := positionals[0]
 
 	// ユーザ設定を読み、フラグのデフォルトに反映する (優先順位: flag > config > default)。
 	// 設定が無いのは正常 (全デフォルト)。パース失敗だけ exit 2。
@@ -85,7 +88,7 @@ func cmdTest(args []string) (int, error) {
 	noOpen := flags.Bool("no-open", false, "With --submit, do not open the browser (just print the submit URL).")
 	flags.SetOutput(os.Stderr)
 
-	if err := flags.Parse(args[1:]); err != nil {
+	if err := flags.Parse(flagArgs); err != nil {
 		return 2, err
 	}
 	task := *taskFlag

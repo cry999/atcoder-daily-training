@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"github.com/cry999/atcoder-daily-training/internal/cachepath"
+	"github.com/cry999/atcoder-daily-training/internal/cliargs"
 	"github.com/cry999/atcoder-daily-training/internal/config"
 	"github.com/cry999/atcoder-daily-training/internal/contestmeta"
 	"github.com/cry999/atcoder-daily-training/internal/layout"
@@ -77,14 +78,8 @@ var subcommandCands = []Candidate{
 	{"version", "print the installed atcoder version"},
 }
 
-// valueFlags は値を 1 つ取るフラグ (次トークンがその値になる)。位置引数の判定で
-// 値トークンを読み飛ばすのに使う。
-var valueFlags = map[string]bool{
-	"--task": true, "--tasks": true, "--layout": true, "--timeout": true,
-	"--case": true, "-c": true, "--in": true, "-i": true,
-	"--out": true, "-o": true, "--jobs": true, "-j": true,
-	"--tolerance": true, "--last": true, "-l": true,
-}
+// 値を取るフラグ (next トークンが値) の集合は internal/cliargs に一本化している。
+// 位置引数の判定 (positionals) はそれを共有する。
 
 // subFlags は各サブコマンドのフラグ候補 (説明付き)。cmd/atcoder/*.go の実フラグ・
 // help 文字列と一致させる (フラグを足したらここも更新する)。短形と長形は同じ説明。
@@ -307,22 +302,13 @@ func Complete(root string, words []string) []Candidate {
 
 // positionals は sub を除いたトークン列から位置引数だけを抜き出す。フラグ (- 始まり)
 // と、値を取るフラグの直後のトークンは読み飛ばす。
+// positionals は words からサブコマンド (words[0]) を除いた位置引数を返す。
+// フラグ/値の分離は cliargs.Split に委譲する (value-flag 知識を一本化)。
 func positionals(words []string) []string {
-	var pos []string
-	skip := false
-	for _, w := range words[1:] { // words[0] = サブコマンド
-		if skip {
-			skip = false
-			continue
-		}
-		if strings.HasPrefix(w, "-") {
-			if valueFlags[w] {
-				skip = true
-			}
-			continue
-		}
-		pos = append(pos, w)
+	if len(words) == 0 {
+		return nil
 	}
+	_, pos := cliargs.Split(words[1:]) // words[0] = サブコマンド
 	return pos
 }
 

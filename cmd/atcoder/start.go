@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/cry999/atcoder-daily-training/internal/cachepath"
+	"github.com/cry999/atcoder-daily-training/internal/cliargs"
 	"github.com/cry999/atcoder-daily-training/internal/config"
 	"github.com/cry999/atcoder-daily-training/internal/layout"
 	"github.com/cry999/atcoder-daily-training/internal/runner"
@@ -23,10 +24,11 @@ import (
 // 用意し、そのまま test --watch の編集ループに入る。`--until-pass` でサンプル全通過時に
 // 終了する。新しい実行・判定ロジックは持たず、layout / testexec / watch を束ねるだけ。
 func cmdStart(args []string) (int, error) {
-	if len(args) < 1 {
+	flagArgs, positionals := cliargs.Split(args)
+	if len(positionals) < 1 {
 		return 2, errors.New("contest is required")
 	}
-	contest := args[0]
+	contest := positionals[0]
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -51,7 +53,7 @@ func cmdStart(args []string) (int, error) {
 	layoutFlag := addLayoutFlag(flags)
 	flags.SetOutput(os.Stderr)
 
-	if err := flags.Parse(args[1:]); err != nil {
+	if err := flags.Parse(flagArgs); err != nil {
 		return 2, err
 	}
 	task := *taskFlag
