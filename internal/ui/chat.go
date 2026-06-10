@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/mattn/go-runewidth"
 
 	"github.com/cry999/atcoder-daily-training/internal/runner"
 	"github.com/cry999/atcoder-daily-training/internal/watch"
@@ -413,18 +414,9 @@ func (m *chatModel) refreshViewport() {
 		if i > 0 {
 			sb.WriteString("\n")
 		}
-		switch msg.kind {
-		case kindIn:
-			sb.WriteString(leadCol(msg) + chatInPromptStyle.Render("→") + " " + chatInTextStyle.Render(msg.text))
-		case kindOut:
-			sb.WriteString(leadCol(msg) + chatOutPromptStyle.Render("←") + " " + chatOutTextStyle.Render(msg.text))
-		case kindDebug:
-			sb.WriteString(leadCol(msg) + chatDebugPromptStyle.Render("*") + " " + chatDebugTextStyle.Render(msg.text))
-		case kindErr:
-			sb.WriteString(leadCol(msg) + chatErrPromptStyle.Render("✖") + " " + chatErrTextStyle.Render(msg.text))
-		case kindInfo:
-			sb.WriteString(infoStyle.Render(msg.text))
-		}
+		// 各メッセージは viewport 幅で折り返し、継続行はインデントを揃えて
+		// 折り返しマーカー (↪) を付ける (長い出力がクリップされて途切れるのを防ぐ)。
+		sb.WriteString(renderMsgBlock(msg, m.width))
 	}
 	content := sb.String()
 	m.viewport.SetContent(content)
@@ -453,6 +445,88 @@ func leadCol(line chatLine) string {
 		return strings.Repeat(" ", durWidth) + " "
 	}
 	return chatTimeStyle.Render(fmt.Sprintf("%*s", durWidth, formatDur(line.dur))) + " "
+}
+
+// leadColW は行頭カラム (経過時間 + 区切りスペース) の表示幅。継続行のインデントに使う。
+const leadColW = durWidth + 1
+
+// wrapMarker は折り返しの継続行を示すマーカー (矢印カラムに dim で置く)。
+const wrapMarker = "↪"
+
+// renderMsgBlock は 1 メッセージを viewport 幅で折り返した複数行ブロックにする。
+//   - 1 行目: 経過時間カラム + 矢印 + 本文の先頭チャンク
+//   - 継続行: leadColW 分の空白 + 折り返しマーカー (↪) + 本文の続き
+//
+// 経過時間カラム (leadColW) も矢印/マーカーのカラムも全行で揃うので、入力・出力・
+// 折り返し継続のインデントが一致する。kindInfo は矢印を持たないので幅で折り返すだけ。
+func renderMsgBlock(msg chatLine, width int) string {
+	if width < 1 {
+		width = 1
+	}
+	if msg.kind == kindInfo {
+		chunks := hardWrap(msg.text, width)
+		for i := range chunks {
+			chunks[i] = infoStyle.Render(chunks[i])
+		}
+		return strings.Join(chunks, "\n")
+	}
+
+	var arrow string
+	var promptStyle, textStyle lipgloss.Style
+	switch msg.kind {
+	case kindIn:
+		arrow, promptStyle, textStyle = "→", chatInPromptStyle, chatInTextStyle
+	case kindOut:
+		arrow, promptStyle, textStyle = "←", chatOutPromptStyle, chatOutTextStyle
+	case kindDebug:
+		arrow, promptStyle, textStyle = "*", chatDebugPromptStyle, chatDebugTextStyle
+	case kindErr:
+		arrow, promptStyle, textStyle = "✖", chatErrPromptStyle, chatErrTextStyle
+	}
+
+	// 本文の開始カラム = leadColW + 矢印(1) + スペース(1)。残り幅で折り返す。
+	avail := width - (leadColW + 2)
+	if avail < 1 {
+		avail = 1
+	}
+	chunks := hardWrap(msg.text, avail)
+	contIndent := strings.Repeat(" ", leadColW)
+	out := make([]string, 0, len(chunks))
+	for i, c := range chunks {
+		if i == 0 {
+			out = append(out, leadCol(msg)+promptStyle.Render(arrow)+" "+textStyle.Render(c))
+		} else {
+			out = append(out, contIndent+chatWrapStyle.Render(wrapMarker)+" "+textStyle.Render(c))
+		}
+	}
+	return strings.Join(out, "\n")
+}
+
+// hardWrap は s を表示幅 width 以下のチャンクに分割する (語境界に依らないハード折り返し)。
+// 競プロ出力は空白を含まない長い数列・文字列もあるため、語折り返しでなく桁で切る。
+// CJK 等の全角は runewidth で 2 桁として数える。空文字列は [""] を返す (1 行確保)。
+func hardWrap(s string, width int) []string {
+	if width < 1 {
+		width = 1
+	}
+	var out []string
+	var b strings.Builder
+	w := 0
+	for _, r := range s {
+		rw := runewidth.RuneWidth(r)
+		if rw == 0 {
+			rw = 1 // 制御文字等の保険
+		}
+		if w+rw > width && b.Len() > 0 {
+			out = append(out, b.String())
+			b.Reset()
+			w = 0
+		}
+		b.WriteRune(r)
+		w += rw
+	}
+	out = append(out, b.String())
+	return out
 }
 
 // formatDur は経過時間を「最大単位のみ・それ以下は四捨五入」で表す。負値は 0 に丸める。
@@ -518,4 +592,6 @@ var (
 	chatErrTextStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaMaroon))
 	// 出力行に添える経過時間。種別の色を邪魔しないよう最も dim な overlay 色。
 	chatTimeStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay0))
+	// 折り返し継続行のマーカー (↪)。本文を邪魔しないよう dim な overlay 色。
+	chatWrapStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay0))
 )
