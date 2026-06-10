@@ -165,8 +165,9 @@ func runStartWatch(contest, task string, lay layout.Layout, refresh bool,
 			return 0, nil
 		case actInteractive:
 			// 通常モードで既存の chat を起動 (bubbletea が端末を自前管理)。抜けたら再実行。
-			// start は自前の watch ループで回すので chat 側の auto-restart は使わない。
-			if _, err := runAdHoc(contest, task, lay, "", "", true, false, debug, false, timeout, tolerance); err != nil {
+			// start からの対話は auto-restart で開始し、子終了のたびに自動で再実行する
+			// (Ctrl+D / Ctrl+C で chat を抜けると start の watch ループに戻る)。
+			if _, err := runAdHoc(contest, task, lay, "", "", true, true, debug, false, timeout, tolerance); err != nil {
 				fmt.Fprintln(os.Stderr, "atcoder start:", err)
 			}
 		case actRerun:
