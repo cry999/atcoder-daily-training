@@ -60,3 +60,28 @@ func TestWaitForChangeNoFalsePositive(t *testing.T) {
 		t.Fatal("expected no change to be reported when the file is untouched")
 	}
 }
+
+// Changed は非ブロッキングに 1 回 poll する。変化なしで false、変化ありで true を返し
+// 基準を更新する (start のキー多重化待機が使う)。
+func TestChanged(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "sol.py")
+	if err := os.WriteFile(p, []byte("a"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	w := New(p, 20*time.Millisecond, 0)
+
+	if w.Changed() {
+		t.Fatal("Changed() should be false right after New (no modification yet)")
+	}
+	future := time.Now().Add(2 * time.Second)
+	if err := os.Chtimes(p, future, future); err != nil {
+		t.Fatal(err)
+	}
+	if !w.Changed() {
+		t.Fatal("Changed() should be true after the mtime changed")
+	}
+	// 基準が更新されているので、続けて呼ぶと false に戻る。
+	if w.Changed() {
+		t.Fatal("Changed() should be false again once the new mtime is the baseline")
+	}
+}

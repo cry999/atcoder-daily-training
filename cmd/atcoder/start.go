@@ -1,18 +1,24 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"io/fs"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"time"
+
+	"golang.org/x/term"
 
 	"github.com/cry999/atcoder-daily-training/internal/config"
 	"github.com/cry999/atcoder-daily-training/internal/layout"
 	"github.com/cry999/atcoder-daily-training/internal/testexec"
 	"github.com/cry999/atcoder-daily-training/internal/ui"
+	"github.com/cry999/atcoder-daily-training/internal/watch"
 )
 
 // cmdStart は問題への着手をまとめる: レイアウトに応じた解答ファイルを (無ければ)
@@ -90,7 +96,143 @@ func cmdStart(args []string) (int, error) {
 		}
 	}
 
-	return runTestWatch(contest, task, lay, *refresh, buildOpts, *untilPass)
+	return runStartWatch(contest, task, lay, *refresh, buildOpts, *untilPass, debug, *timeoutFlag, *tolFlag)
+}
+
+// startAction は watch 待機中のキー入力に対応する動作。
+type startAction int
+
+const (
+	actNone startAction = iota
+	actRerun
+	actQuit
+	actInteractive
+)
+
+// keyToAction は 1 バイトのキー入力をアクションに写す純粋関数。
+// raw モードでは Ctrl+C はシグナルにならず 0x03 のバイトで届くため、ここで終了に倒す。
+func keyToAction(b byte) startAction {
+	switch b {
+	case 'q', 'Q', 0x03: // 0x03 = Ctrl+C (raw モード)
+		return actQuit
+	case 'i', 'I':
+		return actInteractive
+	default:
+		return actNone
+	}
+}
+
+// runStartWatch は start 用の watch ループ。test --watch と同じく保存検知で再実行し、
+// さらに待機中のキー (q=終了 / i=インタラクティブ) を mtime と多重化する。untilPass なら
+// サンプル全通過で終了。runTestWatch (test --watch 用) はキー層を持たず別に温存する。
+func runStartWatch(contest, task string, lay layout.Layout, refresh bool,
+	buildOpts func(refresh bool) testexec.Options, untilPass, debug bool,
+	timeout time.Duration, tolerance float64) (int, error) {
+	if !ui.IsStdoutTerminal() {
+		return 2, errors.New("start --watch requires a terminal (stdout is not a TTY)")
+	}
+	solutionPath, err := lay.SolutionPath(contest, task)
+	if err != nil {
+		return 2, err
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
+	w := watch.New(solutionPath, watchPollInterval, watchDebounce)
+	firstRun := true
+	for {
+		ui.ClearScreen()
+		ui.WatchHeader(solutionPath)
+
+		code, runErr := testexec.Run(buildOpts(refresh && firstRun))
+		if runErr != nil {
+			fmt.Fprintln(os.Stderr, "atcoder start:", runErr)
+		}
+		firstRun = false
+
+		// --until-pass: 全サンプル通過 (code==0) で終了。
+		if untilPass && runErr == nil && code == 0 {
+			fmt.Println()
+			return 0, nil
+		}
+
+		ui.StartWatchFooter(solutionPath)
+
+		switch waitForAction(ctx, w) {
+		case actQuit:
+			fmt.Println()
+			return 0, nil
+		case actInteractive:
+			// 通常モードで既存の chat を起動 (bubbletea が端末を自前管理)。抜けたら再実行。
+			if _, err := runAdHoc(contest, task, lay, "", "", true, debug, false, timeout, tolerance); err != nil {
+				fmt.Fprintln(os.Stderr, "atcoder start:", err)
+			}
+		case actRerun:
+			// ループ先頭へ (再実行)。
+		}
+	}
+}
+
+// waitForAction は watch の待機フェーズ。/dev/tty を raw にして 1 キーを拾い、mtime の
+// 変化と多重化する。q/Ctrl+C → 終了、i → インタラクティブ、保存 → 再実行。raw 化に
+// 失敗したらキー無効で mtime のみの待機にフォールバックする (機能低下のみ)。
+func waitForAction(ctx context.Context, w *watch.Watcher) startAction {
+	tty, err := os.OpenFile("/dev/tty", os.O_RDONLY, 0)
+	if err != nil {
+		return waitMtimeOnly(ctx, w)
+	}
+	defer tty.Close()
+	old, err := term.MakeRaw(int(tty.Fd()))
+	if err != nil {
+		return waitMtimeOnly(ctx, w)
+	}
+	defer term.Restore(int(tty.Fd()), old)
+
+	keyCh := make(chan byte, 4)
+	done := make(chan struct{})
+	defer close(done) // goroutine を止める合図。tty.Close (defer) が Read を解く。
+	go func() {
+		buf := make([]byte, 1)
+		for {
+			n, err := tty.Read(buf)
+			if n > 0 {
+				select {
+				case keyCh <- buf[0]:
+				case <-done:
+					return
+				}
+			}
+			if err != nil {
+				return
+			}
+		}
+	}()
+
+	ticker := time.NewTicker(watchPollInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return actQuit
+		case <-ticker.C:
+			if w.Changed() {
+				return actRerun
+			}
+		case b := <-keyCh:
+			if a := keyToAction(b); a != actNone {
+				return a
+			}
+		}
+	}
+}
+
+// waitMtimeOnly は raw 化できない環境向けのフォールバック。キー無効で mtime のみ待つ。
+func waitMtimeOnly(ctx context.Context, w *watch.Watcher) startAction {
+	if w.WaitForChange(ctx) {
+		return actRerun
+	}
+	return actQuit
 }
 
 // ensureSolutionFile は lay/contest/task の解答パスを返し、無ければ親 dir を作って

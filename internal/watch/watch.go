@@ -63,6 +63,22 @@ func (w *Watcher) WaitForChange(ctx context.Context) bool {
 	}
 }
 
+// Changed は 1 回だけ mtime を poll し、基準から変化していれば debounce 後に基準を
+// 更新して true を返す。変化なしは false で、ブロックしない (WaitForChange の
+// 非ブロッキング版)。待機中にキー入力と多重化したい呼び出し側 (start) が使う。
+func (w *Watcher) Changed() bool {
+	cur := mtime(w.path)
+	if cur.Equal(w.last) {
+		return false
+	}
+	// 連続書き込みを 1 回にまとめ、debounce 後の最終 mtime を基準にする。
+	if w.debounce > 0 {
+		time.Sleep(w.debounce)
+	}
+	w.last = mtime(w.path)
+	return true
+}
+
 // mtime は path の最終更新時刻を返す。stat 失敗 (ファイル無し等) はゼロ値。
 // ファイルの出現・消滅もゼロ値との差として mtime 変化に乗る。
 func mtime(path string) time.Time {

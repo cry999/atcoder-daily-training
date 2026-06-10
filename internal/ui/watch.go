@@ -26,6 +26,13 @@ func WatchFooter(path string) {
 	fmt.Println(watchFooterStyle.Render(fmt.Sprintf("watching %s — save to re-run, Ctrl+C to quit", path)))
 }
 
+// StartWatchFooter は `atcoder start` の待機案内。保存での再実行に加え、待機中の
+// キー操作 ([i] interactive / [q] quit) を示す。
+func StartWatchFooter(path string) {
+	fmt.Println()
+	fmt.Println(watchFooterStyle.Render(fmt.Sprintf("watching %s — save to re-run, [i] interactive, [q]/Ctrl+C quit", path)))
+}
+
 // IsStdoutTerminal は stdout が端末かどうかを返す。watch の TTY 必須判定に使う。
 func IsStdoutTerminal() bool {
 	return isTerminal(os.Stdout)
