@@ -31,7 +31,9 @@ internal/ui/
   progress.go    # bubbletea ライブ進捗 (ケース一覧のスピナー + プログレスバー。TTY 時)
   watch.go       # watch モードの画面クリア・ヘッダ/フッタ・TTY 判定ヘルパー
   diff.go        # delta 風 unified diff (LCS + intra-line token highlight)
-  chat.go        # bubbletea ベース chat TUI (`atcoder test --interactive` の TTY モード)
+  chat.go        # bubbletea ベース chat TUI (`atcoder test --interactive` の TTY モード)。
+                 # 出力行ごとに直前イベント (入力送信 or 直前出力) からの経過時間を表示
+                 # (lastEventAt を基準に、行を読み出した時刻との差分。要件 019)
   style.go       # lipgloss スタイル定義
 
 internal/runexec/

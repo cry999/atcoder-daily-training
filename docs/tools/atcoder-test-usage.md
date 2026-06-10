@@ -121,6 +121,7 @@ atcoder test abc325 --task d --in my_case.txt --out expected.txt
 `--interactive` (`-I`) で子プロセスと live 対話する。入力は親 stdin から読む。
 
 - **TTY (端末から直接)**: bubbletea ベースの chat TUI。入力ボックスに 1 行 → `Enter` で送信、子の出力は届き次第表示。`↑`/`↓` で入力履歴、`Ctrl+D` で EOF、`Ctrl+C` で終了。子は `PYTHONUNBUFFERED=1` 付きで起動するので `flush()` 不要。
+  - **出力タイミング表示**: 子の出力行 (`←`/`✖`/`*`) には、**直前イベント (最後に入力を送ってから、または直前の出力から) その行までの経過時間**が dim で添えられる (`←   1.2ms  Query?`)。応答レイテンシと連続出力の間隔がひと目で分かる (`2.34s`/`12ms`/`340µs` の適応書式)。入力行 `→` と情報行には付かない。
 - **非 TTY (パイプ/リダイレクト)**: passthrough + tee。送った各行を `> <input>` と echo してから子に転送する batch-friendly モード (厳密な交互表示は保証されない。チャットらしさが要るなら TTY か `expect`(1))。
 
 ```sh
