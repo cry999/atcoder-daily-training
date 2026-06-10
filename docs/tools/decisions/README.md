@@ -12,6 +12,9 @@
 | [0002](0002-stats-readonly-exercise-tree.md) | `stats` は `exercise/` ツリーのみを読み取り専用で集計する | Accepted | `dd3c3a8` |
 | [0003](0003-user-config-xdg-toml.md) | ユーザ設定は XDG_CONFIG_HOME の TOML 1 ファイルに置く | Accepted | `8108a82` |
 | [0004](0004-shell-completion-no-framework.md) | シェル補完は CLI フレームワークを足さず手書きで実装する | Accepted | `8118b4d` |
+| [0007](0007-interactive-command-mode-trigger.md) | インタラクティブ chat の vim 風 command モードは `Esc` で開く (`Ctrl+:` 不採用) | Accepted | 設計のみ ([024](../requirements/024-interactive-case-builder.md)) |
+
+> 索引が `0005`/`0006` を欠いている (実装は済み、索引のみ未追記)。バックフィルは maketidy で。
 
 ## 書き方
 

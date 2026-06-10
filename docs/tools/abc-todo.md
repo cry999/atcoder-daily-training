@@ -17,7 +17,7 @@
 | MVP | A. ディレクトリ / 命名規約 (`abc/<contest>/<letter>.py` を test/run の対象に) | ✅ DONE (e4b790e) |
 | MVP | B. コンテストメタの取り扱い (タスクリストの一括 fetch、コンテストメタ保存) | ✅ DONE (0596725) |
 | Phase 2 | E. 本番 vs 練習モード判定 | TODO |
-| Phase 2 | F. WA / penalty 後のワークフロー (ユーザ追加ケース) | TODO |
+| Phase 2 | F. WA / penalty 後のワークフロー (ユーザ追加ケース) | 設計済み ([024](requirements/024-interactive-case-builder.md)) — 実装待ち |
 | Phase 2 | G. タイマー / コンテスト状態の TUI | TODO |
 | 後回し | C. 提出 (submit) — 当面 `oj` で代替できるので困っていない | TODO |
 | 後回し | D. 認証 / セッション管理 — C と同根、同様に低優先 | TODO |
@@ -127,23 +127,19 @@
 
 ### F. WA / penalty 後のワークフロー
 
+> **設計済み → [requirements/024-interactive-case-builder.md](requirements/024-interactive-case-builder.md)** (実装は feature で着手予定)。下の「決めること」は 024 で確定した。
+
 #### 解きたい問題
 
 - 公式サンプル PASS だけど提出すると WA、というケースで、自分で edge case を書いて再テストする箇所が欲しい。今の cache (`$XDG_CACHE_HOME/atcoder-tools/<contest>/<task>/tests/`) は `--refresh` で上書きされるため、自作ケースを置くと消える。
 
-#### 決めること
+#### 決めたこと (024 で確定)
 
-- ユーザ追加ケースの保存場所
-  - 候補: `$XDG_CACHE_HOME/atcoder-tools/<contest>/<task>/tests-extra/NN.in|NN.out` を作る
-  - 候補: リポジトリ内に置く案 (`abc/<contest>/<letter>.tests/NN.in`) — git で履歴が残るが、本番中の作業流れと dir が混ざる
-  - 第一候補は cache 配下に専用 dir。`--refresh` で消さない。
-- 命名規則: 公式は `01.in` 始まり。ユーザ追加は `e01.in` のように prefix 付け or 別 dir 内で `01.in` 始まり。
-- 追加ケースの作り方
-  - `atcoder test <contest> --task <task> --add-case` でインタラクティブに stdin/expected を入力?
-  - シンプルに `tests-extra/` にユーザが直接ファイルを置くだけにする?
-  - `atcoder run --in foo.in --out foo.out --save-as <name>` で追加保存?
-- 追加ケースは公式ケースと同じ判定ループに入れるか、別セクションで表示するか。
-- 既存の `atcoder test` 出力にユーザ追加ケースをどう混ぜるか (順序、識別子)。
+- **保存場所**: `$XDG_CACHE_HOME/atcoder-tools/<contest>/<task>/tests-extra/NN.in|NN.out` (cache 配下の専用 dir、`--refresh` 不可侵)。repo 内保存は将来の任意拡張。
+- **命名規則**: `tests-extra/` 内で `01.in` 始まり (公式と別 dir なので衝突しない)。判定・レポートの**表示 id は `x01`** (接頭辞 `x` = extra) で公式 (`01`) と区別。
+- **作り方**: インタラクティブ chat の **vim 風 command モード** (`Esc` → `:case`) でビルダーを開き、`.in` はセッションの送信入力を前埋め・`.out` は手入力、`:w` で保存。`--add-case` フラグや `run --save-as` は採らない (chat 内完結)。
+- **判定ループ**: 公式ケースと**同じループ**に、公式の後ろへ連結。並列実行・サマリ・exit code は既存どおり。
+- **出力の混ぜ方**: 順序は公式 → 追加、識別子は `x01`…。さらに期待出力を定義すると chat 内で**ライブ検証**も可能 (024)。
 
 ### G. タイマー / コンテスト状態の TUI
 
