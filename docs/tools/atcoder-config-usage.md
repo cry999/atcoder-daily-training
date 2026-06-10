@@ -76,6 +76,27 @@ $ atcoder test abc457 --task d --layout exercise
 
 > レイアウトそのものの定義 (`abc` = `abc/<num>/<letter>.py`、`exercise` = `exercise/YYYY/MM/DD/<task>.py`) は [`atcoder test` の `--layout`](atcoder-test-usage.md) と要件 `002-exercise-abc-layout.md` を参照。
 
+### starship に現在のレイアウトを表示する
+
+`atcoder config get layout` は現在の既定レイアウト (未設定なら `auto`) を 1 行で吐いて **exit 0** で返るので、[starship](https://starship.rs/) の [custom module](https://starship.rs/config/#custom-commands) からそのまま呼べる。`~/.config/starship.toml` に次を足すと、プロンプトに選択中のレイアウトが出る:
+
+```toml
+[custom.atcoder_layout]
+# env (ATCODER_LAYOUT) > config > auto を忠実に表示する。
+command = 'echo "${ATCODER_LAYOUT:-$(atcoder config get layout)}"'
+shell = ["bash", "--noprofile", "--norc"]
+when = true
+symbol = "🗂 "
+format = "[$symbol$output]($style) "
+style = "bold yellow"
+```
+
+- `command` を `echo "${ATCODER_LAYOUT:-...}"` にしておくと、`atcoder` 本体と同じ **env > config > auto** の優先順で表示できる (config 層だけで良ければ `atcoder config get layout` 単体でもよい)。
+- `layout` はグローバル設定なので既定では**どのディレクトリでも**出る。練習リポジトリ内だけに絞りたいなら `detect_folders = ["exercise", "abc", "arc"]` を足す (cwd にそのフォルダがある時だけ表示)。
+- `symbol` は好みの Nerd Font グリフ等に差し替えてよい。`auto` のときは隠したいなら `when = '[ "$(atcoder config get layout)" != auto ]'` のようにガードする。
+
+> `atcoder` が PATH に無いと custom module は何も出さない (command 失敗で自動的に隠れる)。
+
 ## alias (git 風コマンド別名)
 
 よく打つ長いコマンドに短い名前を付けられる。`config.toml` の `[alias]` セクションに `名前 = "コマンド列"` を置くと、`atcoder <名前> [追加引数]` がそのコマンド列に展開されて実行される (git の `[alias]` と同じ)。
