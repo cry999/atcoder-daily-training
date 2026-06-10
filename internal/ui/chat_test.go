@@ -107,12 +107,41 @@ func TestInitialChatModelAutoRestartNeedsSpawner(t *testing.T) {
 func TestStreamEndQuitsWhenNoAutoRestart(t *testing.T) {
 	m := initialChatModel(fakeHandle(), ChatHeader{}, fakeSpawn())
 	m.endedErr = true // err 側は既に EOF。out 側 EOF で「両ストリーム終了」になる。
-	_, cmd := m.Update(streamEndMsg{kind: kindOut})
+	_, cmd := m.Update(streamEndMsg{kind: kindOut, epoch: m.sessionN})
 	if !isQuit(cmd) {
 		t.Error("child exit without --auto-restart should quit (no restart prompt)")
 	}
 	if !hasInfo(m, "child process exited") {
 		t.Errorf("expected '(child process exited)'; msgs=%v", m.msgs)
+	}
+}
+
+// リロードで差し替えた旧セッションの streamEndMsg (epoch 不一致) は破棄され、
+// 新セッションの状態 (endedOut) を汚さない。
+func TestStaleStreamEndDropped(t *testing.T) {
+	m := initialChatModel(fakeHandle(), ChatHeader{}, fakeSpawn())
+	m.endedErr = true
+	_, cmd := m.Update(streamEndMsg{kind: kindOut, epoch: m.sessionN + 99}) // 旧 epoch
+	if m.endedOut {
+		t.Error("stale streamEndMsg should be dropped, not set endedOut")
+	}
+	if isQuit(cmd) {
+		t.Error("stale streamEndMsg should not trigger quit")
+	}
+}
+
+// 保存検知 (fileChangedMsg{changed}) で info メッセージを出して再 spawn (sessionN++) する。
+// restart の Kill/Wait は fake handle (cmd=nil) で panic するため、旧 handle を外して回避する。
+func TestFileChangedReloads(t *testing.T) {
+	m := initialChatModel(fakeHandle(), ChatHeader{}, fakeSpawn())
+	m.handle = nil // restart 内の Kill/Wait を踏ませない (spawn される新 handle は触らない)
+	before := m.sessionN
+	m.Update(fileChangedMsg{changed: true})
+	if m.sessionN != before+1 {
+		t.Errorf("file change should restart: sessionN %d → %d, want %d", before, m.sessionN, before+1)
+	}
+	if !hasInfo(m, "解答ファイルが更新されました") {
+		t.Errorf("expected file-updated message; msgs=%v", m.msgs)
 	}
 }
 

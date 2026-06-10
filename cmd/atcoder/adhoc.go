@@ -54,6 +54,7 @@ func runChat(spawn runexec.ChatSpawner, header runexec.ChatHeader) (*runner.Proc
 		TimeLimitMs: header.TimeLimitMs,
 		Debug:       header.Debug,
 		AutoRestart: header.AutoRestart,
+		WatchPath:   header.WatchPath,
 	})
 }
 

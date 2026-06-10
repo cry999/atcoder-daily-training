@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/cry999/atcoder-daily-training/internal/runner"
+	"github.com/cry999/atcoder-daily-training/internal/watch"
 )
 
 // ChatHeader は TUI ヘッダに出すメタ情報 + 起動オプション。
@@ -20,9 +21,17 @@ type ChatHeader struct {
 	Task        string
 	Contest     string
 	TimeLimitMs int
-	Debug       bool // true なら子の stdout 行のうち [DEBUG] プレフィックスを持つものを別カテゴリで表示する
-	AutoRestart bool // true なら起動時から sticky auto-restart (子終了のたびに再起動する)
+	Debug       bool   // true なら子の stdout 行のうち [DEBUG] プレフィックスを持つものを別カテゴリで表示する
+	AutoRestart bool   // true なら起動時から sticky auto-restart (子終了のたびに再起動する)
+	WatchPath   string // 非空なら解答ファイルを監視し、保存検知で子を最新ファイルで再 spawn する
 }
+
+// chat の watch (解答ファイル保存検知でリロード) のポーリング間隔と debounce。
+// test --watch / start と同値。
+const (
+	chatWatchInterval = 200 * time.Millisecond
+	chatWatchDebounce = 120 * time.Millisecond
+)
 
 // Spawner は子プロセスを (再) 起動するためのファクトリ。
 // chat TUI は連続テスト用にこれを複数回呼び出すことがある。
@@ -63,14 +72,19 @@ const (
 const debugPrefix = "[DEBUG]"
 
 type chatLineMsg struct {
-	kind string
-	text string
-	at   time.Time // 行を読み出した時刻 (出力行の経過時間算出に使う)
+	kind  string
+	text  string
+	at    time.Time // 行を読み出した時刻 (出力行の経過時間算出に使う)
+	epoch int       // 発行時の sessionN。現行と不一致なら破棄 (旧 scanner の残響)
 }
 
 type streamEndMsg struct {
-	kind string // "out" or "err"
+	kind  string // "out" or "err"
+	epoch int    // chatLineMsg と同様、現行 sessionN と不一致なら破棄
 }
+
+// fileChangedMsg は watch ポーリングの結果。changed が真なら解答ファイルが保存された。
+type fileChangedMsg struct{ changed bool }
 
 type chatLine struct {
 	kind   string
@@ -92,10 +106,11 @@ type chatModel struct {
 	errScanner    *bufio.Scanner
 	endedOut      bool
 	endedErr      bool
-	autoRestart   bool      // sticky モード。起動フラグ (--auto-restart) で初期化。streamEndMsg は自動で restart() を発火
-	autoHintShown bool      // auto-restart ヒント表示済みフラグ
-	sessionN      int       // 1 始まり。restart で incr して区切りに番号を出す
-	lastEventAt   time.Time // 最後の入力送信 or 出力受信の時刻 (出力行の経過時間の基準)
+	autoRestart   bool           // sticky モード。起動フラグ (--auto-restart) で初期化。streamEndMsg は自動で restart() を発火
+	autoHintShown bool           // auto-restart ヒント表示済みフラグ
+	watcher       *watch.Watcher // 非 nil なら解答ファイルを監視 (保存検知で reload)。nil なら watch-reload 無効
+	sessionN      int            // 1 始まり。restart で incr して区切りに番号を出す (epoch も兼ねる)
+	lastEventAt   time.Time      // 最後の入力送信 or 出力受信の時刻 (出力行の経過時間の基準)
 	width         int
 	height        int
 	ready         bool
@@ -124,6 +139,10 @@ func initialChatModel(handle *runner.ChatHandle, header ChatHeader, spawn Spawne
 		lastEventAt: time.Now(),
 		autoRestart: header.AutoRestart && spawn != nil,
 	}
+	// 解答ファイルが指定され、再 spawn 可能なときだけ watch-reload を有効にする。
+	if header.WatchPath != "" && spawn != nil {
+		m.watcher = watch.New(header.WatchPath, chatWatchInterval, chatWatchDebounce)
+	}
 	// auto-restart 指定時は起動直後に一度だけヒントを出す。
 	if m.autoRestart {
 		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(auto-restart on — Ctrl+C or Ctrl+D to stop)"})
@@ -135,30 +154,48 @@ func initialChatModel(handle *runner.ChatHandle, header ChatHeader, spawn Spawne
 func (m *chatModel) Init() tea.Cmd {
 	return tea.Batch(
 		textinput.Blink,
-		readLineCmd(m.outScanner, kindOut),
-		readLineCmd(m.errScanner, kindErr),
+		readLineCmd(m.outScanner, kindOut, m.sessionN),
+		readLineCmd(m.errScanner, kindErr, m.sessionN),
+		m.pollWatchCmd(),
 	)
 }
 
 // readLineCmd は scanner から 1 行 (or EOF) を読み、対応する msg を返す tea.Cmd。
 // 各行読み出しごとに自身を再発行することで継続的に stream を吸い出す
 // (Update 側が chatLineMsg を受けたら readLineCmd を Cmd として返す)。
-func readLineCmd(scanner *bufio.Scanner, kind string) tea.Cmd {
+// epoch は発行時の sessionN。リロードで scanner を差し替えた後に届く旧 scanner の
+// 残響を Update 側で破棄するために持たせる。
+func readLineCmd(scanner *bufio.Scanner, kind string, epoch int) tea.Cmd {
 	return func() tea.Msg {
 		if scanner.Scan() {
 			// 経過時間を正確にするため、行が読めた瞬間の時刻を記録する
 			// (Update 側の処理遅延を含めない)。
-			return chatLineMsg{kind: kind, text: scanner.Text(), at: time.Now()}
+			return chatLineMsg{kind: kind, text: scanner.Text(), at: time.Now(), epoch: epoch}
 		}
-		return streamEndMsg{kind: kind}
+		return streamEndMsg{kind: kind, epoch: epoch}
+	}
+}
+
+// pollWatchCmd は watcher を持つときだけ、interval 後に 1 回 poll して fileChangedMsg
+// を返す tea.Cmd。fileChangedMsg を受けるたびに再発行して継続ポーリングする。
+func (m *chatModel) pollWatchCmd() tea.Cmd {
+	w := m.watcher
+	if w == nil {
+		return nil
+	}
+	return func() tea.Msg {
+		time.Sleep(chatWatchInterval)
+		return fileChangedMsg{changed: w.Changed()}
 	}
 }
 
 // restart は spawner で新しい子プロセスを起動し、TUI 側の状態をリセットする。
 // scrollback は保持し、区切り行 (── session #N ──) を追加してから新セッションを始める。
 func (m *chatModel) restart() tea.Cmd {
-	// 前セッションのハンドルを reap (既に終了しているのですぐ返る)。
+	// 現セッションの子を片付ける。watch-reload では実行中の子を差し替えるため、
+	// Kill してから Wait で reap する (終了済みの子なら Kill は無害)。
 	if m.handle != nil {
+		_ = m.handle.Kill()
 		_ = m.handle.Wait()
 	}
 	newHandle, err := m.spawn()
@@ -184,8 +221,8 @@ func (m *chatModel) restart() tea.Cmd {
 	}
 	m.refreshViewport()
 	return tea.Batch(
-		readLineCmd(m.outScanner, kindOut),
-		readLineCmd(m.errScanner, kindErr),
+		readLineCmd(m.outScanner, kindOut, m.sessionN),
+		readLineCmd(m.errScanner, kindErr, m.sessionN),
 	)
 }
 
@@ -251,6 +288,9 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case chatLineMsg:
+		if msg.epoch != m.sessionN {
+			break // リロードで差し替えた旧 scanner の残響 → 破棄 (再発行もしない)
+		}
 		kind, text := msg.kind, msg.text
 		// -d 指定時のみ、stdout 行のうち [DEBUG] プレフィックスを持つものは
 		// kindDebug に振り分け、プレフィックス (とその直後の半角空白 1 つ) を剥がす。
@@ -280,12 +320,15 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// 同じ stream の次行を読む Cmd を再発行して継続的に吸い出す。
 		switch msg.kind {
 		case kindOut:
-			cmds = append(cmds, readLineCmd(m.outScanner, kindOut))
+			cmds = append(cmds, readLineCmd(m.outScanner, kindOut, m.sessionN))
 		case kindErr:
-			cmds = append(cmds, readLineCmd(m.errScanner, kindErr))
+			cmds = append(cmds, readLineCmd(m.errScanner, kindErr, m.sessionN))
 		}
 
 	case streamEndMsg:
+		if msg.epoch != m.sessionN {
+			break // リロードで kill した旧セッションの stream 終了 → 破棄
+		}
 		switch msg.kind {
 		case kindOut:
 			m.endedOut = true
@@ -303,6 +346,15 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.refreshViewport()
 			return m, tea.Quit
 		}
+
+	case fileChangedMsg:
+		// 解答ファイルが保存された: 実行中の子を最新ファイルで差し替える。
+		if msg.changed {
+			m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(解答ファイルが更新されました — 新しいプログラムを起動します)"})
+			return m, tea.Batch(m.restart(), m.pollWatchCmd())
+		}
+		// 変化なしでも、次の保存を拾うためポーリングは続ける。
+		return m, m.pollWatchCmd()
 	}
 
 	return m, tea.Batch(cmds...)
