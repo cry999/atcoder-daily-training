@@ -79,50 +79,31 @@ type chatLine struct {
 	hasDur bool          // dur が有効か (入力行 / 情報行は false)
 }
 
-// ctrlDAction は Ctrl+D 押下時の chat の動作。Ctrl+D は子に EOF を送らず、CLI 側の
-// 終了操作として扱う (要件 021)。
-type ctrlDAction int
-
-const (
-	ctrlDQuit             ctrlDAction = iota // 子を kill して即 quit (auto-restart OFF)
-	ctrlDStopAfterSession                    // restart を止め、現セッション終了後に quit (auto-restart ON)
-)
-
-// ctrlDActionFor は Ctrl+D の動作を決める純粋関数。auto-restart 中は現セッションを
-// 自然終了させてから quit する graceful 停止、そうでなければ即 quit。
-func ctrlDActionFor(autoRestart bool) ctrlDAction {
-	if autoRestart {
-		return ctrlDStopAfterSession
-	}
-	return ctrlDQuit
-}
-
 type chatModel struct {
-	handle          *runner.ChatHandle
-	spawn           Spawner // 再起動時に呼ぶ。nil なら再起動不可
-	header          ChatHeader
-	input           textinput.Model
-	viewport        viewport.Model
-	msgs            []chatLine
-	history         []string
-	historyPos      int // history[historyPos] = 次に Up で出す候補。len(history) なら未編集状態。
-	outScanner      *bufio.Scanner
-	errScanner      *bufio.Scanner
-	endedOut        bool
-	endedErr        bool
-	autoRestart     bool      // sticky モード。起動フラグ (--auto-restart) で初期化。streamEndMsg は自動で restart() を発火
-	autoHintShown   bool      // auto-restart ヒント表示済みフラグ
-	quitOnChildExit bool      // Ctrl+D で auto-restart を解除したあと、次の child 終了で素直に Quit する
-	sessionN        int       // 1 始まり。restart で incr して区切りに番号を出す
-	lastEventAt     time.Time // 最後の入力送信 or 出力受信の時刻 (出力行の経過時間の基準)
-	width           int
-	height          int
-	ready           bool
+	handle        *runner.ChatHandle
+	spawn         Spawner // 再起動時に呼ぶ。nil なら再起動不可
+	header        ChatHeader
+	input         textinput.Model
+	viewport      viewport.Model
+	msgs          []chatLine
+	history       []string
+	historyPos    int // history[historyPos] = 次に Up で出す候補。len(history) なら未編集状態。
+	outScanner    *bufio.Scanner
+	errScanner    *bufio.Scanner
+	endedOut      bool
+	endedErr      bool
+	autoRestart   bool      // sticky モード。起動フラグ (--auto-restart) で初期化。streamEndMsg は自動で restart() を発火
+	autoHintShown bool      // auto-restart ヒント表示済みフラグ
+	sessionN      int       // 1 始まり。restart で incr して区切りに番号を出す
+	lastEventAt   time.Time // 最後の入力送信 or 出力受信の時刻 (出力行の経過時間の基準)
+	width         int
+	height        int
+	ready         bool
 }
 
 func initialChatModel(handle *runner.ChatHandle, header ChatHeader, spawn Spawner) *chatModel {
 	ti := textinput.New()
-	ti.Placeholder = "Enter で送信  /  Ctrl+D で終了  /  Ctrl+C で中断"
+	ti.Placeholder = "Enter で送信  /  Ctrl+C か Ctrl+D で終了"
 	ti.Focus()
 	ti.Prompt = "" // プロンプト記号は View 側で描画する
 
@@ -145,7 +126,7 @@ func initialChatModel(handle *runner.ChatHandle, header ChatHeader, spawn Spawne
 	}
 	// auto-restart 指定時は起動直後に一度だけヒントを出す。
 	if m.autoRestart {
-		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(auto-restart on — Ctrl+D to stop after current session, Ctrl+C to abort)"})
+		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(auto-restart on — Ctrl+C or Ctrl+D to stop)"})
 		m.autoHintShown = true
 	}
 	return m
@@ -198,7 +179,7 @@ func (m *chatModel) restart() tea.Cmd {
 	m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: fmt.Sprintf("─── session #%d ───", m.sessionN)})
 	// auto-restart 突入時の一回だけヒントを出す。
 	if m.autoRestart && !m.autoHintShown {
-		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(auto-restart on — Ctrl+D to stop after current session, Ctrl+C to abort)"})
+		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(auto-restart on — Ctrl+C or Ctrl+D to stop)"})
 		m.autoHintShown = true
 	}
 	m.refreshViewport()
@@ -228,25 +209,12 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		switch msg.Type {
-		case tea.KeyCtrlC:
+		case tea.KeyCtrlC, tea.KeyCtrlD:
+			// Ctrl+C / Ctrl+D はどちらも chat の終了。子を kill して quit する
+			// (子に EOF は送らない)。両キーに区別は無い (要件 022)。auto-restart 中も
+			// 即 quit (現セッションの完了は待たない)。
 			_ = m.handle.Kill()
 			return m, tea.Quit
-		case tea.KeyCtrlD:
-			// Ctrl+D は atcoder CLI 側の終了操作。子の stdin には渡さない (EOF を
-			// 送らない) — interactive 問題の解答は EOF を読まないので EOF 送信に
-			// 実益が無く、抜けたつもりの Ctrl+D で子を異常終了させる驚きを避ける。
-			switch ctrlDActionFor(m.autoRestart) {
-			case ctrlDStopAfterSession:
-				// auto-restart 中: 再実行ループを止め、現セッションの子が自然終了
-				// したら quit する (kill も EOF もしない = graceful 停止)。
-				m.autoRestart = false
-				m.quitOnChildExit = true
-				m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(auto-restart off — will exit after this session; Ctrl+C to abort now)"})
-				m.refreshViewport()
-			default: // ctrlDQuit
-				_ = m.handle.Kill()
-				return m, tea.Quit
-			}
 		case tea.KeyEnter:
 			txt := m.input.Value()
 			if _, err := fmt.Fprintln(m.handle.Stdin, txt); err != nil {
@@ -325,12 +293,8 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.endedErr = true
 		}
 		if m.endedOut && m.endedErr {
-			// 優先度: quitOnChildExit > autoRestart > quit。
-			// 終了後プロンプトは廃止。再起動するかどうかは起動フラグ (--auto-restart)
-			// で確定済みなので、ここで対話的に選ばせることはしない。
-			if m.quitOnChildExit {
-				return m, tea.Quit
-			}
+			// 再起動するかどうかは起動フラグ (--auto-restart) で確定済みなので、
+			// ここで対話的に選ばせることはしない (終了後プロンプトは廃止)。
 			if m.autoRestart && m.spawn != nil {
 				// プロンプト無しでそのまま再起動。
 				return m, m.restart()

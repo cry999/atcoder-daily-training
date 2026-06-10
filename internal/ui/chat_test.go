@@ -116,16 +116,6 @@ func TestStreamEndQuitsWhenNoAutoRestart(t *testing.T) {
 	}
 }
 
-func TestStreamEndQuitsWhenQuitOnChildExit(t *testing.T) {
-	m := initialChatModel(fakeHandle(), ChatHeader{AutoRestart: true}, fakeSpawn())
-	m.quitOnChildExit = true // Ctrl+D 後の状態
-	m.endedErr = true
-	_, cmd := m.Update(streamEndMsg{kind: kindOut})
-	if !isQuit(cmd) {
-		t.Error("quitOnChildExit should win over autoRestart and quit")
-	}
-}
-
 func hasInfo(m *chatModel, substr string) bool {
 	for _, l := range m.msgs {
 		if strings.Contains(l.text, substr) {
@@ -141,14 +131,4 @@ func isQuit(cmd tea.Cmd) bool {
 	}
 	_, ok := cmd().(tea.QuitMsg)
 	return ok
-}
-
-// Ctrl+D は子に EOF を送らず CLI 側の終了操作。auto-restart の有無で動作が分かれる。
-func TestCtrlDActionFor(t *testing.T) {
-	if got := ctrlDActionFor(false); got != ctrlDQuit {
-		t.Errorf("ctrlDActionFor(false) = %d, want ctrlDQuit", got)
-	}
-	if got := ctrlDActionFor(true); got != ctrlDStopAfterSession {
-		t.Errorf("ctrlDActionFor(true) = %d, want ctrlDStopAfterSession", got)
-	}
 }
