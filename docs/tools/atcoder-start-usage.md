@@ -23,12 +23,26 @@ atcoder start <contest> --task <task> [--until-pass] [--refresh] [-d] [-s] [-j <
 
 1. レイアウトを解決し、解答パス (`exercise/YYYY/MM/DD/<task>.py` または `abc/<num>/<letter>.py` 等) を決める。
 2. **解答ファイルを用意**: 親ディレクトリを作成し、ファイルが無ければ**空ファイル**を生成 (既存は温存)。`created:` / `solution: ... (exists)` を 1 行表示。
-3. **`test --watch` の編集ループに入る**: 初回にサンプルを fetch して判定、以降は保存検知で自動再実行。画面はクリアされ最新結果だけを表示。
-4. 終了:
-   - 既定は `Ctrl+C` (FAIL/RE/TLE でもループは止まらない)。
+3. **watch の編集ループに入る**: 初回にサンプルを fetch して判定、以降は保存検知で自動再実行。画面はクリアされ最新結果だけを表示。
+4. **待機中のキー操作** (下表) を受け付ける。
+5. 終了:
+   - `q` または `Ctrl+C` で終了 (FAIL/RE/TLE でもループは止まらない)。
    - `--until-pass` 指定時は、**サンプルが全通過した回**で自動終了 (exit 0)。
 
-`start` は `new` (ファイル用意) と `test --watch` (編集ループ) を束ねた薄いコマンドで、新しい判定・実行ロジックは持たない。
+## キー操作 (watch 待機中)
+
+各テスト実行のあとの待機中に、以下のキーが効く:
+
+| キー | 動作 |
+|---|---|
+| `q` / `Ctrl+C` | watch を終了 (exit 0) |
+| `i` | **インタラクティブモード** (`test --interactive` と同じ chat) を起動。抜けると watch に戻り再実行 |
+| (解答を保存) | 自動再実行 |
+| その他 | 無視 |
+
+`i` で対話に入る → 抜けて watch に戻る、を何度でも繰り返せる。対話問題を試しながらサンプル判定の watch を回し続けられる。キーが効くのは**待機中だけ** (テスト実行中・chat 中は無効。chat 中は chat 側のキー操作)。端末を raw 化できない環境ではキーは無効になり、保存検知のみの watch として動く。
+
+`start` は `new` (ファイル用意) と `test --watch` (編集ループ) + キー操作層を束ねた薄いコマンドで、新しい判定・実行ロジックは持たない。
 
 ## 例
 
@@ -63,4 +77,4 @@ atcoder start abc457 --task d
 ## 関連
 
 - 利用手引: [atcoder-test-usage.md](./atcoder-test-usage.md) (watch モードの詳細)
-- 要件: [018-start-command.md](./requirements/018-start-command.md) / [004-exercise-test-watch.md](./requirements/004-exercise-test-watch.md)
+- 要件: [018-start-command.md](./requirements/018-start-command.md) / [019-start-key-actions.md](./requirements/019-start-key-actions.md) / [004-exercise-test-watch.md](./requirements/004-exercise-test-watch.md)
