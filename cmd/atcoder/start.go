@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cry999/atcoder-daily-training/internal/cachepath"
 	"github.com/cry999/atcoder-daily-training/internal/config"
 	"github.com/cry999/atcoder-daily-training/internal/layout"
 	"github.com/cry999/atcoder-daily-training/internal/runner"
@@ -154,7 +155,7 @@ func runStartWatch(contest, task string, lay layout.Layout, refresh bool,
 	return ui.RunStartSplit(ui.StartSplitConfig{
 		SolutionPath: solutionPath,
 		Spawn:        ui.Spawner(spawn),
-		Header:       ui.ChatHeader{Task: task, Contest: contest, TimeLimitMs: timeLimitMs, Debug: debug, AutoRestart: true, WatchPath: solutionPath, Submit: chatSubmitFunc(contest, task, lay)},
+		Header:       ui.ChatHeader{Task: task, Contest: contest, TimeLimitMs: timeLimitMs, Debug: debug, AutoRestart: true, WatchPath: solutionPath, Submit: chatSubmitFunc(contest, task, lay), TaskDir: cachepath.Task(contest, task), Tolerance: tolerance},
 		RunSamples:   runSamples,
 		Changed:      w.Changed,
 		UntilPass:    untilPass,

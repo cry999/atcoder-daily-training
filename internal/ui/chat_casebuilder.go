@@ -1,0 +1,403 @@
+package ui
+
+import (
+	"strconv"
+	"strings"
+
+	"github.com/charmbracelet/bubbles/textarea"
+	"github.com/charmbracelet/bubbles/textinput"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+
+	"github.com/cry999/atcoder-daily-training/internal/extracase"
+)
+
+// chatMode は chat の入力モード (vim 風)。要件 024。
+//
+//	insert  : 既定。textinput にフォーカスし Enter で子に送信 (従来の chat)。
+//	command : ex-command line (`:…`)。コマンドを 1 行打って Enter で実行。
+//	builder : ケースビルダー (input/expected の textarea 2 ペイン)。
+type chatMode int
+
+const (
+	modeInsert chatMode = iota
+	modeCommand
+	modeBuilder
+)
+
+// caseBuilder は `:case` で開く入出力ケースの作成画面。input/expected の
+// 2 ペインを Tab で行き来する。子プロセスには一切触れない (作成中も会話は生きたまま)。
+type caseBuilder struct {
+	in    textarea.Model
+	out   textarea.Model
+	focus int // 0=input, 1=expected
+}
+
+// verifier はライブ検証の状態。expected を順序どおり子 stdout と突き合わせる。
+type verifier struct {
+	expected []string // 期待出力の行
+	pos      int      // 次に照合する expected 行の index
+	tol      float64
+}
+
+// newCommandInput は command モードの `:` 行用 textinput を作る。
+func newCommandInput() textinput.Model {
+	ti := textinput.New()
+	ti.Prompt = ":"
+	ti.Placeholder = "case | w [name] | set verify | q"
+	return ti
+}
+
+// newCaseBuilder は input を現セッションの送信入力で前埋めしたビルダーを作る。
+func newCaseBuilder(prefillIn []string) *caseBuilder {
+	in := textarea.New()
+	in.SetValue(strings.Join(prefillIn, "\n"))
+	in.SetHeight(5)
+	out := textarea.New()
+	out.SetHeight(5)
+	b := &caseBuilder{in: in, out: out, focus: 0}
+	b.in.Focus()
+	return b
+}
+
+func (b *caseBuilder) setWidth(w int) {
+	if w < 10 {
+		w = 10
+	}
+	b.in.SetWidth(w)
+	b.out.SetWidth(w)
+}
+
+// active は今フォーカスされているペインを返す。
+func (b *caseBuilder) active() *textarea.Model {
+	if b.focus == 1 {
+		return &b.out
+	}
+	return &b.in
+}
+
+// toggleFocus は input ⇄ expected のフォーカスを入れ替える。
+func (b *caseBuilder) toggleFocus() {
+	if b.focus == 0 {
+		b.focus = 1
+		b.in.Blur()
+		b.out.Focus()
+	} else {
+		b.focus = 0
+		b.out.Blur()
+		b.in.Focus()
+	}
+}
+
+// command は ex-command line をパースした結果 (純粋関数 parseCommand が返す)。
+type command struct {
+	name string // case / w / set / q / "" (空入力) / unknown
+	arg  string // w の name、set の verify/noverify など
+}
+
+// parseCommand は `:` を除いたコマンド文字列を解釈する純粋関数。
+// 別名 (c=case) を正規化し、最初の語を name、残りを arg にする。
+func parseCommand(s string) command {
+	f := strings.Fields(strings.TrimSpace(s))
+	if len(f) == 0 {
+		return command{name: ""}
+	}
+	name := f[0]
+	arg := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(s), name))
+	switch name {
+	case "c", "case":
+		return command{name: "case", arg: arg}
+	case "w", "write":
+		return command{name: "w", arg: arg}
+	case "set":
+		return command{name: "set", arg: arg}
+	case "q", "quit":
+		return command{name: "q", arg: arg}
+	default:
+		return command{name: "unknown", arg: name}
+	}
+}
+
+// enterCommandMode は insert / builder から command モード (`:` 行) へ移る。
+func (m *chatModel) enterCommandMode() tea.Cmd {
+	m.mode = modeCommand
+	m.cmdInput = newCommandInput()
+	return m.cmdInput.Focus()
+}
+
+// updateCommand は command モードのキー処理。Enter で実行、Esc でキャンセル。
+func (m *chatModel) updateCommand(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.Type {
+	case tea.KeyEnter:
+		cmd := parseCommand(m.cmdInput.Value())
+		return m.execCommand(cmd)
+	case tea.KeyEsc:
+		// キャンセル: builder が開いていれば編集に戻る、なければ insert へ。
+		if m.builder != nil {
+			m.mode = modeBuilder
+		} else {
+			m.mode = modeInsert
+		}
+		return m, nil
+	default:
+		var c tea.Cmd
+		m.cmdInput, c = m.cmdInput.Update(msg)
+		return m, c
+	}
+}
+
+// execCommand は確定したコマンドを実行する。実行後のモード遷移もここで決める。
+func (m *chatModel) execCommand(cmd command) (tea.Model, tea.Cmd) {
+	switch cmd.name {
+	case "": // 空コマンド → 何もせず元のモードへ
+		if m.builder != nil {
+			m.mode = modeBuilder
+		} else {
+			m.mode = modeInsert
+		}
+	case "case":
+		m.builder = newCaseBuilder(m.sessionInputs)
+		m.builder.setWidth(m.width)
+		m.mode = modeBuilder
+		return m, m.builder.in.Focus()
+	case "w":
+		m.saveBuilder(cmd.arg)
+	case "q":
+		// builder 中なら破棄して閉じる、そうでなければ chat 終了 (Ctrl+D 相当)。
+		if m.builder != nil {
+			m.closeBuilder()
+		} else {
+			if m.handle != nil {
+				_ = m.handle.Kill()
+			}
+			return m, tea.Quit
+		}
+	case "set":
+		m.applySet(cmd.arg)
+		if m.builder != nil {
+			m.mode = modeBuilder
+		} else {
+			m.mode = modeInsert
+		}
+		m.refreshViewport()
+		return m, nil
+	default: // unknown
+		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "E492: unknown command :" + cmd.arg})
+		m.mode = modeInsert
+	}
+	m.refreshViewport()
+	return m, nil
+}
+
+// applySet は `:set verify` / `:set noverify` を処理する。
+func (m *chatModel) applySet(arg string) {
+	switch strings.TrimSpace(arg) {
+	case "verify":
+		if len(m.lastExpected) == 0 {
+			m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(検証する期待出力がありません — :case で expected を定義してください)"})
+			return
+		}
+		m.enableVerify(m.lastExpected)
+		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(ライブ検証 on)"})
+	case "noverify":
+		m.verify = nil
+		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(ライブ検証 off)"})
+	default:
+		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "E518: unknown option :set " + arg})
+	}
+}
+
+// enableVerify はライブ検証を (再) 開始する。pos は現在の出力位置から始める
+// (既に出ている出力は照合済み扱いにせず、これ以降の stdout を expected[0] から見る)。
+func (m *chatModel) enableVerify(expected []string) {
+	m.verify = &verifier{expected: expected, pos: 0, tol: m.verifyTol()}
+}
+
+func (m *chatModel) verifyTol() float64 {
+	if m.header.Tolerance > 0 {
+		return m.header.Tolerance
+	}
+	return defaultVerifyTol
+}
+
+const defaultVerifyTol = 1e-6
+
+// saveBuilder は builder の内容を tests-extra に保存する。成功で builder を閉じて
+// chat に戻る。失敗なら builder は開いたままエラー行を出す。
+func (m *chatModel) saveBuilder(name string) {
+	if m.builder == nil {
+		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(:w は :case で作成画面を開いてから)"})
+		m.mode = modeInsert
+		return
+	}
+	if m.header.TaskDir == "" {
+		m.msgs = append(m.msgs, chatLine{kind: kindErr, text: "(保存先 (tests-extra) が不明なため保存できません)"})
+		m.mode = modeBuilder
+		return
+	}
+	inBytes := normalizeForSave(m.builder.in.Value())
+	outBytes := normalizeForSave(m.builder.out.Value())
+	saved, err := extracase.Save(m.header.TaskDir, strings.TrimSpace(name), inBytes, outBytes)
+	if err != nil {
+		m.msgs = append(m.msgs, chatLine{kind: kindErr, text: "(保存に失敗: " + err.Error() + ")"})
+		m.mode = modeBuilder // 開いたままにして直せるように
+		return
+	}
+	m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(saved tests-extra/x" + saved + ")"})
+	m.closeBuilder()
+}
+
+// closeBuilder は builder を閉じて chat (insert) に戻る。expected が空でなければ
+// それを記憶し、ライブ検証を自動で有効化する (ファイル保存の有無に依らない — 要件 024)。
+func (m *chatModel) closeBuilder() {
+	if m.builder != nil {
+		exp := splitLines(m.builder.out.Value())
+		if len(exp) > 0 {
+			m.lastExpected = exp
+			m.enableVerify(exp)
+		}
+	}
+	m.builder = nil
+	m.mode = modeInsert
+}
+
+// updateBuilder は builder モードのキー処理。Tab でペイン切替、Esc で command 行へ。
+func (m *chatModel) updateBuilder(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.Type {
+	case tea.KeyTab:
+		m.builder.toggleFocus()
+		return m, nil
+	case tea.KeyEsc:
+		// 編集を抜けて command 行へ (:w で保存 / :q で破棄)。
+		m.builder.in.Blur()
+		m.builder.out.Blur()
+		return m, m.enterCommandMode()
+	default:
+		var c tea.Cmd
+		if m.builder.focus == 1 {
+			m.builder.out, c = m.builder.out.Update(msg)
+		} else {
+			m.builder.in, c = m.builder.in.Update(msg)
+		}
+		return m, c
+	}
+}
+
+// applyVerify は子の stdout 行 1 つに対しライブ検証の判定を付ける。
+// verify が無効 or expected を使い切っていれば何もしない (判定なし)。
+func (m *chatModel) applyVerify(line *chatLine) {
+	v := m.verify
+	if v == nil || v.pos >= len(v.expected) {
+		return
+	}
+	exp := v.expected[v.pos]
+	v.pos++
+	if tokensMatch(exp, line.text, v.tol) {
+		line.verdict = verdictOK
+	} else {
+		line.verdict = verdictNG
+		line.verdictExp = exp
+	}
+}
+
+const (
+	verdictOK = "ok"
+	verdictNG = "ng"
+)
+
+// tokensMatch は expected と actual を空白区切りトークン列として比較する純粋関数。
+// トークン数が違えば不一致。各トークンは文字列一致、または両方が float として
+// 解釈でき差が tol 以内なら一致とみなす (judge と同じ許容誤差の考え方)。
+func tokensMatch(expected, actual string, tol float64) bool {
+	ef := strings.Fields(expected)
+	af := strings.Fields(actual)
+	if len(ef) != len(af) {
+		return false
+	}
+	for i := range ef {
+		if ef[i] == af[i] {
+			continue
+		}
+		x, ex := strconv.ParseFloat(ef[i], 64)
+		y, ey := strconv.ParseFloat(af[i], 64)
+		if ex != nil || ey != nil {
+			return false
+		}
+		d := x - y
+		if d < 0 {
+			d = -d
+		}
+		if d > tol {
+			return false
+		}
+	}
+	return true
+}
+
+// renderBuilder は builder モード (と builder 付き command モード) の画面を組む。
+func (m *chatModel) renderBuilder() string {
+	title := caseBuilderTitleStyle.Render("new case")
+	inLabel := caseBuilderLabelStyle.Render("input (.in)")
+	outLabel := caseBuilderLabelStyle.Render("expected (.out)")
+	if m.builder.focus == 0 {
+		inLabel = caseBuilderFocusLabelStyle.Render("input (.in) ◀")
+	} else {
+		outLabel = caseBuilderFocusLabelStyle.Render("expected (.out) ◀")
+	}
+	hint := caseBuilderHintStyle.Render("Tab でペイン切替  /  Esc → :w で保存・:q で取消")
+	parts := []string{
+		title,
+		inLabel,
+		m.builder.in.View(),
+		outLabel,
+		m.builder.out.View(),
+		hint,
+	}
+	if m.mode == modeCommand {
+		parts = append(parts, m.cmdInput.View())
+	}
+	return strings.Join(parts, "\n")
+}
+
+// normalizeForSave はペインの内容を保存用に整える (末尾改行を 1 つだけ保証)。
+// 空入力は空バイト列のまま (空 .out を許容する)。
+func normalizeForSave(s string) []byte {
+	if s == "" {
+		return nil
+	}
+	if !strings.HasSuffix(s, "\n") {
+		s += "\n"
+	}
+	return []byte(s)
+}
+
+// splitLines は textarea の内容を行スライスにする (末尾の空行は落とす)。
+func splitLines(s string) []string {
+	s = strings.TrimRight(s, "\n")
+	if s == "" {
+		return nil
+	}
+	return strings.Split(s, "\n")
+}
+
+var (
+	caseBuilderTitleStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaSapphire)).Bold(true)
+	caseBuilderLabelStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay1))
+	caseBuilderFocusLabelStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaGreen)).Bold(true)
+	caseBuilderHintStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay0))
+	chatVerdictOKStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaGreen)).Bold(true)
+	chatVerdictNGStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaRed)).Bold(true)
+)
+
+// verdictSuffix は出力行に添える検証インジケーター ("  ✓" / "  ✗ expected 8")。
+// 判定の無い行は空文字。
+func verdictSuffix(line chatLine) string {
+	switch line.verdict {
+	case verdictOK:
+		return "  " + chatVerdictOKStyle.Render("✓")
+	case verdictNG:
+		return "  " + chatVerdictNGStyle.Render("✗ expected "+line.verdictExp)
+	default:
+		return ""
+	}
+}

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/cry999/atcoder-daily-training/internal/cachepath"
 	"github.com/cry999/atcoder-daily-training/internal/layout"
 	"github.com/cry999/atcoder-daily-training/internal/runexec"
 	"github.com/cry999/atcoder-daily-training/internal/runner"
@@ -43,13 +44,14 @@ func runAdHoc(contest, task string, lay layout.Layout, inFile, outFile string,
 		Debug:       debug,
 		ExecutorFor: selectRunExecutor,
 		Reporter:    ui.NewRunReporter(verbose),
-		ChatRunner:  makeChatRunner(contest, task, lay),
+		ChatRunner:  makeChatRunner(contest, task, lay, tolerance),
 	})
 }
 
-// makeChatRunner は ChatRunner クロージャを作る。chat に Ctrl+S の提出準備フックを
-// 注入するため、contest/task/lay を捕捉する (これらは runexec.ChatHeader には乗らない)。
-func makeChatRunner(contest, task string, lay layout.Layout) func(runexec.ChatSpawner, runexec.ChatHeader) (*runner.ProcessResult, error) {
+// makeChatRunner は ChatRunner クロージャを作る。chat に Ctrl+S の提出準備フックや
+// ケース保存先 (tests-extra) を注入するため、contest/task/lay/tolerance を捕捉する
+// (これらは runexec.ChatHeader には乗らない)。
+func makeChatRunner(contest, task string, lay layout.Layout, tolerance float64) func(runexec.ChatSpawner, runexec.ChatHeader) (*runner.ProcessResult, error) {
 	return func(spawn runexec.ChatSpawner, header runexec.ChatHeader) (*runner.ProcessResult, error) {
 		return ui.RunChat(ui.Spawner(spawn), ui.ChatHeader{
 			Task:        header.Task,
@@ -59,6 +61,8 @@ func makeChatRunner(contest, task string, lay layout.Layout) func(runexec.ChatSp
 			AutoRestart: header.AutoRestart,
 			WatchPath:   header.WatchPath,
 			Submit:      chatSubmitFunc(contest, task, lay),
+			TaskDir:     cachepath.Task(contest, task), // :case/:w の保存先 (tests-extra)
+			Tolerance:   tolerance,
 		})
 	}
 }

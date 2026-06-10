@@ -26,6 +26,8 @@ type ChatHeader struct {
 	AutoRestart bool       // true なら起動時から sticky auto-restart (子終了のたびに再起動する)
 	WatchPath   string     // 非空なら解答ファイルを監視し、保存検知で子を最新ファイルで再 spawn する
 	Submit      SubmitFunc // 非 nil なら Ctrl+S で提出準備を呼べる。composition root が注入する
+	TaskDir     string     // cache の <contest>/<task> dir。非空なら :w でケースを tests-extra に保存できる (要件 024)
+	Tolerance   float64    // ライブ検証の許容誤差 (0 なら既定 1e-6)
 }
 
 // SubmitResult は chat の Ctrl+S 提出準備の結果。chat はこれを 1 行に整形して表示する。
@@ -112,10 +114,12 @@ func waitStatus(frame int, elapsed time.Duration) string {
 }
 
 type chatLine struct {
-	kind   string
-	text   string
-	dur    time.Duration // 直前イベントからの経過時間 (出力行のみ)
-	hasDur bool          // dur が有効か (入力行 / 情報行は false)
+	kind       string
+	text       string
+	dur        time.Duration // 直前イベントからの経過時間 (出力行のみ)
+	hasDur     bool          // dur が有効か (入力行 / 情報行は false)
+	verdict    string        // ライブ検証の判定 ("" / verdictOK / verdictNG)。出力行のみ
+	verdictExp string        // verdictNG のときの期待値 (表示用)
 }
 
 type chatModel struct {
@@ -144,6 +148,14 @@ type chatModel struct {
 	width         int
 	height        int
 	ready         bool
+
+	// ケース作成 + ライブ検証 (要件 024)。
+	mode          chatMode        // insert (既定) / command / builder
+	cmdInput      textinput.Model // command モードの `:` 行
+	builder       *caseBuilder    // 非 nil ならケースビルダーを開いている
+	verify        *verifier       // 非 nil ならライブ検証中
+	lastExpected  []string        // 直近のビルダーで入力した expected (`:set verify` の対象)
+	sessionInputs []string        // 現セッションで送信した入力行 (`:case` の .in 前埋め)
 }
 
 // initialChatModel は遅延起動の chat モデルを作る。子プロセスは開いた時点では
@@ -259,6 +271,10 @@ func (m *chatModel) restart() tea.Cmd {
 	m.endedErr = false
 	m.stopAwaiting()           // 新セッションでは出力待ちをリセット (旧 tick は世代不一致で止まる)
 	m.lastEventAt = time.Now() // 新セッション開始を経過時間の基準にリセット
+	m.sessionInputs = nil      // :case の .in 前埋めは現セッション分のみ
+	if m.verify != nil {       // 新セッションは expected を頭から照合し直す
+		m.verify.pos = 0
+	}
 	m.sessionN++
 	// 初回 spawn (session #1) は区切り線を出さない。再実行以降だけ仕切る。
 	if m.sessionN > 1 {
@@ -306,12 +322,25 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.viewport.Width = m.width
 		}
 		m.input.Width = m.width - 4
+		if m.builder != nil {
+			m.builder.setWidth(m.width - 2)
+		}
 		// viewport の高さは refreshViewport の中で content 行数 + maxViewportHeight()
 		// から動的に決定する (空のあいだは入力ボックスを画面の上の方に出す)。
 		m.refreshViewport()
 
 	case tea.KeyMsg:
+		// command / builder モードはキーを横取りする (要件 024)。insert モードは従来どおり。
+		switch m.mode {
+		case modeCommand:
+			return m.updateCommand(msg)
+		case modeBuilder:
+			return m.updateBuilder(msg)
+		}
 		switch msg.Type {
+		case tea.KeyEsc:
+			// insert → command モード (`:` 行)。vim 風 (ADR 0007)。
+			return m, m.enterCommandMode()
 		case tea.KeyCtrlC:
 			// Ctrl+C = プログラム中断・再起動 (要件 025)。走っている子を kill して
 			// 新しいプロセスでやり直す (新セッション)。chat には留まる。chat 終了
@@ -352,7 +381,8 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(write failed: " + err.Error() + ")"})
 			} else {
 				m.msgs = append(m.msgs, chatLine{kind: kindIn, text: txt})
-				m.lastEventAt = time.Now() // 入力を受け付けた時刻 = 次の出力の経過時間の基準
+				m.lastEventAt = time.Now()                     // 入力を受け付けた時刻 = 次の出力の経過時間の基準
+				m.sessionInputs = append(m.sessionInputs, txt) // :case の .in 前埋め用 (現セッション分)
 				if txt != "" {
 					m.history = append(m.history, txt)
 				}
@@ -411,6 +441,10 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			line.hasDur = true
 			m.lastEventAt = at
 			m.stopAwaiting() // 出力が返ったので待機解除 (スピナーを消す)
+		}
+		// ライブ検証: stdout 行を expected と順に突き合わせ、判定を行に添える (要件 024)。
+		if kind == kindOut {
+			m.applyVerify(&line)
 		}
 		m.msgs = append(m.msgs, line)
 		m.refreshViewport()
@@ -474,13 +508,23 @@ func (m *chatModel) View() string {
 	if !m.ready {
 		return ""
 	}
+	// ケースビルダーを開いている間 (builder / builder 付き command) は、その画面を
+	// ヘッダの下に重ねて出す (子の出力は止めず裏で流れ続けるが画面はビルダー優先)。
+	if m.builder != nil {
+		return strings.Join([]string{m.renderHeader(), m.renderBuilder()}, "\n")
+	}
 	// メッセージが無いときは viewport を描画せず、入力ボックスをヘッダの真下に置く。
 	// 1 件でも出力 / 入力があれば viewport を含めてレンダリングする。
 	parts := []string{m.renderHeader()}
 	if len(m.msgs) > 0 || m.awaiting {
 		parts = append(parts, m.viewport.View())
 	}
-	parts = append(parts, m.renderInputBox())
+	// command モード (builder 無し) は入力ボックスの代わりに `:` 行を出す。
+	if m.mode == modeCommand {
+		parts = append(parts, m.cmdInput.View())
+	} else {
+		parts = append(parts, m.renderInputBox())
+	}
 	return strings.Join(parts, "\n")
 }
 
@@ -614,7 +658,8 @@ func renderMsgBlock(msg chatLine, width int) string {
 	out := make([]string, 0, len(chunks))
 	for i, c := range chunks {
 		if i == 0 {
-			out = append(out, leadCol(msg)+promptStyle.Render(arrow)+" "+textStyle.Render(c))
+			// 1 行目の末尾にライブ検証の判定 (✓ / ✗ expected …) を添える。
+			out = append(out, leadCol(msg)+promptStyle.Render(arrow)+" "+textStyle.Render(c)+verdictSuffix(msg))
 		} else {
 			out = append(out, contIndent+chatWrapStyle.Render(wrapMarker)+" "+textStyle.Render(c))
 		}
