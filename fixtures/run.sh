@@ -93,6 +93,11 @@ run_case "fixture_multi -c 1,3"       0 test fixture --task multi -c 1,3
 run_case "fixture_multi --case 99"    1 test fixture --task multi --case 99
 run_case "fixture_diff (multi-line)"  1 test fixture --task diff
 run_case "fixture_float (1e-6 tol)"   0 test fixture --task float
+# tests-extra (ユーザ追加ケース) は公式サンプルの後ろに連結して走る。表示 id は x01/x02。
+# fixture_extra: 公式 01 (5→10 PASS) + 追加 x01 (7→14 PASS) + 追加 x02 (3→6 ≠999 FAIL)。
+run_case "fixture_extra (extra x02 fails)" 1 test fixture --task extra
+run_case "fixture_extra -c x01 (extra pass)" 0 test fixture --task extra -c x01
+run_case "fixture_extra -c 01 (official only)" 0 test fixture --task extra -c 01
 
 # watch モードは TTY 必須。run.sh の出力は非 TTY なので --watch は exit 2 で拒否される。
 # (watch ループ本体は常駐してブロックするため、ここでは回さない。)

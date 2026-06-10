@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/cry999/atcoder-daily-training/internal/cachepath"
+	"github.com/cry999/atcoder-daily-training/internal/extracase"
 	"github.com/cry999/atcoder-daily-training/internal/layout"
 	"github.com/cry999/atcoder-daily-training/internal/runner"
 )
@@ -67,19 +68,20 @@ func Run(opts Options) (int, error) {
 		return 1, err
 	}
 
-	names, err := listCases(testsDir)
+	refs, err := collectCases(testsDir, taskDir)
 	if err != nil {
 		return 1, err
 	}
-	if len(names) == 0 {
+	if len(refs) == 0 {
 		return 1, errors.New("テストケースが見つかりません")
 	}
 	if len(opts.Cases) > 0 {
-		names, err = filterCases(names, opts.Cases)
+		refs, err = filterRefs(refs, opts.Cases)
 		if err != nil {
 			return 1, err
 		}
 	}
+	names := caseIDs(refs) // 表示 id (公式=01… / 追加=x01…)。Reporter とサマリで使う
 
 	timeout := time.Duration(mta.TimeLimitMs) * time.Millisecond
 	if opts.Timeout > 0 {
@@ -108,22 +110,22 @@ func Run(opts Options) (int, error) {
 
 	opts.Reporter.Begin(names, concurrency)
 
-	results := make([]CaseResult, len(names))
+	results := make([]CaseResult, len(refs))
 	var (
 		wg       sync.WaitGroup
 		mu       sync.Mutex // firstErr を保護する
 		firstErr error
 		sem      = make(chan struct{}, concurrency)
 	)
-	for i, name := range names {
+	for i, ref := range refs {
 		wg.Add(1)
-		go func(i int, name string) {
+		go func(i int, ref caseRef) {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
 
-			opts.Reporter.CaseStarted(name)
-			cr, err := runCase(executor, extraEnv, opts.Debug, tolerance, solutionPath, testsDir, name, timeout)
+			opts.Reporter.CaseStarted(ref.id)
+			cr, err := runCase(executor, extraEnv, opts.Debug, tolerance, solutionPath, ref, timeout)
 			if err != nil {
 				mu.Lock()
 				if firstErr == nil {
@@ -135,7 +137,7 @@ func Run(opts Options) (int, error) {
 			cr.OriginalLimitMs = mta.TimeLimitMs
 			results[i] = cr
 			opts.Reporter.CaseFinished(cr)
-		}(i, name)
+		}(i, ref)
 	}
 	wg.Wait()
 
@@ -157,15 +159,12 @@ func Run(opts Options) (int, error) {
 	return 0, nil
 }
 
-func runCase(executor Executor, extraEnv []string, debug bool, tolerance float64, solutionPath, testsDir, name string, timeout time.Duration) (CaseResult, error) {
-	inPath := filepath.Join(testsDir, name+".in")
-	outPath := filepath.Join(testsDir, name+".out")
-
-	input, err := os.ReadFile(inPath)
+func runCase(executor Executor, extraEnv []string, debug bool, tolerance float64, solutionPath string, ref caseRef, timeout time.Duration) (CaseResult, error) {
+	input, err := os.ReadFile(ref.in)
 	if err != nil {
 		return CaseResult{}, err
 	}
-	expected, err := os.ReadFile(outPath)
+	expected, err := os.ReadFile(ref.out)
 	if err != nil {
 		return CaseResult{}, err
 	}
@@ -174,7 +173,7 @@ func runCase(executor Executor, extraEnv []string, debug bool, tolerance float64
 	if err != nil {
 		return CaseResult{}, err
 	}
-	return judge(name, string(input), string(expected), pr, debug, tolerance), nil
+	return judge(ref.id, string(input), string(expected), pr, debug, tolerance), nil
 }
 
 // EnsureResult は EnsureTests の結果サマリ。コンテスト一括準備の進捗表示に使う。
@@ -258,18 +257,67 @@ func ensureTests(reporter Reporter, contest, task, taskDir, testsDir, metaPath s
 	return mta, true, nil
 }
 
-// filterCases は要求されたケース名 (例: "1", "01", "03") の和集合に含まれる
-// ケースだけを並びを保って返す。数値のみの指定は 2 桁ゼロ埋めに正規化する。
-// 該当するケースが 1 つも無ければエラー。
-func filterCases(all, requested []string) ([]string, error) {
+// caseRef は判定 1 件分の参照。id は表示 id (公式=01… / 追加=x01…)、in/out は
+// 実ファイルの絶対パス (公式は tests/、追加は tests-extra/ を指す)。
+type caseRef struct {
+	id  string
+	in  string
+	out string
+}
+
+// collectCases は公式サンプル (tests/) の後ろにユーザ追加ケース (tests-extra/) を
+// 連結した判定対象の並びを返す。追加ケースは表示 id に接頭辞 `x` を付け、公式と
+// 区別する (x は ASCII で数字の後にソートされ、公式の後に並ぶ)。tests-extra が
+// 無いのは正常 (公式だけを返す)。
+func collectCases(testsDir, taskDir string) ([]caseRef, error) {
+	official, err := listCases(testsDir)
+	if err != nil {
+		return nil, err
+	}
+	refs := make([]caseRef, 0, len(official))
+	for _, n := range official {
+		refs = append(refs, caseRef{
+			id:  n,
+			in:  filepath.Join(testsDir, n+".in"),
+			out: filepath.Join(testsDir, n+".out"),
+		})
+	}
+	extra, err := extracase.List(taskDir)
+	if err != nil {
+		return nil, err
+	}
+	extraDir := extracase.Dir(taskDir)
+	for _, n := range extra {
+		refs = append(refs, caseRef{
+			id:  "x" + n,
+			in:  filepath.Join(extraDir, n+".in"),
+			out: filepath.Join(extraDir, n+".out"),
+		})
+	}
+	return refs, nil
+}
+
+// caseIDs は refs の表示 id を順番どおりに取り出す。
+func caseIDs(refs []caseRef) []string {
+	ids := make([]string, len(refs))
+	for i, r := range refs {
+		ids[i] = r.id
+	}
+	return ids
+}
+
+// filterRefs は要求されたケース id (例: "1", "01", "x01") の和集合に含まれる
+// ケースだけを並びを保って返す。数値のみの指定は 2 桁ゼロ埋めに正規化する
+// (追加ケースは `x01` のように接頭辞付きで明示指定する)。該当無しはエラー。
+func filterRefs(all []caseRef, requested []string) ([]caseRef, error) {
 	want := make(map[string]bool, len(requested))
 	for _, r := range requested {
 		want[normalizeCaseName(r)] = true
 	}
-	var out []string
-	for _, name := range all {
-		if want[name] {
-			out = append(out, name)
+	var out []caseRef
+	for _, ref := range all {
+		if want[ref.id] {
+			out = append(out, ref)
 		}
 	}
 	if len(out) == 0 {
