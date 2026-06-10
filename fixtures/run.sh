@@ -98,6 +98,15 @@ run_case "fixture_float (1e-6 tol)"   0 test fixture --task float
 # (watch ループ本体は常駐してブロックするため、ここでは回さない。)
 run_case "fixture_pass --watch (non-TTY reject)" 2 test fixture --task pass --watch
 
+# start は解答ファイルを用意してから watch を起動する。run.sh は非 TTY なので watch
+# 段階で exit 2 になるが、その前に解答ファイルが作られることを確認する (start 固有部分)。
+# --until-pass の「全通過で終了」は TTY 必須のため run.sh では扱わない (手動確認)。
+run_case "start creates skeleton then rejects non-TTY" 2 start fixture --task brandnew
+test -f "$STAGE/$DATE_DIR/fixture_brandnew.py" \
+    && echo "  ✓ start created exercise/.../fixture_brandnew.py" \
+    || { echo "  ✗ start did not create the skeleton file"; failures=$((failures + 1)); }
+run_case "start without --task (reject)" 2 start fixture
+
 # ----- ユーザ設定ファイル (config.toml) -----
 # config の側 (side_by_side) は終了コードを変えないので、出力に diff の
 # side-by-side ラベルが出るか/出ないかで検証する。

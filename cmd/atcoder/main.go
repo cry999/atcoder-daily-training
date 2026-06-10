@@ -11,7 +11,7 @@ import (
 // builtins は組み込みサブコマンド名の集合。下の switch・usage() と同期させること。
 // alias より常に優先される (alias は未知名のときだけ解決される)。
 var builtins = map[string]bool{
-	"new": true, "test": true, "stats": true, "review": true,
+	"new": true, "start": true, "test": true, "stats": true, "review": true,
 	"config": true, "commit": true, "completion": true,
 	"update": true, "version": true, "__complete": true,
 }
@@ -36,6 +36,12 @@ func main() {
 			fmt.Fprintln(os.Stderr, "atcoder new:", err)
 			os.Exit(1)
 		}
+	case "start":
+		code, err := cmdStart(args[1:])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "atcoder start:", err)
+		}
+		os.Exit(code)
 	case "test":
 		code, err := cmdTest(args[1:])
 		if err != nil {
@@ -114,6 +120,7 @@ func usage() {
 	fmt.Fprintln(os.Stderr, `Usage:
   atcoder new
   atcoder new abc <contest> [--tasks <list>] [--refresh] [--no-skeleton] [--no-fetch]
+  atcoder start  <contest> --task <task> [--until-pass] [--refresh] [-d] [-s] [-j <n>] [--timeout <dur>] [--tolerance <eps>] [--layout <auto|abc|exercise>]
   atcoder test   <contest> --task <task>   # default: judge downloaded samples
                  [sample: -c <N[,M,...]> | --refresh | -j <n> | -w | -s | --submit [--no-open]]
                  [ad-hoc: --in <path>|- | --out <path> | --interactive]

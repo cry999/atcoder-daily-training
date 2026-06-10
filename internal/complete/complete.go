@@ -66,6 +66,7 @@ var configSubCands = []Candidate{
 // subcommandCands は補完対象のサブコマンド名 (説明付き)。__complete は隠すので含めない。
 var subcommandCands = []Candidate{
 	{"new", "scaffold today's exercise dir (or an abc contest)"},
+	{"start", "create the solution file and launch test --watch"},
 	{"test", "run a solution (samples by default; --in/--out/--interactive for ad-hoc; --submit to submit)"},
 	{"stats", "show daily practice statistics"},
 	{"review", "list practiced contests of a category"},
@@ -93,6 +94,20 @@ var subFlags = map[string][]Candidate{
 		{"--refresh", "force refetch sample cases"},
 		{"--no-skeleton", "do not generate skeleton files"},
 		{"--no-fetch", "skip all network fetches"},
+	},
+	"start": {
+		{"--task", "task ID or short letter (e.g. d)"},
+		{"--until-pass", "exit when all sample tests pass"},
+		{"--refresh", "force refetch sample cases on the first run"},
+		{"--timeout", "override time limit (e.g. 5s)"},
+		{"--tolerance", "float comparison tolerance (e.g. 1e-9)"},
+		{"-d", "run with DEBUG=1, special-case [DEBUG] lines"},
+		{"--debug", "run with DEBUG=1, special-case [DEBUG] lines"},
+		{"-s", "show diff side-by-side"},
+		{"--side-by-side", "show diff side-by-side"},
+		{"--jobs", "parallel test-case workers"},
+		{"-j", "parallel test-case workers"},
+		{"--layout", "solution file layout"},
 	},
 	"test": {
 		{"--task", "task ID or short letter (e.g. d)"},
@@ -150,7 +165,7 @@ var subFlags = map[string][]Candidate{
 }
 
 // takesContest はそのサブコマンドが <contest> 位置引数を取るか。
-var takesContest = map[string]bool{"test": true}
+var takesContest = map[string]bool{"start": true, "test": true}
 
 // Subcommands は補完対象のサブコマンド名を返す (__complete は隠すので含めない)。
 func Subcommands() []string {
@@ -316,7 +331,7 @@ func contestOf(sub string, pos []string) string {
 		if len(pos) >= 2 && pos[0] == "abc" {
 			return pos[1]
 		}
-	case "test":
+	case "test", "start":
 		if len(pos) >= 1 {
 			return pos[0]
 		}

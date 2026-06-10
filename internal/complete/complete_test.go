@@ -45,7 +45,8 @@ func TestComplete(t *testing.T) {
 	}{
 		{"empty -> all subcommands", nil, Subcommands()},
 		{"subcommand prefix", []string{"te"}, []string{"test"}},
-		{"subcommand prefix s", []string{"s"}, []string{"stats"}},
+		{"subcommand prefix s", []string{"s"}, []string{"start", "stats"}},
+		{"start takes a contest", []string{"start", "ab"}, []string{"abc457"}},
 		{"flag prefix", []string{"test", "--la"}, []string{"--layout"}},
 		{"layout values", []string{"test", "abc457", "--layout", ""}, []string{"auto", "abc", "exercise"}},
 		{"contest from dirs", []string{"test", "ab"}, []string{"abc457"}},

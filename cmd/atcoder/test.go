@@ -152,7 +152,7 @@ func cmdTest(args []string) (int, error) {
 	}
 
 	if watchMode {
-		return runTestWatch(contest, task, lay, *refresh, buildOpts)
+		return runTestWatch(contest, task, lay, *refresh, buildOpts, false)
 	}
 
 	code, err := testexec.Run(buildOpts(*refresh))
@@ -171,7 +171,9 @@ func cmdTest(args []string) (int, error) {
 
 // runTestWatch は解答ファイルの保存を監視し、変更のたびにテストを再実行する。
 // Ctrl+C で抜けて exit 0。判定結果 (FAIL/RE/TLE) ではループを止めない。
-func runTestWatch(contest, task string, lay layout.Layout, refresh bool, buildOpts func(refresh bool) testexec.Options) (int, error) {
+// untilPass が true なら、サンプルが全通過した回 (testexec.Run が 0) で抜けて exit 0
+// にする (`atcoder start --until-pass` 用)。
+func runTestWatch(contest, task string, lay layout.Layout, refresh bool, buildOpts func(refresh bool) testexec.Options, untilPass bool) (int, error) {
 	if !ui.IsStdoutTerminal() {
 		return 2, errors.New("--watch requires a terminal (stdout is not a TTY)")
 	}
@@ -191,10 +193,17 @@ func runTestWatch(contest, task string, lay layout.Layout, refresh bool, buildOp
 		ui.WatchHeader(solutionPath)
 
 		// 初回だけ --refresh を効かせる (毎保存での再 fetch を避ける)。
-		if _, err := testexec.Run(buildOpts(refresh && firstRun)); err != nil {
+		code, err := testexec.Run(buildOpts(refresh && firstRun))
+		if err != nil {
 			fmt.Fprintln(os.Stderr, "atcoder test:", err)
 		}
 		firstRun = false
+
+		// --until-pass: 全サンプル通過 (code==0) でループを抜けて終了する。
+		if untilPass && err == nil && code == 0 {
+			fmt.Println()
+			return 0, nil
+		}
 
 		ui.WatchFooter(solutionPath)
 
