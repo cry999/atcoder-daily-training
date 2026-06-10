@@ -3,6 +3,7 @@ package ui
 import (
 	"bufio"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -387,13 +388,13 @@ func (m *chatModel) refreshViewport() {
 		}
 		switch msg.kind {
 		case kindIn:
-			sb.WriteString(chatInPromptStyle.Render("→") + " " + chatInTextStyle.Render(msg.text))
+			sb.WriteString(leadCol(msg) + chatInPromptStyle.Render("→") + " " + chatInTextStyle.Render(msg.text))
 		case kindOut:
-			sb.WriteString(chatOutPromptStyle.Render("←") + " " + durPrefix(msg) + chatOutTextStyle.Render(msg.text))
+			sb.WriteString(leadCol(msg) + chatOutPromptStyle.Render("←") + " " + chatOutTextStyle.Render(msg.text))
 		case kindDebug:
-			sb.WriteString(chatDebugPromptStyle.Render("*") + " " + durPrefix(msg) + chatDebugTextStyle.Render(msg.text))
+			sb.WriteString(leadCol(msg) + chatDebugPromptStyle.Render("*") + " " + chatDebugTextStyle.Render(msg.text))
 		case kindErr:
-			sb.WriteString(chatErrPromptStyle.Render("✖") + " " + durPrefix(msg) + chatErrTextStyle.Render(msg.text))
+			sb.WriteString(leadCol(msg) + chatErrPromptStyle.Render("✖") + " " + chatErrTextStyle.Render(msg.text))
 		case kindInfo:
 			sb.WriteString(infoStyle.Render(msg.text))
 		}
@@ -414,41 +415,39 @@ func (m *chatModel) refreshViewport() {
 	m.viewport.GotoBottom()
 }
 
-// durWidth は経過時間を右寄せで揃える固定幅 (例 "340µs" / "2.34s" が収まる)。
-const durWidth = 7
+// durWidth は経過時間を右寄せで揃える固定幅 (最大は "9999ms" の 6 桁)。
+const durWidth = 6
 
-// durPrefix は出力行の頭に添える dim な経過時間 (固定幅・末尾スペース付き)。
-// 経過情報が無い行 (理論上ここには来ない) では空文字を返す。
-func durPrefix(line chatLine) string {
+// leadCol は行頭の固定幅カラムを返す。出力行は dim な経過時間を右寄せで、
+// 経過情報の無い行 (入力 →) は同じ幅の空白で埋めて、矢印の桁を揃える。
+// いずれも末尾にスペース 1 つを足して矢印と区切る。
+func leadCol(line chatLine) string {
 	if !line.hasDur {
-		return ""
+		return strings.Repeat(" ", durWidth) + " "
 	}
 	return chatTimeStyle.Render(fmt.Sprintf("%*s", durWidth, formatDur(line.dur))) + " "
 }
 
-// formatDur は経過時間をコンパクトな適応書式にする。負値は 0 に丸める。
+// formatDur は経過時間を「最大単位のみ・それ以下は四捨五入」で表す。負値は 0 に丸める。
+// ただし 10,000ms 未満は s ではなく ms で出す (1100ms は "1100ms"、10s は "10s")。
 //
-//	>= 1s        → "2.34s"
-//	1ms 〜 1s    → "12ms" / 1 桁台は "1.2ms"
-//	1µs 〜 1ms   → "340µs"
-//	< 1µs        → "0" / "830ns"
+//	>= 10s        → "10s"   (秒に四捨五入)
+//	1ms 〜 <10s   → "1100ms" (ms に四捨五入)
+//	1µs 〜 <1ms   → "340µs"  (µs に四捨五入)
+//	< 1µs         → "0" / "830ns"
 func formatDur(d time.Duration) string {
 	if d < 0 {
 		d = 0
 	}
 	switch {
-	case d >= time.Second:
-		return fmt.Sprintf("%.2fs", d.Seconds())
-	case d >= time.Millisecond:
-		ms := float64(d) / float64(time.Millisecond)
-		if ms < 10 {
-			return fmt.Sprintf("%.1fms", ms)
-		}
-		return fmt.Sprintf("%.0fms", ms)
-	case d >= time.Microsecond:
-		return fmt.Sprintf("%dµs", d.Microseconds())
 	case d == 0:
 		return "0"
+	case d >= 10*time.Second:
+		return fmt.Sprintf("%ds", int64(math.Round(d.Seconds())))
+	case d >= time.Millisecond:
+		return fmt.Sprintf("%dms", int64(math.Round(float64(d)/float64(time.Millisecond))))
+	case d >= time.Microsecond:
+		return fmt.Sprintf("%dµs", int64(math.Round(float64(d)/float64(time.Microsecond))))
 	default:
 		return fmt.Sprintf("%dns", d.Nanoseconds())
 	}

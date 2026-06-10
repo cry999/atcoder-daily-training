@@ -21,11 +21,17 @@ func TestFormatDur(t *testing.T) {
 		{830 * time.Nanosecond, "830ns"},
 		{340 * time.Microsecond, "340µs"},
 		{1 * time.Microsecond, "1µs"},
-		{1500 * time.Microsecond, "1.5ms"}, // 1 桁台 ms は小数 1 桁
+		{340600 * time.Nanosecond, "341µs"}, // µs に四捨五入
+		{1500 * time.Microsecond, "2ms"},    // 1.5ms → 四捨五入で 2ms (最大単位のみ)
+		{2500 * time.Microsecond, "3ms"},    // 2.5ms → 3ms (半数は切り上げ)
 		{12 * time.Millisecond, "12ms"},
 		{218 * time.Millisecond, "218ms"},
-		{1500 * time.Millisecond, "1.50s"},
-		{2340 * time.Millisecond, "2.34s"},
+		{1100 * time.Millisecond, "1100ms"}, // 1.1s は ms 表示 (< 10s)
+		{1500 * time.Millisecond, "1500ms"}, // 1.5s も ms 表示
+		{9999 * time.Millisecond, "9999ms"}, // 10s 未満は ms
+		{10 * time.Second, "10s"},           // 10s ちょうどは s
+		{12345 * time.Millisecond, "12s"},   // 12.345s → 12s (秒に四捨五入)
+		{12678 * time.Millisecond, "13s"},   // 12.678s → 13s (切り上げ)
 	}
 	for _, c := range cases {
 		if got := formatDur(c.d); got != c.want {
