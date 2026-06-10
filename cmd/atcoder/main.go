@@ -123,7 +123,7 @@ func usage() {
   atcoder start  <contest> --task <task> [--until-pass] [--refresh] [-d] [-s] [-j <n>] [--timeout <dur>] [--tolerance <eps>] [--layout <auto|abc|exercise>]
   atcoder test   <contest> --task <task>   # default: judge downloaded samples
                  [sample: -c <N[,M,...]> | --refresh | -j <n> | -w | -s | --submit [--no-open]]
-                 [ad-hoc: --in <path>|- | --out <path> | --interactive]
+                 [ad-hoc: --in <path>|- | --out <path> | --interactive [-R|--auto-restart]]
                  [-v] [-d] [--timeout <dur>] [--tolerance <eps>] [--layout <auto|abc|exercise>]
   atcoder stats  [-w|--week | -m|--month | -y|--year | -l|--last <dur>] [-g|--graph]
   atcoder review <category> [-w|--week | -m|--month | -y|--year | -l|--last <dur>]

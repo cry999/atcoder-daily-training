@@ -133,6 +133,8 @@ var subFlags = map[string][]Candidate{
 		{"-o", "judge a single ad-hoc run against this expected output"},
 		{"--interactive", "interactive mode (live I/O; chat TUI on a TTY)"},
 		{"-I", "interactive mode (live I/O; chat TUI on a TTY)"},
+		{"--auto-restart", "with --interactive: re-run each time the child exits"},
+		{"-R", "with --interactive: re-run each time the child exits"},
 		{"--submit", "after all samples pass, copy + open the submit page"},
 		{"--no-open", "with --submit, print the URL instead of opening a browser"},
 	},

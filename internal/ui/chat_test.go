@@ -1,8 +1,14 @@
 package ui
 
 import (
+	"io"
+	"strings"
 	"testing"
 	"time"
+
+	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/cry999/atcoder-daily-training/internal/runner"
 )
 
 func TestFormatDur(t *testing.T) {
@@ -50,4 +56,83 @@ func TestChatOutputElapsed(t *testing.T) {
 	if last := m.msgs[len(m.msgs)-1]; !last.hasDur || last.dur != 0 {
 		t.Errorf("clamped dur = %v (hasDur=%v), want 0", last.dur, last.hasDur)
 	}
+}
+
+// fakeHandle は initialChatModel が scanner を張れるだけの最小 ChatHandle (空 stream)。
+func fakeHandle() *runner.ChatHandle {
+	return &runner.ChatHandle{
+		Stdout: io.NopCloser(strings.NewReader("")),
+		Stderr: io.NopCloser(strings.NewReader("")),
+	}
+}
+
+func fakeSpawn() Spawner {
+	return func() (*runner.ChatHandle, error) { return fakeHandle(), nil }
+}
+
+func TestInitialChatModelAutoRestartOn(t *testing.T) {
+	m := initialChatModel(fakeHandle(), ChatHeader{AutoRestart: true}, fakeSpawn())
+	if !m.autoRestart {
+		t.Error("autoRestart should be true when header.AutoRestart && spawn != nil")
+	}
+	if !m.autoHintShown || !hasInfo(m, "auto-restart on") {
+		t.Errorf("expected the startup auto-restart hint; msgs=%v", m.msgs)
+	}
+}
+
+func TestInitialChatModelAutoRestartOff(t *testing.T) {
+	m := initialChatModel(fakeHandle(), ChatHeader{}, fakeSpawn())
+	if m.autoRestart {
+		t.Error("autoRestart should default to false")
+	}
+	if hasInfo(m, "auto-restart on") {
+		t.Error("no hint expected without --auto-restart")
+	}
+}
+
+func TestInitialChatModelAutoRestartNeedsSpawner(t *testing.T) {
+	// spawn == nil では再起動できないので autoRestart は立てない。
+	m := initialChatModel(fakeHandle(), ChatHeader{AutoRestart: true}, nil)
+	if m.autoRestart {
+		t.Error("autoRestart should be false when spawn == nil (cannot restart)")
+	}
+}
+
+func TestStreamEndQuitsWhenNoAutoRestart(t *testing.T) {
+	m := initialChatModel(fakeHandle(), ChatHeader{}, fakeSpawn())
+	m.endedErr = true // err 側は既に EOF。out 側 EOF で「両ストリーム終了」になる。
+	_, cmd := m.Update(streamEndMsg{kind: kindOut})
+	if !isQuit(cmd) {
+		t.Error("child exit without --auto-restart should quit (no restart prompt)")
+	}
+	if !hasInfo(m, "child process exited") {
+		t.Errorf("expected '(child process exited)'; msgs=%v", m.msgs)
+	}
+}
+
+func TestStreamEndQuitsWhenQuitOnChildExit(t *testing.T) {
+	m := initialChatModel(fakeHandle(), ChatHeader{AutoRestart: true}, fakeSpawn())
+	m.quitOnChildExit = true // Ctrl+D 後の状態
+	m.endedErr = true
+	_, cmd := m.Update(streamEndMsg{kind: kindOut})
+	if !isQuit(cmd) {
+		t.Error("quitOnChildExit should win over autoRestart and quit")
+	}
+}
+
+func hasInfo(m *chatModel, substr string) bool {
+	for _, l := range m.msgs {
+		if strings.Contains(l.text, substr) {
+			return true
+		}
+	}
+	return false
+}
+
+func isQuit(cmd tea.Cmd) bool {
+	if cmd == nil {
+		return false
+	}
+	_, ok := cmd().(tea.QuitMsg)
+	return ok
 }

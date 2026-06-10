@@ -276,6 +276,21 @@ ok
 run_case "test --interactive + --out (reject)"  2 test fixture --task pass --interactive --out "$OK_OUT"
 run_case "test --interactive + file --in (reject)" 2 test fixture --task pass --interactive --in "$INPUT_FILE"
 
+# --auto-restart (-R): 対話モードの chat TUI を sticky auto-restart にする起動フラグ。
+# 非 TTY では chat TUI を使わず passthrough で 1 回実行するだけ (フラグは無効・exit 0)。
+run_piped "test --interactive --auto-restart (non-TTY no-op)"  0 "3
+ok
+ok
+ok
+" test fixture --task interactive --interactive --auto-restart
+run_piped "test -I -R (short forms)"  0 "3
+ok
+ok
+ok
+" test fixture --task interactive -I -R
+# --auto-restart は --interactive 必須。単体指定はフラグ誤り = exit 2。
+run_case "test --auto-restart without --interactive (reject)" 2 test fixture --task pass --auto-restart
+
 # 旧 `run` サブコマンドは削除済み → 未知サブコマンドで exit 2。
 run_case "run subcommand removed" 2 run fixture --task pass
 

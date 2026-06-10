@@ -43,6 +43,7 @@ type ChatHeader struct {
 	Contest     string
 	TimeLimitMs int
 	Debug       bool // true なら chat TUI は子の stdout から [DEBUG] 行を別カテゴリに振り分ける
+	AutoRestart bool // true なら chat TUI は起動時から sticky auto-restart
 }
 
 // ChatSpawner は chat TUI 内で子プロセスを (再) 起動するためのファクトリ。
@@ -65,6 +66,7 @@ type Options struct {
 	Timeout     time.Duration // 0 → meta.toml.time_limit_ms か 2 秒のデフォルト
 	Tolerance   float64       // float トークン比較の誤差。0 以下なら testexec.DefaultTolerance
 	Debug       bool          // DEBUG=1 と [DEBUG] フィルタ (test と同じ規約)
+	AutoRestart bool          // true なら対話モードの chat TUI を起動時から sticky auto-restart にする (TTY のみ有効)
 	ExecutorFor ExecutorFor
 	Reporter    Reporter
 	ChatRunner  ChatRunner // 非 nil かつ stdin が TTY のとき chat TUI を起動する
@@ -160,6 +162,7 @@ func runChatMode(opts Options, executor Executor, solutionPath string, timeLimit
 		Contest:     opts.Contest,
 		TimeLimitMs: timeLimitMs,
 		Debug:       opts.Debug,
+		AutoRestart: opts.AutoRestart,
 	})
 	if err != nil {
 		return 1, err

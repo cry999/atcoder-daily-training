@@ -14,12 +14,13 @@ import (
 	"github.com/cry999/atcoder-daily-training/internal/runner"
 )
 
-// ChatHeader は TUI ヘッダに出すメタ情報。
+// ChatHeader は TUI ヘッダに出すメタ情報 + 起動オプション。
 type ChatHeader struct {
 	Task        string
 	Contest     string
 	TimeLimitMs int
 	Debug       bool // true なら子の stdout 行のうち [DEBUG] プレフィックスを持つものを別カテゴリで表示する
+	AutoRestart bool // true なら起動時から sticky auto-restart (子終了のたびに再起動する)
 }
 
 // Spawner は子プロセスを (再) 起動するためのファクトリ。
@@ -27,8 +28,9 @@ type ChatHeader struct {
 type Spawner func() (*runner.ChatHandle, error)
 
 // RunChat は spawner で子プロセスを起動し、対話 TUI を駆動する。
-// TUI 内でユーザーが [r] を押すと spawner が再呼び出され、新セッションが始まる。
-// 最終的に最後の (= 現在の) セッションの ProcessResult を返す。
+// header.AutoRestart が真なら、子が終了するたびに spawner を再呼び出して新セッション
+// を始める (sticky)。偽なら子終了で TUI を閉じる。最終的に最後の (= 現在の) セッション
+// の ProcessResult を返す。
 func RunChat(spawn Spawner, header ChatHeader) (*runner.ProcessResult, error) {
 	handle, err := spawn()
 	if err != nil {
@@ -90,9 +92,8 @@ type chatModel struct {
 	errScanner      *bufio.Scanner
 	endedOut        bool
 	endedErr        bool
-	awaitingRestart bool      // 子終了後の "press [r] to restart / any other key to quit" 待ち状態
-	autoRestart     bool      // R 押下後の sticky モード。以後 streamEndMsg は自動で restart() を発火
-	autoHintShown   bool      // auto-restart 突入時のヒント表示済みフラグ
+	autoRestart     bool      // sticky モード。起動フラグ (--auto-restart) で初期化。streamEndMsg は自動で restart() を発火
+	autoHintShown   bool      // auto-restart ヒント表示済みフラグ
 	quitOnChildExit bool      // Ctrl+D で auto-restart を解除したあと、次の child 終了で素直に Quit する
 	sessionN        int       // 1 始まり。restart で incr して区切りに番号を出す
 	lastEventAt     time.Time // 最後の入力送信 or 出力受信の時刻 (出力行の経過時間の基準)
@@ -112,7 +113,7 @@ func initialChatModel(handle *runner.ChatHandle, header ChatHeader, spawn Spawne
 	errScan := bufio.NewScanner(handle.Stderr)
 	errScan.Buffer(make([]byte, 64*1024), 1024*1024)
 
-	return &chatModel{
+	m := &chatModel{
 		handle:      handle,
 		spawn:       spawn,
 		header:      header,
@@ -122,7 +123,14 @@ func initialChatModel(handle *runner.ChatHandle, header ChatHeader, spawn Spawne
 		errScanner:  errScan,
 		sessionN:    1,
 		lastEventAt: time.Now(),
+		autoRestart: header.AutoRestart && spawn != nil,
 	}
+	// auto-restart 指定時は起動直後に一度だけヒントを出す。
+	if m.autoRestart {
+		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(auto-restart on — Ctrl+D to stop after current session, Ctrl+C to abort)"})
+		m.autoHintShown = true
+	}
+	return m
 }
 
 func (m *chatModel) Init() tea.Cmd {
@@ -168,7 +176,6 @@ func (m *chatModel) restart() tea.Cmd {
 	m.endedOut = false
 	m.endedErr = false
 	m.stdinClosed = false
-	m.awaitingRestart = false
 	m.lastEventAt = time.Now() // 新セッション開始を経過時間の基準にリセット
 	m.sessionN++
 	m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: fmt.Sprintf("─── session #%d ───", m.sessionN)})
@@ -203,19 +210,6 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.refreshViewport()
 
 	case tea.KeyMsg:
-		// 子プロセス終了後の "press [r] to restart / any other key to quit" 待ちは
-		// 通常のキー処理より先に処理する。
-		// R 押下は sticky モードに突入: 以後は子終了するたびに自動再起動し、
-		// 抜けるには現セッションで Ctrl+D (graceful) または Ctrl+C (kill) を使う。
-		if m.awaitingRestart {
-			for _, r := range msg.Runes {
-				if r == 'r' || r == 'R' {
-					m.autoRestart = true
-					return m, m.restart()
-				}
-			}
-			return m, tea.Quit
-		}
 		switch msg.Type {
 		case tea.KeyCtrlC:
 			_ = m.handle.Kill()
@@ -319,7 +313,9 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.endedErr = true
 		}
 		if m.endedOut && m.endedErr {
-			// 優先度: quitOnChildExit > autoRestart > prompt > fallback quit。
+			// 優先度: quitOnChildExit > autoRestart > quit。
+			// 終了後プロンプトは廃止。再起動するかどうかは起動フラグ (--auto-restart)
+			// で確定済みなので、ここで対話的に選ばせることはしない。
 			if m.quitOnChildExit {
 				return m, tea.Quit
 			}
@@ -327,13 +323,7 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// プロンプト無しでそのまま再起動。
 				return m, m.restart()
 			}
-			if m.spawn != nil {
-				m.awaitingRestart = true
-				m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(child exited; press [r] to run again, any other key to quit)"})
-				m.refreshViewport()
-				return m, nil
-			}
-			m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(child process exited; press any key to close)"})
+			m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(child process exited)"})
 			m.refreshViewport()
 			return m, tea.Quit
 		}

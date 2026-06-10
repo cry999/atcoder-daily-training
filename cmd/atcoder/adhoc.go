@@ -20,7 +20,7 @@ import (
 // 出力もキャプチャしないため、judge (--out) ともファイル入力 (--in <path>) とも
 // 併用できない (引数エラー = exit 2)。
 func runAdHoc(contest, task string, lay layout.Layout, inFile, outFile string,
-	interactive, debug, verbose bool, timeout time.Duration, tolerance float64) (int, error) {
+	interactive, autoRestart, debug, verbose bool, timeout time.Duration, tolerance float64) (int, error) {
 	if interactive {
 		if outFile != "" {
 			return 2, errors.New("--interactive cannot be combined with --out (judging needs batch-captured output)")
@@ -37,6 +37,7 @@ func runAdHoc(contest, task string, lay layout.Layout, inFile, outFile string,
 		InFile:      inFile,
 		OutFile:     outFile,
 		Interactive: interactive,
+		AutoRestart: autoRestart,
 		Timeout:     timeout,
 		Tolerance:   tolerance,
 		Debug:       debug,
@@ -52,6 +53,7 @@ func runChat(spawn runexec.ChatSpawner, header runexec.ChatHeader) (*runner.Proc
 		Contest:     header.Contest,
 		TimeLimitMs: header.TimeLimitMs,
 		Debug:       header.Debug,
+		AutoRestart: header.AutoRestart,
 	})
 }
 

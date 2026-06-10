@@ -70,6 +70,9 @@ func cmdTest(args []string) (int, error) {
 	var interactive bool
 	flags.BoolVar(&interactive, "interactive", false, "Interactive mode: wire the solution's stdin/stdout to the parent (live). chat TUI on a TTY.")
 	flags.BoolVar(&interactive, "I", false, "Interactive mode: wire the solution's stdin/stdout to the parent (live). chat TUI on a TTY.")
+	var autoRestart bool
+	flags.BoolVar(&autoRestart, "auto-restart", false, "With --interactive (TTY): re-run the solution each time the child exits (Ctrl+D to stop, Ctrl+C to abort).")
+	flags.BoolVar(&autoRestart, "R", false, "With --interactive (TTY): re-run the solution each time the child exits (Ctrl+D to stop, Ctrl+C to abort).")
 	var jobs int
 	flags.IntVar(&jobs, "jobs", 0, "Number of test cases to run in parallel. 0 → number of CPUs (capped at the case count).")
 	flags.IntVar(&jobs, "j", 0, "Number of test cases to run in parallel. 0 → number of CPUs (capped at the case count).")
@@ -112,11 +115,15 @@ func cmdTest(args []string) (int, error) {
 		}
 		return false
 	}
+	// --auto-restart は対話モード (chat TUI) 専用。--interactive 無しでの指定はフラグ誤り。
+	if autoRestart && !interactive {
+		return 2, errors.New("--auto-restart requires --interactive")
+	}
 	if interactive || inFile != "" || outFile != "" {
 		if setAny("refresh", "case", "c", "jobs", "j", "watch", "w", "s", "side-by-side", "submit", "no-open") {
 			return 2, errors.New("--refresh/--case/--jobs/--watch/--side-by-side/--submit are sample-mode flags and cannot be combined with --in/--out/--interactive")
 		}
-		return runAdHoc(contest, task, lay, inFile, outFile, interactive, debug, verbose, *timeoutFlag, *tolFlag)
+		return runAdHoc(contest, task, lay, inFile, outFile, interactive, autoRestart, debug, verbose, *timeoutFlag, *tolFlag)
 	}
 
 	// --submit は一回限りの提出準備なので、常駐する --watch とは併用不可。
