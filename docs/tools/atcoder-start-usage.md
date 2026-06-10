@@ -1,6 +1,6 @@
 # `atcoder start` 利用手引
 
-問題に取り掛かるときの **「解答ファイルを用意 → watch テストを起動」** を 1 コマンドで済ませる。`atcoder start <contest> --task <task>` で、レイアウトに応じた解答ファイルを (無ければ) 作り、そのまま `test --watch` の編集ループに入る。
+問題に取り掛かるときの **「解答ファイルを用意 → 対話 + watch を同時起動」** を 1 コマンドで済ませる。`atcoder start <contest> --task <task>` で、レイアウトに応じた解答ファイルを (無ければ) 作り、そのまま**上下分割画面**に入る (上 = サンプル自動判定の watch 要約、下 = 対話 chat)。両方を同時に動かし続けられる。
 
 > 要件詳細: [requirements/018-start-command.md](./requirements/018-start-command.md)
 
@@ -19,30 +19,28 @@ atcoder start <contest> --task <task> [--until-pass] [--refresh] [-d] [-s] [-j <
 | `-d` / `-s` / `-j` / `--timeout` / `--tolerance` | `test` と同じ。各 watch 実行にそのまま渡す |
 | `--layout <auto\|abc\|exercise>` | 解答ファイル配置。既定は `--layout` > `ATCODER_LAYOUT` > config > auto |
 
-## 動作
+## 動作 — 上下分割画面
 
 1. レイアウトを解決し、解答パス (`exercise/YYYY/MM/DD/<task>.py` または `abc/<num>/<letter>.py` 等) を決める。
 2. **解答ファイルを用意**: 親ディレクトリを作成し、ファイルが無ければ**空ファイル**を生成 (既存は温存)。`created:` / `solution: ... (exists)` を 1 行表示。
-3. **watch の編集ループに入る**: 初回にサンプルを fetch して判定、以降は保存検知で自動再実行。画面はクリアされ最新結果だけを表示。
-4. **待機中のキー操作** (下表) を受け付ける。
+3. **上下分割画面に入る**。**chat と watch を同時に動かし続ける**:
+   - **上ペイン = watch 要約**: 起動時に 1 回サンプルを判定し、以降は**保存検知のたびに自動で再判定**。`✓ PASS 3/4` / `✗ FAIL 1/4  fail: 02` のようなコンパクト要約を出す (diff は出さない)。
+   - **下ペイン = 対話 chat**: `test --interactive` と同じ chat を **auto-restart** で起動。入力ボックスに 1 行 → `Enter` で送信、子の出力は届き次第表示。子が終わるたびに自動で再実行する。
+4. 編集 → 保存すると、対話を続けたまま**上ペインだけが即更新**される (進行中の対話セッションは中断しない。新しいコードを対話で試すには `Ctrl+D` で chat を一度終わらせて再起動させる)。
 5. 終了:
-   - `q` または `Ctrl+C` で終了 (FAIL/RE/TLE でもループは止まらない)。
-   - `--until-pass` 指定時は、**サンプルが全通過した回**で自動終了 (exit 0)。
+   - `Ctrl+C` または `Ctrl+D` で全体を終了 (exit 0)。
+   - `--until-pass` 指定時は、**上ペインのサンプルが全通過した回**で自動終了 (exit 0)。
 
-## キー操作 (watch 待機中)
-
-各テスト実行のあとの待機中に、以下のキーが効く:
+### キー操作
 
 | キー | 動作 |
 |---|---|
-| `q` / `Ctrl+C` | watch を終了 (exit 0) |
-| `i` | **インタラクティブモード** (`test --interactive` と同じ chat) を **auto-restart で起動**。子終了のたびに自動再実行し、`Ctrl+D`/`Ctrl+C` で抜けると watch に戻る |
-| (解答を保存) | 自動再実行 |
-| その他 | 無視 |
+| 文字入力 + `Enter` | 下ペインの chat に送信 (子の stdin へ) |
+| `↑` / `↓` | chat の入力履歴 |
+| `Ctrl+D` / `Ctrl+C` | 全体を終了 (exit 0) |
+| (解答を保存) | 上ペイン (watch) を自動再判定。下ペインの対話は継続 |
 
-`i` で対話に入る → `Ctrl+D`/`Ctrl+C` で抜けて watch に戻る、を何度でも繰り返せる。対話は auto-restart で開始するので、子が終わるたびに自動で再実行され、続けて何ラウンドも試せる。対話問題を試しながらサンプル判定の watch を回し続けられる。キーが効くのは**待機中だけ** (テスト実行中・chat 中は無効。chat 中は chat 側のキー操作)。端末を raw 化できない環境ではキーは無効になり、保存検知のみの watch として動く。
-
-`start` は `new` (ファイル用意) と `test --watch` (編集ループ) + キー操作層を束ねた薄いコマンドで、新しい判定・実行ロジックは持たない。
+`start` は `new` (ファイル用意) と watch (サンプル自動判定) と chat (対話) を**1 画面に合成**した薄いコマンドで、新しい判定・実行ロジックは持たない。
 
 ## 例
 
@@ -70,11 +68,11 @@ atcoder start abc457 --task d
 
 ## 注意
 
-- **端末 (TTY) が必要**。パイプ/リダイレクト先では watch が `exit 2` で拒否される (画面クリア前提)。
+- **端末 (TTY) が必要**。パイプ/リダイレクト先では `exit 2` で拒否される (分割画面 TUI 前提)。
 - 既存の解答ファイルは**上書きしない** (提出コードを壊さない)。`--refresh` はキャッシュのみ対象。
 - 生成されるのは現状**空ファイル**。テンプレート流し込みは将来 (ロードマップ H) で差し替え予定。
 
 ## 関連
 
 - 利用手引: [atcoder-test-usage.md](./atcoder-test-usage.md) (watch モードの詳細)
-- 要件: [018-start-command.md](./requirements/018-start-command.md) / [019-start-key-actions.md](./requirements/019-start-key-actions.md) / [004-exercise-test-watch.md](./requirements/004-exercise-test-watch.md)
+- 要件: [018-start-command.md](./requirements/018-start-command.md) / [019-start-key-actions.md](./requirements/019-start-key-actions.md) / [023-start-split-screen.md](./requirements/023-start-split-screen.md) / [004-exercise-test-watch.md](./requirements/004-exercise-test-watch.md)
