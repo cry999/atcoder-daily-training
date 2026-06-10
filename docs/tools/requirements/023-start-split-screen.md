@@ -1,5 +1,7 @@
 # `atcoder start` 分割画面 (chat + watch 同時動作) 要件定義
 
+> **追記 ([028](028-start-watch-per-case.md)):** watch ペインの要約を「PASS/FAIL 件数 + 失敗ケース番号」から **per-case verdict** (`01 AC  02 WA  03 TLE  04 AC`) 表示に拡張した。`SummaryReporter.Result()` は `(passed, total, cases []CaseResult)` を返し、上ペインは各ケースの合否を AC/WA/TLE/RE で横並びに出す (幅超過は `…` 切り詰め、3 行維持)。下の画面イメージ (`✓ PASS 3/4  fail: 02`) は旧表示で、現行は 028 を参照。
+
 ## 概要
 
 `atcoder start` の TTY 体験を**上下分割の 1 画面**にする。**下ペイン = 対話 chat**(解答と live 対話)、**上ペイン = watch 要約**(保存検知でサンプルを自動再判定し、PASS/FAIL と失敗ケースをコンパクト表示)。chat と watch を**同時に動かし続け**、対話しながら編集 → 保存するたびに上ペインのサンプル判定が自動更新される。現状の「`i` で chat に入ると watch が止まり、chat を抜けないと watch に戻れない」というモード切替を廃し、両方を常時並走させる。
