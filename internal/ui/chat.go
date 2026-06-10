@@ -79,6 +79,24 @@ type chatLine struct {
 	hasDur bool          // dur が有効か (入力行 / 情報行は false)
 }
 
+// ctrlDAction は Ctrl+D 押下時の chat の動作。Ctrl+D は子に EOF を送らず、CLI 側の
+// 終了操作として扱う (要件 021)。
+type ctrlDAction int
+
+const (
+	ctrlDQuit             ctrlDAction = iota // 子を kill して即 quit (auto-restart OFF)
+	ctrlDStopAfterSession                    // restart を止め、現セッション終了後に quit (auto-restart ON)
+)
+
+// ctrlDActionFor は Ctrl+D の動作を決める純粋関数。auto-restart 中は現セッションを
+// 自然終了させてから quit する graceful 停止、そうでなければ即 quit。
+func ctrlDActionFor(autoRestart bool) ctrlDAction {
+	if autoRestart {
+		return ctrlDStopAfterSession
+	}
+	return ctrlDQuit
+}
+
 type chatModel struct {
 	handle          *runner.ChatHandle
 	spawn           Spawner // 再起動時に呼ぶ。nil なら再起動不可
@@ -88,7 +106,6 @@ type chatModel struct {
 	msgs            []chatLine
 	history         []string
 	historyPos      int // history[historyPos] = 次に Up で出す候補。len(history) なら未編集状態。
-	stdinClosed     bool
 	outScanner      *bufio.Scanner
 	errScanner      *bufio.Scanner
 	endedOut        bool
@@ -105,7 +122,7 @@ type chatModel struct {
 
 func initialChatModel(handle *runner.ChatHandle, header ChatHeader, spawn Spawner) *chatModel {
 	ti := textinput.New()
-	ti.Placeholder = "Enter で送信  /  Ctrl+D で stdin を閉じる  /  Ctrl+C で中断"
+	ti.Placeholder = "Enter で送信  /  Ctrl+D で終了  /  Ctrl+C で中断"
 	ti.Focus()
 	ti.Prompt = "" // プロンプト記号は View 側で描画する
 
@@ -176,7 +193,6 @@ func (m *chatModel) restart() tea.Cmd {
 	m.errScanner.Buffer(make([]byte, 64*1024), 1024*1024)
 	m.endedOut = false
 	m.endedErr = false
-	m.stdinClosed = false
 	m.lastEventAt = time.Now() // 新セッション開始を経過時間の基準にリセット
 	m.sessionN++
 	m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: fmt.Sprintf("─── session #%d ───", m.sessionN)})
@@ -216,37 +232,32 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			_ = m.handle.Kill()
 			return m, tea.Quit
 		case tea.KeyCtrlD:
-			if !m.stdinClosed {
-				_ = m.handle.Stdin.Close()
-				m.stdinClosed = true
-				// auto-restart 中の Ctrl+D は「もう連続実行は不要、子が綺麗に
-				// 終わったら quit」というシグナル。autoRestart を解除して
-				// quitOnChildExit を立てる。
-				if m.autoRestart {
-					m.autoRestart = false
-					m.quitOnChildExit = true
-					m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(stdin closed; auto-restart disabled, exiting after this session)"})
-				} else {
-					m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(stdin closed)"})
-				}
+			// Ctrl+D は atcoder CLI 側の終了操作。子の stdin には渡さない (EOF を
+			// 送らない) — interactive 問題の解答は EOF を読まないので EOF 送信に
+			// 実益が無く、抜けたつもりの Ctrl+D で子を異常終了させる驚きを避ける。
+			switch ctrlDActionFor(m.autoRestart) {
+			case ctrlDStopAfterSession:
+				// auto-restart 中: 再実行ループを止め、現セッションの子が自然終了
+				// したら quit する (kill も EOF もしない = graceful 停止)。
+				m.autoRestart = false
+				m.quitOnChildExit = true
+				m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(auto-restart off — will exit after this session; Ctrl+C to abort now)"})
 				m.refreshViewport()
+			default: // ctrlDQuit
+				_ = m.handle.Kill()
+				return m, tea.Quit
 			}
 		case tea.KeyEnter:
 			txt := m.input.Value()
-			if m.stdinClosed {
-				// stdin を閉じた後は送れない。
-				m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(stdin closed; cannot send)"})
+			if _, err := fmt.Fprintln(m.handle.Stdin, txt); err != nil {
+				m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(write failed: " + err.Error() + ")"})
 			} else {
-				if _, err := fmt.Fprintln(m.handle.Stdin, txt); err != nil {
-					m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(write failed: " + err.Error() + ")"})
-				} else {
-					m.msgs = append(m.msgs, chatLine{kind: kindIn, text: txt})
-					m.lastEventAt = time.Now() // 入力を受け付けた時刻 = 次の出力の経過時間の基準
-					if txt != "" {
-						m.history = append(m.history, txt)
-					}
-					m.historyPos = len(m.history)
+				m.msgs = append(m.msgs, chatLine{kind: kindIn, text: txt})
+				m.lastEventAt = time.Now() // 入力を受け付けた時刻 = 次の出力の経過時間の基準
+				if txt != "" {
+					m.history = append(m.history, txt)
 				}
+				m.historyPos = len(m.history)
 			}
 			m.input.SetValue("")
 			m.refreshViewport()

@@ -142,3 +142,13 @@ func isQuit(cmd tea.Cmd) bool {
 	_, ok := cmd().(tea.QuitMsg)
 	return ok
 }
+
+// Ctrl+D は子に EOF を送らず CLI 側の終了操作。auto-restart の有無で動作が分かれる。
+func TestCtrlDActionFor(t *testing.T) {
+	if got := ctrlDActionFor(false); got != ctrlDQuit {
+		t.Errorf("ctrlDActionFor(false) = %d, want ctrlDQuit", got)
+	}
+	if got := ctrlDActionFor(true); got != ctrlDStopAfterSession {
+		t.Errorf("ctrlDActionFor(true) = %d, want ctrlDStopAfterSession", got)
+	}
+}
