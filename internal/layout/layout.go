@@ -10,9 +10,11 @@
 package layout
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -31,15 +33,72 @@ type Layout interface {
 // abcContestRE は abc<NNN> 形式 (NNN は数字 1 文字以上) を捕捉する。
 var abcContestRE = regexp.MustCompile(`^abc(\d+)$`)
 
+// contestIDRE は <英字接頭辞><数字> 形式の contest_id を接頭辞と数字に分ける。
+var contestIDRE = regexp.MustCompile(`^([a-z]+)(\d+)$`)
+
+// splitContestID は contest_id を英字接頭辞と数字に分ける。
+// 例: "abc457" → ("abc", "457", true) / "arc100" → ("arc", "100", true)。
+// 形式 (<英字接頭辞><数字>) に一致しなければ ok=false。
+func splitContestID(id string) (prefix, num string, ok bool) {
+	m := contestIDRE.FindStringSubmatch(id)
+	if m == nil {
+		return "", "", false
+	}
+	return m[1], m[2], true
+}
+
 // ContestNum は abc<NNN> 形式の contest ID から数字部分 (例: "457") を取り出す。
 // ABC レイアウトのディレクトリ名 (`abc/<contest_num>/`) に使う。
-// abc<NNN> 形式でなければ ok=false を返す。
+// abc<NNN> 形式でなければ ok=false を返す (接頭辞が abc 以外も同様)。
 func ContestNum(contestID string) (string, bool) {
-	m := abcContestRE.FindStringSubmatch(contestID)
-	if m == nil {
+	prefix, num, ok := splitContestID(contestID)
+	if !ok || prefix != "abc" {
 		return "", false
 	}
-	return m[1], true
+	return num, true
+}
+
+// ナビゲーション (ShiftLetter / ShiftContest) の境界・形式エラー。
+// UI 向けの日本語文言は別レイヤで被せる前提なので、ここは汎用の英語メッセージ。
+var (
+	ErrLetterShape  = errors.New("letter is not a single a..z")
+	ErrLetterBound  = errors.New("letter is out of range")
+	ErrContestShape = errors.New("contest id has no numeric suffix")
+	ErrContestBound = errors.New("contest number is out of range")
+)
+
+// ShiftLetter は単一文字 letter を delta だけずらす。
+//   - ("d", +1) → "e" / ("d", -1) → "c"
+//
+// letter が単一の a..z 1 文字でなければ ErrLetterShape (空・複数文字・非英字)。
+// 結果が 'a' 未満 / 'z' 超なら ErrLetterBound。
+func ShiftLetter(letter string, delta int) (string, error) {
+	if len(letter) != 1 || letter[0] < 'a' || letter[0] > 'z' {
+		return "", ErrLetterShape
+	}
+	n := int(letter[0]-'a') + delta
+	if n < 0 || n > 25 {
+		return "", ErrLetterBound
+	}
+	return string(rune('a' + n)), nil
+}
+
+// ShiftContest は <英字接頭辞><数字> 形式の contest_id の数字部を delta だけずらす。
+//   - ("abc457", +1) → "abc458" / ("abc457", -1) → "abc456"
+//
+// ゼロ詰め幅は元の桁数を下限に保持 (abc099 → abc100)。形式に一致しなければ
+// ErrContestShape、数字が 1 未満になるなら ErrContestBound。
+func ShiftContest(contestID string, delta int) (string, error) {
+	prefix, num, ok := splitContestID(contestID)
+	if !ok {
+		return "", ErrContestShape
+	}
+	n, _ := strconv.Atoi(num)
+	n += delta
+	if n < 1 {
+		return "", ErrContestBound
+	}
+	return fmt.Sprintf("%s%0*d", prefix, len(num), n), nil
 }
 
 // TaskID は短縮形 task ("d") を AtCoder の task ID ("abc457_d") に展開する。

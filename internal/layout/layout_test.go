@@ -1,6 +1,7 @@
 package layout
 
 import (
+	"errors"
 	"testing"
 	"time"
 )
@@ -45,6 +46,100 @@ func TestLetter(t *testing.T) {
 		}
 		if got != c.want {
 			t.Errorf("Letter(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+func TestShiftLetter(t *testing.T) {
+	cases := []struct {
+		in      string
+		delta   int
+		want    string
+		wantErr error
+	}{
+		{"d", 1, "e", nil},
+		{"d", -1, "c", nil},
+		{"a", 1, "b", nil},
+		{"z", -1, "y", nil},
+		{"a", 0, "a", nil},
+		{"a", -1, "", ErrLetterBound}, // 下限
+		{"z", 1, "", ErrLetterBound},  // 上限
+		{"xy", 1, "", ErrLetterShape}, // 複数文字
+		{"", 1, "", ErrLetterShape},   // 空
+		{"D", 1, "", ErrLetterShape},  // 非小文字
+		{"1", 1, "", ErrLetterShape},  // 非英字
+	}
+	for _, c := range cases {
+		got, err := ShiftLetter(c.in, c.delta)
+		if c.wantErr != nil {
+			if !errors.Is(err, c.wantErr) {
+				t.Errorf("ShiftLetter(%q, %d) err = %v, want %v", c.in, c.delta, err, c.wantErr)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("ShiftLetter(%q, %d) returned unexpected error: %v", c.in, c.delta, err)
+		}
+		if got != c.want {
+			t.Errorf("ShiftLetter(%q, %d) = %q, want %q", c.in, c.delta, got, c.want)
+		}
+	}
+}
+
+func TestShiftContest(t *testing.T) {
+	cases := []struct {
+		in      string
+		delta   int
+		want    string
+		wantErr error
+	}{
+		{"abc457", 1, "abc458", nil},
+		{"abc457", -1, "abc456", nil},
+		{"abc099", 1, "abc100", nil}, // ゼロ詰め幅は桁数を下限に保持
+		{"abc009", 1, "abc010", nil},
+		{"abc1", -1, "", ErrContestBound},   // 1 未満
+		{"abc1", 1, "abc2", nil},            // 下限境界 +1
+		{"abc", 1, "", ErrContestShape},     // 数字なし
+		{"dp", 1, "", ErrContestShape},      // 数字なし
+		{"", 1, "", ErrContestShape},        // 空
+		{"abc457x", 1, "", ErrContestShape}, // 末尾が数字でない
+		{"arc183", 1, "arc184", nil},        // abc 以外の接頭辞
+		{"agc065", 1, "agc066", nil},
+	}
+	for _, c := range cases {
+		got, err := ShiftContest(c.in, c.delta)
+		if c.wantErr != nil {
+			if !errors.Is(err, c.wantErr) {
+				t.Errorf("ShiftContest(%q, %d) err = %v, want %v", c.in, c.delta, err, c.wantErr)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("ShiftContest(%q, %d) returned unexpected error: %v", c.in, c.delta, err)
+		}
+		if got != c.want {
+			t.Errorf("ShiftContest(%q, %d) = %q, want %q", c.in, c.delta, got, c.want)
+		}
+	}
+}
+
+func TestContestNum(t *testing.T) {
+	cases := []struct {
+		in     string
+		want   string
+		wantOK bool
+	}{
+		{"abc457", "457", true},
+		{"abc099", "099", true},
+		{"arc100", "", false}, // abc 以外
+		{"xyz", "", false},    // 数字なし
+		{"abc", "", false},    // 数字なし
+		{"", "", false},
+	}
+	for _, c := range cases {
+		got, ok := ContestNum(c.in)
+		if got != c.want || ok != c.wantOK {
+			t.Errorf("ContestNum(%q) = (%q, %v), want (%q, %v)", c.in, got, ok, c.want, c.wantOK)
 		}
 	}
 }
