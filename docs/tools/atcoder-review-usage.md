@@ -12,14 +12,14 @@ atcoder review <category> [-w | --week | -m | --month | -y | --year | -l | --las
 
 | 引数 / フラグ | 説明 |
 |---|---|
-| `<category>` (必須) | 列挙するコンテスト種別 (`abc`/`arc`/`agc`/…)。**位置引数で先頭に置く**。省略すると exit 2 |
+| `<category>` (必須) | 列挙するコンテスト種別 (`abc`/`arc`/`agc`/…)。位置引数 (**フラグと任意順で混在可**)。省略すると exit 2 |
 | `--week` (`-w`) | 暦の今週 (月曜始まり、今日を含む) の解答に絞る |
 | `--month` (`-m`) | 暦の今月に絞る |
 | `--year` (`-y`) | 暦の今年に絞る |
 | `--last <dur>` (`-l`) | 今日から `<dur>` 分だけ遡るローリング窓に絞る (`7d`/`2w`/`1m`/`1y`、数値省略で 1) |
 
 - 期間フラグは `stats` と同一の文法・排他規則。2 つ以上指定すると exit 2。指定しなければ全期間。
-- カテゴリはフラグより前に置く (例 `atcoder review abc --month`)。
+- カテゴリとフラグの順序は自由 (`atcoder review abc --month` も `atcoder review --month abc` も可)。
 
 ## 集計対象
 

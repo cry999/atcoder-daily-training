@@ -10,6 +10,8 @@
 atcoder start <contest> --task <task> [--until-pass] [--refresh] [-d] [-s] [-j <n>] [--timeout <dur>] [--tolerance <eps>] [--layout <auto|abc|exercise>]
 ```
 
+> 位置引数 (`<contest>`) とフラグの順序は自由 (`atcoder start --task d abc457` も可)。
+
 | 引数 / フラグ | 説明 |
 |---|---|
 | `<contest>` | コンテスト ID (例 `abc457`) |

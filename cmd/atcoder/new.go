@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cry999/atcoder-daily-training/internal/cliargs"
 	"github.com/cry999/atcoder-daily-training/internal/contestmeta"
 	"github.com/cry999/atcoder-daily-training/internal/layout"
 	"github.com/cry999/atcoder-daily-training/internal/testexec"
@@ -57,10 +58,11 @@ func newToday() error {
 // newABC は ABC コンテスト 1 つ分を一括準備する:
 // タスク一覧 + サンプルの fetch、コンテストメタ保存、解答スケルトン生成。
 func newABC(args []string) error {
-	if len(args) < 1 {
+	flagArgs, positionals := cliargs.Split(args)
+	if len(positionals) < 1 {
 		return errors.New("contest is required (e.g. `atcoder new abc abc457`)")
 	}
-	contest := args[0]
+	contest := positionals[0]
 
 	fs := flag.NewFlagSet("new abc", flag.ContinueOnError)
 	refresh := fs.Bool("refresh", false, "Re-fetch samples and contest meta, overwriting the cache")
@@ -68,7 +70,7 @@ func newABC(args []string) error {
 	noSkeleton := fs.Bool("no-skeleton", false, "Do not generate solution skeleton files")
 	noFetch := fs.Bool("no-fetch", false, "Skip all network fetches (samples and contest meta)")
 	fs.SetOutput(os.Stderr)
-	if err := fs.Parse(args[1:]); err != nil {
+	if err := fs.Parse(flagArgs); err != nil {
 		return err
 	}
 

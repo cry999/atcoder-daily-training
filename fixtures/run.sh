@@ -82,6 +82,12 @@ run_piped() {
 }
 
 run_case "fixture_pass"               0 test fixture --task pass
+# 引数順序の非依存 (internal/cliargs): 位置引数 (contest) とフラグを任意順で打てる。
+# いずれも `test fixture --task pass` と等価で exit 0。
+run_case "order: flag-first"          0 test --task pass fixture
+run_case "order: --task=pass first"   0 test --task=pass fixture
+run_case "order: contest between"     0 test --task pass fixture -v
+run_case "order: -c value then pos"   0 test --task multi -c 02 fixture
 run_case "fixture_fail"               1 test fixture --task fail
 run_case "fixture_re"                 1 test fixture --task re
 run_case "fixture_tle"                1 test fixture --task tle
