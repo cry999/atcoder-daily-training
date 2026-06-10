@@ -87,6 +87,21 @@ type streamEndMsg struct {
 // fileChangedMsg は watch ポーリングの結果。changed が真なら解答ファイルが保存された。
 type fileChangedMsg struct{ changed bool }
 
+// spinnerTickMsg は出力待ちスピナーのアニメ tick。gen が現行 spinGen と不一致なら破棄。
+type spinnerTickMsg struct{ gen int }
+
+// spinnerFrames は待機スピナーのコマ (braille)。spinnerInterval ごとに 1 コマ進める。
+var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+
+const spinnerInterval = 100 * time.Millisecond
+
+// waitStatus はスピナーのコマと経過時間を 1 行にする純粋関数 (例 "⠹ 0.4s")。
+// 経過は出力行の経過時間カラムと揃えるため formatDur を流用する。
+func waitStatus(frame int, elapsed time.Duration) string {
+	f := spinnerFrames[((frame%len(spinnerFrames))+len(spinnerFrames))%len(spinnerFrames)]
+	return f + " " + formatDur(elapsed)
+}
+
 type chatLine struct {
 	kind   string
 	text   string
@@ -112,6 +127,10 @@ type chatModel struct {
 	watcher       *watch.Watcher // 非 nil なら解答ファイルを監視 (保存検知で reload)。nil なら watch-reload 無効
 	sessionN      int            // 1 始まり。restart で incr して区切りに番号を出す (epoch も兼ねる)
 	lastEventAt   time.Time      // 最後の入力送信 or 出力受信の時刻 (出力行の経過時間の基準)
+	awaiting      bool           // 送信後・次の出力待ちなら true (スピナー + 経過時間を出す)
+	awaitSince    time.Time      // 待機開始時刻 (経過時間の基準)
+	spinnerFrame  int            // スピナーのコマ index
+	spinGen       int            // スピナー tick の世代。Enter/restart で更新し旧 tick を無効化
 	width         int
 	height        int
 	ready         bool
@@ -190,6 +209,27 @@ func (m *chatModel) pollWatchCmd() tea.Cmd {
 	}
 }
 
+// spinnerTickCmd は spinnerInterval 後に世代タグ付きの spinnerTickMsg を返す tea.Cmd。
+func (m *chatModel) spinnerTickCmd() tea.Cmd {
+	gen := m.spinGen
+	return tea.Tick(spinnerInterval, func(time.Time) tea.Msg { return spinnerTickMsg{gen: gen} })
+}
+
+// startAwaiting は出力待ちを開始し、スピナー tick を 1 本起動する Cmd を返す。
+// 世代 (spinGen) を更新するので、連続送信でも tick ループは常に 1 本だけになる。
+func (m *chatModel) startAwaiting() tea.Cmd {
+	m.awaiting = true
+	m.awaitSince = time.Now()
+	m.spinnerFrame = 0
+	m.spinGen++
+	return m.spinnerTickCmd()
+}
+
+// stopAwaiting は出力待ちを終える (スピナーを消す)。tick は世代不一致で自然に止まる。
+func (m *chatModel) stopAwaiting() {
+	m.awaiting = false
+}
+
 // restart は spawner で新しい子プロセスを起動し、TUI 側の状態をリセットする。
 // scrollback は保持し、区切り行 (── session #N ──) を追加してから新セッションを始める。
 func (m *chatModel) restart() tea.Cmd {
@@ -212,6 +252,7 @@ func (m *chatModel) restart() tea.Cmd {
 	m.errScanner.Buffer(make([]byte, 64*1024), 1024*1024)
 	m.endedOut = false
 	m.endedErr = false
+	m.stopAwaiting() // 新セッションでは出力待ちをリセット (旧 tick は世代不一致で止まる)
 	m.lastEventAt = time.Now() // 新セッション開始を経過時間の基準にリセット
 	m.sessionN++
 	m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: fmt.Sprintf("─── session #%d ───", m.sessionN)})
@@ -264,6 +305,8 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.history = append(m.history, txt)
 				}
 				m.historyPos = len(m.history)
+				// 送信成功 → 出力待ち。スピナー + 経過時間をライブ表示する。
+				cmds = append(cmds, m.startAwaiting())
 			}
 			m.input.SetValue("")
 			m.refreshViewport()
@@ -315,6 +358,7 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			line.dur = d
 			line.hasDur = true
 			m.lastEventAt = at
+			m.stopAwaiting() // 出力が返ったので待機解除 (スピナーを消す)
 		}
 		m.msgs = append(m.msgs, line)
 		m.refreshViewport()
@@ -326,10 +370,18 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, readLineCmd(m.errScanner, kindErr, m.sessionN))
 		}
 
+	case spinnerTickMsg:
+		if msg.gen != m.spinGen || !m.awaiting {
+			break // 古い世代 or 待機解除済み → 止める (再アームしない)
+		}
+		m.spinnerFrame++
+		return m, m.spinnerTickCmd()
+
 	case streamEndMsg:
 		if msg.epoch != m.sessionN {
 			break // リロードで kill した旧セッションの stream 終了 → 破棄
 		}
+		m.stopAwaiting() // 子が終了したら待機解除
 		switch msg.kind {
 		case kindOut:
 			m.endedOut = true
@@ -398,7 +450,22 @@ func (m *chatModel) renderInputBox() string {
 		w = 1
 	}
 	rule := chatInputBorderStyle.Render(strings.Repeat("─", w))
-	return rule + "\n" + m.renderInputLine() + "\n" + rule
+	return rule + "\n" + m.renderInputLine() + "\n" + m.renderBottomRule(w)
+}
+
+// renderBottomRule は入力ボックスの下罫線を返す。出力待ち中は左端にスピナー +
+// 経過時間を重ね、残りを罫線で埋める (画面の行数は増やさない)。
+func (m *chatModel) renderBottomRule(w int) string {
+	if !m.awaiting {
+		return chatInputBorderStyle.Render(strings.Repeat("─", w))
+	}
+	status := waitStatus(m.spinnerFrame, time.Since(m.awaitSince))
+	statusW := lipgloss.Width(status) + 1 // 末尾スペース 1 つ
+	fill := w - statusW
+	if fill < 0 {
+		fill = 0
+	}
+	return chatWaitStyle.Render(status) + " " + chatInputBorderStyle.Render(strings.Repeat("─", fill))
 }
 
 func (m *chatModel) refreshViewport() {
@@ -594,4 +661,6 @@ var (
 	chatTimeStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay0))
 	// 折り返し継続行のマーカー (↪)。本文を邪魔しないよう dim な overlay 色。
 	chatWrapStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay0))
+	// 出力待ちスピナー + 経過時間。注意を引きつつ主張しすぎない sapphire 系。
+	chatWaitStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaSapphire))
 )
