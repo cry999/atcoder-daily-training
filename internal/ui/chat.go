@@ -390,13 +390,15 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			break // 古い世代 or 待機解除済み → 止める (再アームしない)
 		}
 		m.spinnerFrame++
+		m.refreshViewport() // 最後尾のスピナー行をアニメ更新
 		return m, m.spinnerTickCmd()
 
 	case streamEndMsg:
 		if msg.epoch != m.sessionN {
 			break // リロードで kill した旧セッションの stream 終了 → 破棄
 		}
-		m.stopAwaiting() // 子が終了したら待機解除
+		m.stopAwaiting()    // 子が終了したら待機解除
+		m.refreshViewport() // 最後尾のスピナー行を消す
 		switch msg.kind {
 		case kindOut:
 			m.endedOut = true
@@ -435,7 +437,7 @@ func (m *chatModel) View() string {
 	// メッセージが無いときは viewport を描画せず、入力ボックスをヘッダの真下に置く。
 	// 1 件でも出力 / 入力があれば viewport を含めてレンダリングする。
 	parts := []string{m.renderHeader()}
-	if len(m.msgs) > 0 {
+	if len(m.msgs) > 0 || m.awaiting {
 		parts = append(parts, m.viewport.View())
 	}
 	parts = append(parts, m.renderInputBox())
@@ -465,22 +467,8 @@ func (m *chatModel) renderInputBox() string {
 		w = 1
 	}
 	rule := chatInputBorderStyle.Render(strings.Repeat("─", w))
-	return rule + "\n" + m.renderInputLine() + "\n" + m.renderBottomRule(w)
-}
-
-// renderBottomRule は入力ボックスの下罫線を返す。出力待ち中は左端にスピナー +
-// 経過時間を重ね、残りを罫線で埋める (画面の行数は増やさない)。
-func (m *chatModel) renderBottomRule(w int) string {
-	if !m.awaiting {
-		return chatInputBorderStyle.Render(strings.Repeat("─", w))
-	}
-	status := waitStatus(m.spinnerFrame, time.Since(m.awaitSince))
-	statusW := lipgloss.Width(status) + 1 // 末尾スペース 1 つ
-	fill := w - statusW
-	if fill < 0 {
-		fill = 0
-	}
-	return chatWaitStyle.Render(status) + " " + chatInputBorderStyle.Render(strings.Repeat("─", fill))
+	// 出力待ちスピナーは入力ボックスの下ではなく出力の最後尾 (refreshViewport) に出す。
+	return rule + "\n" + m.renderInputLine() + "\n" + rule
 }
 
 func (m *chatModel) refreshViewport() {
@@ -501,6 +489,16 @@ func (m *chatModel) refreshViewport() {
 		sb.WriteString(renderMsgBlock(msg, m.width))
 	}
 	content := sb.String()
+	// 出力待ち中はスピナー + 経過時間を出力の **最後尾** に 1 行足す
+	// (入力ボックスの下ではなく scrollback の末尾に「次の出力をロード中」を出す)。
+	if m.awaiting {
+		spin := chatWaitStyle.Render(waitStatus(m.spinnerFrame, time.Since(m.awaitSince)))
+		if content != "" {
+			content += "\n" + spin
+		} else {
+			content = spin
+		}
+	}
 	m.viewport.SetContent(content)
 
 	// 高さを content の表示行数に合わせる。content が "" なら 1 行確保。

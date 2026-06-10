@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/cry999/atcoder-daily-training/internal/runner"
@@ -91,16 +92,33 @@ func TestOutputStopsAwaiting(t *testing.T) {
 	}
 }
 
-func TestBottomRuleShowsSpinnerWhileAwaiting(t *testing.T) {
-	m := &chatModel{width: 40}
-	// 非待機: 通常の罫線 (スピナー無し)。
-	if strings.ContainsAny(m.renderBottomRule(40), strings.Join(spinnerFrames, "")) {
-		t.Error("bottom rule should be plain when not awaiting")
+func TestSpinnerShownInOutputTail(t *testing.T) {
+	m := &chatModel{width: 40, height: 20, ready: true}
+	m.viewport = viewport.New(40, 5)
+	// 非待機: 出力末尾にスピナーは出ない。
+	m.refreshViewport()
+	if strings.ContainsAny(m.viewport.View(), strings.Join(spinnerFrames, "")) {
+		t.Error("viewport should not contain a spinner when not awaiting")
 	}
-	// 待機: スピナーのコマを含む。
+	// 待機: 出力の最後尾にスピナーのコマが出る。
 	m.startAwaiting()
-	got := m.renderBottomRule(40)
-	if !strings.Contains(got, spinnerFrames[m.spinnerFrame%len(spinnerFrames)]) {
-		t.Errorf("bottom rule while awaiting should contain the spinner frame: %q", got)
+	m.refreshViewport()
+	if !strings.Contains(m.viewport.View(), spinnerFrames[m.spinnerFrame%len(spinnerFrames)]) {
+		t.Errorf("viewport tail should contain the spinner frame while awaiting: %q", m.viewport.View())
 	}
+}
+
+func TestInputBoxBottomRulePlainWhileAwaiting(t *testing.T) {
+	m := &chatModel{width: 40, input: textinput.New()}
+	m.startAwaiting()
+	// スピナーは入力ボックスの下罫線ではなく出力末尾に出すので、下罫線は素の罫線。
+	bottom := lastLine(m.renderInputBox())
+	if strings.ContainsAny(bottom, strings.Join(spinnerFrames, "")) {
+		t.Errorf("input box bottom rule should be plain (no spinner): %q", bottom)
+	}
+}
+
+func lastLine(s string) string {
+	lines := strings.Split(s, "\n")
+	return lines[len(lines)-1]
 }
