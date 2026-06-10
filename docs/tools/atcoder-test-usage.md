@@ -121,7 +121,7 @@ atcoder test abc325 --task d --in my_case.txt --out expected.txt
 
 `--interactive` (`-I`) で子プロセスと live 対話する。入力は親 stdin から読む。
 
-- **TTY (端末から直接)**: bubbletea ベースの chat TUI。入力ボックスに 1 行 → `Enter` で送信、子の出力は届き次第表示。`↑`/`↓` で入力履歴、`Ctrl+D` で chat を終了、`Ctrl+C` で即中断。子は `PYTHONUNBUFFERED=1` 付きで起動するので `flush()` 不要。`Ctrl+D` は **atcoder CLI 側の終了キー**で、子プロセスには渡さない (EOF は送らない)。EOF まで読む batch プログラムの確認は `--in <file>` を使う。
+- **TTY (端末から直接)**: bubbletea ベースの chat TUI。入力ボックスに 1 行 → `Enter` で送信、子の出力は届き次第表示。`↑`/`↓` で入力履歴、`Ctrl+C` または `Ctrl+D` で chat を終了 (どちらも同じ。子を kill して quit。子に EOF は送らない)。子は `PYTHONUNBUFFERED=1` 付きで起動するので `flush()` 不要。EOF まで読む batch プログラムの確認は `--in <file>` を使う。
   - **出力タイミング表示**: 子の出力行 (`←`/`✖`/`*`) には、行頭に**直前イベント (最後に入力を送ってから、または直前の出力から) その行までの経過時間**が dim・固定幅で添えられる (`  218ms ← Query?`)。応答レイテンシと連続出力の間隔がひと目で分かる。書式は**最大単位のみ・四捨五入** (`340µs`/`218ms`/`12s`)。ただし 10,000ms 未満は `s` でなく `ms` で出す (`1100ms`、`10s`)。入力行 `→` と情報行には付かない。
 - **非 TTY (パイプ/リダイレクト)**: passthrough + tee。送った各行を `> <input>` と echo してから子に転送する batch-friendly モード (厳密な交互表示は保証されない。チャットらしさが要るなら TTY か `expect`(1))。
 
@@ -134,7 +134,7 @@ printf "3\nok\nok\nok\n" | atcoder test abc999 --task a --interactive
 
 既定では子プロセスが終了すると chat TUI も閉じる。`--auto-restart` を付けると **子が終了するたびに同じ解答を自動で再実行**し (sticky)、リプレイや複数ラウンドの対話問題を続けて試せる。再起動の選択は**起動時のフラグで確定**するので、セッション終了のたびに尋ねられることはない。
 
-- 抜けるには `Ctrl+D` (auto-restart を止め、現セッションの子が自然終了してから quit。子に EOF は送らない) か `Ctrl+C` (即中断)。
+- 抜けるには `Ctrl+C` または `Ctrl+D` (どちらも同じ。子を kill して即 quit。auto-restart 中も現セッションの完了は待たない)。
 - `--auto-restart` は対話モード専用。`--interactive` 無しで指定すると `exit 2`。非 TTY (パイプ) では chat TUI を使わないため無効で、1 回だけ実行する。
 
 ```sh
