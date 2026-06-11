@@ -312,6 +312,53 @@ func (m *chatModel) submitPrep() {
 	m.msgs = append(m.msgs, chatLine{kind: kind, text: "(提出準備: " + res.Message + ")"})
 }
 
+// submitLines は lines を順に子 stdin へ送る (各 Fprintln + kindIn echo + 履歴)。
+// 単一行 Enter と複数行ペースト ([034]) で共有する送信ロジック。子が居なければ最初の
+// 送信を機に (再) 起動し (遅延起動)、1 行でも送れたら最後に出力待ちを 1 回起動する。
+// 必要な tea.Cmd (restart / startAwaiting) は cmds に追記する。
+func (m *chatModel) submitLines(lines []string, cmds *[]tea.Cmd) {
+	if len(lines) == 0 {
+		return
+	}
+	if !m.running {
+		// 子が居なければ入力を機に (再) 起動する (遅延起動 / 子終了後の再実行)。
+		*cmds = append(*cmds, m.restart())
+	}
+	if !m.running {
+		return // spawn 失敗 (restart が tea.Quit を返した)。送らない。
+	}
+	sent := false
+	for _, txt := range lines {
+		if _, err := fmt.Fprintln(m.handle.Stdin, txt); err != nil {
+			m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(write failed: " + err.Error() + ")"})
+			break // 書き込み失敗以降は送らない
+		}
+		m.msgs = append(m.msgs, chatLine{kind: kindIn, text: txt})
+		m.sessionInputs = append(m.sessionInputs, txt) // :case の .in 前埋め用 (現セッション分)
+		if txt != "" {
+			m.history = append(m.history, txt)
+		}
+		sent = true
+	}
+	if sent {
+		m.lastEventAt = time.Now() // 直近の送信時刻 = 次の出力の経過時間の基準
+		m.historyPos = len(m.history)
+		// 送信成功 → 出力待ち。スピナー + 経過時間をライブ表示する (バッチで 1 回)。
+		*cmds = append(*cmds, m.startAwaiting())
+	}
+}
+
+// splitPasteLines は現在の入力値 current にペースト pasted を末尾結合し、改行
+// (\r\n / \r を \n に正規化) で分割する。send は改行で終わった完全な行 (子へ逐次
+// 送信)、remainder は末尾の未改行テキスト (入力欄に残す)。純粋関数 ([034])。
+func splitPasteLines(current, pasted string) (send []string, remainder string) {
+	combined := current + pasted
+	combined = strings.ReplaceAll(combined, "\r\n", "\n")
+	combined = strings.ReplaceAll(combined, "\r", "\n")
+	parts := strings.Split(combined, "\n")
+	return parts[:len(parts)-1], parts[len(parts)-1]
+}
+
 // addInfoLine は親 (startSplitModel) が chat に情報行を 1 つ積むためのヘルパー。
 // 再ターゲット時の移動案内・着手メッセージを新しい chat に出すのに使う (要件 027)。
 func (m *chatModel) addInfoLine(text string) {
@@ -367,6 +414,17 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case modeBuilder:
 			return m.updateBuilder(msg)
 		}
+		// 複数行ペースト (bracketed paste): 各改行を Enter 扱いで完全行を逐次送信し、
+		// 末尾の未改行テキストは入力欄に残す (要件 034)。改行を含まない通常ペースト・
+		// 打鍵は従来どおり下の switch (default で textinput) に流す。
+		if msg.Paste && strings.ContainsAny(string(msg.Runes), "\r\n") {
+			send, remainder := splitPasteLines(m.input.Value(), string(msg.Runes))
+			m.submitLines(send, &cmds)
+			m.input.SetValue(remainder)
+			m.input.CursorEnd()
+			m.refreshViewport()
+			return m, tea.Batch(cmds...)
+		}
 		switch msg.Type {
 		case tea.KeyEsc:
 			// insert → command モード (`:` 行)。vim 風 (ADR 0007)。
@@ -410,27 +468,8 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.submitPrep()
 			m.refreshViewport()
 		case tea.KeyEnter:
-			txt := m.input.Value()
-			// 子が居なければ入力を機に (再) 起動する (遅延起動 / 子終了後の再実行)。
-			// これにより、入力を読まず即終了する解答でも無限ループにならない。
-			if !m.running {
-				cmds = append(cmds, m.restart())
-			}
-			if !m.running {
-				// spawn 失敗 (restart が tea.Quit を返した)。入力は送らない。
-			} else if _, err := fmt.Fprintln(m.handle.Stdin, txt); err != nil {
-				m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(write failed: " + err.Error() + ")"})
-			} else {
-				m.msgs = append(m.msgs, chatLine{kind: kindIn, text: txt})
-				m.lastEventAt = time.Now()                     // 入力を受け付けた時刻 = 次の出力の経過時間の基準
-				m.sessionInputs = append(m.sessionInputs, txt) // :case の .in 前埋め用 (現セッション分)
-				if txt != "" {
-					m.history = append(m.history, txt)
-				}
-				m.historyPos = len(m.history)
-				// 送信成功 → 出力待ち。スピナー + 経過時間をライブ表示する。
-				cmds = append(cmds, m.startAwaiting())
-			}
+			// 現在行を 1 行送信する (複数行ペーストと送信ロジックを共有)。
+			m.submitLines([]string{m.input.Value()}, &cmds)
 			m.input.SetValue("")
 			m.refreshViewport()
 		case tea.KeyUp:
