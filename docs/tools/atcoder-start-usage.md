@@ -56,15 +56,18 @@ atcoder start <contest> --task <task> [--until-pass] [--refresh] [-d] [-s] [-j <
 |---|---|---|
 | `:task next` (`:task n`) | 問題記号を次へ (letter +1) | `abc457_d` → `abc457_e` |
 | `:task prev` (`:task p`) | 問題記号を前へ (letter −1) | `abc457_d` → `abc457_c` |
+| `:task <letter>` | 問題記号を**直指定** (現コンテスト) | `:task f` → `abc457_f` |
 | `:contest next` (`:contest n`) | コンテストを次へ (contest_num +1、letter 保持) | `abc457_d` → `abc458_d` |
 | `:contest prev` (`:contest p`) | コンテストを前へ (contest_num −1、letter 保持) | `abc457_d` → `abc456_d` |
+| `:contest <num>` | コンテスト番号を**直指定** (現シリーズ・桁数保持、letter 保持) | `:contest 123` → `abc123_d` |
+| `:contest <id>` | コンテストを**直指定** (シリーズごと、letter 保持) | `:contest arc100` → `arc100_d` |
 | `:e <spec>` | 任意の問題へジャンプ | `:e f` (現コンテストの `f`) / `:e abc500_d` (コンテストごと) |
 
-- 第 1 トークンは `task` / `contest` の**フルワードのみ** (1 文字略語は無し。`:c` は `:case` と衝突するため)、第 2 トークンは `next`/`n` か `prev`/`p`。第 2 トークン無し・不正トークンは `E492` で利用法を案内し再ターゲットしない。
-- **移動の 2 軸**: letter 軸 (`:task next`/`:task prev`) は**同一コンテスト内の次/前の問題**、number 軸 (`:contest next`/`:contest prev`) は**同じ letter の隣コンテスト**。AtCoder の問題 ID (`contest_num` + `letter`) の 2 成分そのままなので、移動の意味が一意に定まる。
+- 第 1 トークンは `task` / `contest` の**フルワードのみ** (1 文字略語は無し。`:c` は `:case` と衝突するため)。第 2 トークンが `next`/`n`・`prev`/`p` なら相対移動、それ以外の非空トークンは**直指定** (`:task <letter>` / `:contest <num|id>`)。第 2 トークン無しは `E492` で利用法を案内し再ターゲットしない。
+- **移動の 2 軸**: letter 軸 (`:task`) は**同一コンテスト内の問題**、number 軸 (`:contest`) は**同じ letter の別コンテスト**。AtCoder の問題 ID (`contest_num` + `letter`) の 2 成分そのままなので、`next`/`prev` の相対移動でも直指定でも意味が一意に定まる。`:contest <num>` は現在のシリーズ・桁数を保つ (`abc457` から `:contest 5` → `abc005`)。`:e` は種別を問わない自由形式 (`:task`=記号・`:contest`=コンテストの直指定とは役割を分ける)。
 - **移動時に着手 + 再ターゲット**: 移動先では start と同じく**着手** (解答ファイルが無ければ空ファイルを作成。`created: <path>` を表示) し、watch ペインのサンプル判定と chat ペインの子プロセスが**新しい問題で作り直される** (再ターゲット)。chat には `(→ abc457_e に移動しました)` の案内行が出る。
 - **既存ファイルは温存**: 移動先に解答ファイルが既にあれば**上書きしない** (`solution: <path> (exists)`)。提出コードを壊さない。`--until-pass` 指定時は、移動後の新しい問題に対して全通過判定が掛かる。
-- **境界・非対応は 1 行エラーで継続**: letter `a` で `:task prev`、番号が下限で `:contest prev`、番号を持たない contest での `:contest next`/`:contest prev`、複数文字 letter (`ex` 等) での `:task next`/`:task prev`、`:e` の引数が空/不正、などは**再ターゲットせず 1 行エラーを出して継続**する (start は落ちず exit code も変わらない)。
+- **境界・非対応は 1 行エラーで継続**: letter `a` で `:task prev`、番号が下限で `:contest prev`、番号を持たない contest での `:contest next`/`:contest prev`、複数文字 letter (`ex` 等) での `:task next`/`:task prev`、直指定の不正値 (`:task <非英字>`・`:contest 0` や形不正)、`:e` の引数が空/不正、などは**再ターゲットせず 1 行エラーを出して継続**する (start は落ちず exit code も変わらない)。
 - **Tab 補完**: `:` 行で `Tab` を押すとコマンド名 (`:case`/`:w`/`:set`/`:q`/`:debug`/`:cheat`/`:task`/`:contest`/`:e`) と `next|prev`・`verify|noverify` などのサブトークンを補完する。一意なら確定し、複数候補は `:` 行直下に一覧表示する (要件 [031](./requirements/031-command-mode-completion.md))。
 
 移動前後の画面イメージ:
