@@ -335,7 +335,8 @@ func (m *chatModel) submitLines(lines []string, cmds *[]tea.Cmd) {
 		}
 		m.msgs = append(m.msgs, chatLine{kind: kindIn, text: txt})
 		m.sessionInputs = append(m.sessionInputs, txt) // :case の .in 前埋め用 (現セッション分)
-		if txt != "" {
+		if txt != "" && (len(m.history) == 0 || m.history[len(m.history)-1] != txt) {
+			// 直前と同じ内容は履歴に積まない (連続重複の抑制)
 			m.history = append(m.history, txt)
 		}
 		sent = true
