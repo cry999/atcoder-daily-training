@@ -151,14 +151,16 @@ func (c *startConfig) buildTarget(contestID, task string, refresh bool) (t ui.St
 		return ex.StartChat(path, extraEnv)
 	}
 
-	buildOpts := func(refresh bool) testexec.Options {
+	// debug は呼び出し時の live Debug 値 (chat の :debug トグルを watch 再判定にも反映する。
+	// 要件 034)。起動時 c.debug を焼き付けず、再判定ごとに渡された Debug で比較する。
+	buildOpts := func(refresh, debug bool) testexec.Options {
 		return testexec.Options{
 			Contest:     contestID,
 			Task:        task,
 			Layout:      lay,
 			Refresh:     refresh,
 			Timeout:     c.timeout,
-			Debug:       c.debug,
+			Debug:       debug,
 			Tolerance:   c.tolerance,
 			Concurrency: c.jobs,
 			ExecutorFor: selectExecutor,
@@ -168,10 +170,11 @@ func (c *startConfig) buildTarget(contestID, task string, refresh bool) (t ui.St
 
 	// 上ペイン: 保存検知でサンプルを再判定する。判定は stdout に書かず捕捉 Reporter で
 	// 結果だけ集めて要約にする。初回のみ refresh を効かせる (ナビ時は refresh=false)。
+	// debug は startSplitModel が渡す live Debug 値 (要件 034)。
 	firstRefresh := refresh
-	runSamples := func() ui.SampleSummary {
+	runSamples := func(debug bool) ui.SampleSummary {
 		rep := testexec.NewSummaryReporter()
-		opts := buildOpts(firstRefresh)
+		opts := buildOpts(firstRefresh, debug)
 		firstRefresh = false
 		opts.Reporter = rep
 		runCode, runErr := testexec.Run(opts)

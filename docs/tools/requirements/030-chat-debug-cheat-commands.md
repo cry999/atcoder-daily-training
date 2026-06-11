@@ -17,6 +17,8 @@
 | `:cheat` | 利用可能コマンドを **info 行ダンプ**で一覧表示。`NavEnabled` のときだけ `:task`/`:contest`/`:e` も載せる | モーダル表示・キー割当の併記 |
 | 反映範囲 | `:debug` は **以後届く** stdout 行の `[DEBUG]` 振り分けに反映 (既描画行は遡及しない) | 既存行の再分類 (再パース) |
 
+> **追記 ([034](034-start-debug-watch-sync.md))**: `:debug` の反映先を chat 表示だけでなく **start 分割画面の watch ペイン (再判定)** にも拡張した。トグルで watch を live Debug 値で即再判定し (`[DEBUG]` 行が比較から外れて verdict が変わる)、タイトルに `[debug]` バッジを出す。chat → 親通知は `DebugMsg{On bool}`。本要件 (chat 表示のトグル) はそのまま、波及配線を 034 で足した形。
+
 ### 境界
 
 - 子プロセス・判定・exit code・`Ctrl+C`/`Ctrl+D`/`Ctrl+S`・既存コマンド (`:case`/`:w`/`:set verify`/`:q`/`:task`/`:contest`/`:e`) は不変。

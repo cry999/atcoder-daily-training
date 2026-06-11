@@ -209,6 +209,35 @@ func TestApplySetDebug(t *testing.T) {
 	}
 }
 
+// :debug / :set debug|nodebug は親 (startSplitModel) に Debug 変化を伝える DebugMsg を
+// 発火する Cmd を返す。これが watch ペインの再判定トリガになる (要件 034)。
+func TestDebugEmitsDebugMsg(t *testing.T) {
+	m := initialChatModel(ChatHeader{}, fakeSpawn())
+
+	// :debug (off → on) は DebugMsg{On: true} を発火。
+	cmd := m.toggleDebug()
+	if cmd == nil {
+		t.Fatal("toggleDebug should return a non-nil Cmd emitting DebugMsg")
+	}
+	if msg, ok := cmd().(DebugMsg); !ok || !msg.On {
+		t.Errorf("toggle on should emit DebugMsg{On:true}, got %#v", cmd())
+	}
+
+	// :set nodebug は DebugMsg{On: false} を発火。
+	cmd = m.applySet("nodebug")
+	if cmd == nil {
+		t.Fatal(":set nodebug should return a non-nil Cmd emitting DebugMsg")
+	}
+	if msg, ok := cmd().(DebugMsg); !ok || msg.On {
+		t.Errorf(":set nodebug should emit DebugMsg{On:false}, got %#v", cmd())
+	}
+
+	// 表示専用オプション (:set verify) は Debug を変えないので Cmd は出さない。
+	if cmd := m.applySet("noverify"); cmd != nil {
+		t.Errorf(":set noverify should not emit a Cmd, got %#v", cmd())
+	}
+}
+
 // :debug 後に届く [DEBUG] stdout 行は kindDebug に振り分けられる (既描画行は遡及しない)。
 func TestDebugReclassifiesFutureLines(t *testing.T) {
 	m := initialChatModel(ChatHeader{}, fakeSpawn())
