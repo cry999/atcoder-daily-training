@@ -1,6 +1,6 @@
 # `atcoder start` 問題ナビゲーション (letter / number の next・prev 移動) 要件定義
 
-> **追記 ([031](031-nav-direct-target.md)):** `:contest` / `:task` に **直指定 (絶対ジャンプ)** を足した。`next`/`prev` 以外の非空トークンを `:task <letter>` (現コンテストの記号) / `:contest <num|id>` (コンテスト直指定・letter 保持) として解決する (`NavLetterExplicit` / `NavContestExplicit`)。相対移動と `:e` は不変。
+> **追記 ([032](032-nav-direct-target.md)):** `:contest` / `:task` に **直指定 (絶対ジャンプ)** を足した。`next`/`prev` 以外の非空トークンを `:task <letter>` (現コンテストの記号) / `:contest <num|id>` (コンテスト直指定・letter 保持) として解決する (`NavLetterExplicit` / `NavContestExplicit`)。相対移動と `:e` は不変。
 
 ## 概要
 
