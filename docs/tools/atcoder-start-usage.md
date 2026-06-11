@@ -26,7 +26,7 @@ atcoder start <contest> --task <task> [--until-pass] [--refresh] [-d] [-s] [-j <
 1. レイアウトを解決し、解答パス (`exercise/YYYY/MM/DD/<task>.py` または `abc/<num>/<letter>.py` 等) を決める。
 2. **解答ファイルを用意**: 親ディレクトリを作成し、ファイルが無ければ**空ファイル**を生成 (既存は温存)。`created:` / `solution: ... (exists)` を 1 行表示。
 3. **上下分割画面に入る**。**chat と watch を同時に動かし続ける**:
-   - **上ペイン = watch 要約**: 起動時に 1 回サンプルを判定し、以降は**保存検知のたびに自動で再判定**。全体 (`✓ 4/4` / `✗ 2/4`) に続けて**各ケースの verdict** を出す (`01 AC  02 WA  03 TLE  04 AC`。AC=緑・WA/TLE/RE=赤)。どのケースで落ちているかが一目で分かる (diff は出さない)。ケースが多くペイン幅を超えたら末尾を `…` で切り詰める。
+   - **上ペイン = watch 要約**: 起動時に 1 回サンプルを判定し、以降は**保存検知のたびに自動で再判定**。全体 (`✓ 4/4` / `✗ 2/4`) に続けて**各ケースの verdict** を出す (`01 AC  02 WA  03 TLE  04 AC`。AC=緑・WA/TLE/RE=赤)。どのケースで落ちているかが一目で分かる (diff は出さない)。ケースが多くペイン幅を超えたら末尾を `…` で切り詰める。Debug (`-d` / chat の `:debug`) が on のときは判定が `[DEBUG]` 行を除外し、タイトルに `[debug]` バッジが付く (下記「コマンドモード — `:debug` は watch ペインにも反映」)。
    - **下ペイン = 対話 chat**: `test --interactive` と同じ chat。**解答は最初に入力を送った瞬間に起動** (遅延起動)、入力ボックスに 1 行 → `Enter` で送信、子の出力は届き次第表示。auto-restart 付きなので子が終了しても閉じず、**次の入力で再実行**する (入力を読まず即終了する解答でも無限ループにならない)。
 4. 編集 → 保存すると、**上ペイン (サンプル再判定) と下ペイン (chat を最新コードで reload) の両方**が新しいコードを反映する (`test --interactive` の watch-reload と同じ)。
 5. 終了:
@@ -95,6 +95,15 @@ atcoder start <contest> --task <task> [--until-pass] [--refresh] [-d] [-s] [-j <
 
 > ナビゲーションは**分割画面 (start) の chat 限定**。`test --interactive` 単体の chat では `:task`/`:contest` 等は未知コマンド (`E492`) として無視される。既存の `:case`/`:w`/`:set`/`:q` と `Ctrl+C`/`Ctrl+D`/`Ctrl+S` は不変。
 
+### コマンドモード — `:debug` は watch ペインにも反映
+
+下ペインの chat で `:debug` (別名 `:set debug` / `:set nodebug`) で Debug を切り替えると ([030-chat-debug-cheat-commands.md](./requirements/030-chat-debug-cheat-commands.md))、`start` の分割画面では**上ペイン (watch) の再判定にも即反映**される (要件 [033](./requirements/033-start-debug-watch-sync.md))。
+
+- Debug は単なる表示切替ではなく、**子に `DEBUG=1` を渡し、`stdout` の `[DEBUG]` 接頭辞行を比較対象から除外**する (`-d` フラグ相当)。watch ペインの per-case verdict はこの除外の有無で変わる。
+- そのため、`-d` を付けずに起動して解答にデバッグ print が混ざっていると watch は `[DEBUG]` 行込みで比較して **WA** になるが、対話中に `:debug` を on にすれば watch が**新しい Debug 値で即再判定**して verdict が正しく揃う (起動時 `-d` と同じ判定になる)。トグルと同時に watch ペインのタイトル行に **`[debug]` バッジ**が出る。
+- 問題ナビ (`:task`/`:contest`/`:e`) で移動しても **live Debug は引き継がれる** (起動時 `-d` の値に戻らない)。chat 表示の Debug と watch 判定の Debug は常に同じ値に揃う。
+- chat 下ペインの**子プロセスの環境は変わらない** (起動時 `-d` のまま。`:debug` で子を再起動しない)。`test --interactive` 単体では従来どおり chat 表示のトグルのみ (watch ペインが無いため)。
+
 ## 例
 
 ```sh
@@ -128,4 +137,4 @@ atcoder start abc457 --task d
 ## 関連
 
 - 利用手引: [atcoder-test-usage.md](./atcoder-test-usage.md) (watch モードの詳細)
-- 要件: [018-start-command.md](./requirements/018-start-command.md) / [019-start-key-actions.md](./requirements/019-start-key-actions.md) / [023-start-split-screen.md](./requirements/023-start-split-screen.md) / [027-start-problem-navigation.md](./requirements/027-start-problem-navigation.md) (コマンドモードのナビゲーション) / [004-exercise-test-watch.md](./requirements/004-exercise-test-watch.md)
+- 要件: [018-start-command.md](./requirements/018-start-command.md) / [019-start-key-actions.md](./requirements/019-start-key-actions.md) / [023-start-split-screen.md](./requirements/023-start-split-screen.md) / [027-start-problem-navigation.md](./requirements/027-start-problem-navigation.md) (コマンドモードのナビゲーション) / [030-chat-debug-cheat-commands.md](./requirements/030-chat-debug-cheat-commands.md) (`:debug`/`:cheat`) / [033-start-debug-watch-sync.md](./requirements/033-start-debug-watch-sync.md) (`:debug` を watch へ反映) / [004-exercise-test-watch.md](./requirements/004-exercise-test-watch.md)

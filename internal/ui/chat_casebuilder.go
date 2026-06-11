@@ -213,19 +213,19 @@ func (m *chatModel) execCommand(cmd command) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 	case "set":
-		m.applySet(cmd.arg)
+		setCmd := m.applySet(cmd.arg)
 		if m.builder != nil {
 			m.mode = modeBuilder
 		} else {
 			m.mode = modeInsert
 		}
 		m.refreshViewport()
-		return m, nil
+		return m, setCmd
 	case "debug":
-		m.toggleDebug()
+		debugCmd := m.toggleDebug()
 		m.returnFromCommand()
 		m.refreshViewport()
-		return m, nil
+		return m, debugCmd
 	case "cheat":
 		m.showCheat()
 		m.returnFromCommand()
@@ -262,25 +262,30 @@ func (m *chatModel) execNav(cmd command) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// applySet は `:set verify` / `:set noverify` を処理する。
-func (m *chatModel) applySet(arg string) {
+// applySet は `:set verify` / `:set noverify` / `:set debug|nodebug` を処理する。
+// debug/nodebug は Debug を切り替えるので、watch ペインへ伝える DebugMsg の Cmd を返す
+// (要件 033)。他のオプションは表示だけなので nil を返す。
+func (m *chatModel) applySet(arg string) tea.Cmd {
 	switch strings.TrimSpace(arg) {
 	case "verify":
 		if len(m.lastExpected) == 0 {
 			m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(検証する期待出力がありません — :case で expected を定義してください)"})
-			return
+			return nil
 		}
 		m.enableVerify(m.lastExpected)
 		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(ライブ検証 on)"})
+		return nil
 	case "noverify":
 		m.verify = nil
 		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(ライブ検証 off)"})
+		return nil
 	case "debug":
-		m.setDebug(true)
+		return m.setDebug(true)
 	case "nodebug":
-		m.setDebug(false)
+		return m.setDebug(false)
 	default:
 		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "E518: unknown option :set " + arg})
+		return nil
 	}
 }
 
@@ -296,18 +301,21 @@ func (m *chatModel) returnFromCommand() {
 
 // setDebug は Debug 表示 (-d 相当、子 stdout の [DEBUG] 行を別カテゴリに振り分け) を
 // on/off する。以後届く行に反映され、既に描画済みの行は遡及して変えない (要件 030)。
-func (m *chatModel) setDebug(on bool) {
+// 分割画面 (start) では親 startSplitModel が DebugMsg を受けて watch ペインを live Debug で
+// 再判定する (要件 033)。単体 chat (test --interactive) では受け手がいないので無害に無視される。
+func (m *chatModel) setDebug(on bool) tea.Cmd {
 	m.header.Debug = on
 	state := "off"
 	if on {
 		state = "on"
 	}
 	m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(debug " + state + " — 以降の [DEBUG] 行に反映)"})
+	return func() tea.Msg { return DebugMsg{On: on} }
 }
 
-// toggleDebug は Debug 表示を反転する (:debug)。
-func (m *chatModel) toggleDebug() {
-	m.setDebug(!m.header.Debug)
+// toggleDebug は Debug 表示を反転する (:debug)。DebugMsg の Cmd を伝播する。
+func (m *chatModel) toggleDebug() tea.Cmd {
+	return m.setDebug(!m.header.Debug)
 }
 
 // showCheat は今この画面で使える command 一覧を info 行で積む (:cheat / :help / :?)。

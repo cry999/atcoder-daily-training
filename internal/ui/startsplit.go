@@ -35,11 +35,11 @@ type SampleSummary struct {
 type StartTarget struct {
 	ContestID, Task string
 	SolutionPath    string
-	Spawn           Spawner              // chat 用の子プロセス起動 (auto-restart)
-	Header          ChatHeader           // NavEnabled=true で渡す
-	RunSamples      func() SampleSummary // サンプル再判定 (stdout に書かない)
-	Watcher         *watch.Watcher       // 解答ファイルの保存検知
-	InfoLines       []string             // 再ターゲット時に chat へ出す案内行 (移動先 + 着手)
+	Spawn           Spawner                        // chat 用の子プロセス起動 (auto-restart)
+	Header          ChatHeader                     // NavEnabled=true で渡す
+	RunSamples      func(debug bool) SampleSummary // サンプル再判定 (stdout に書かない)。debug は live Debug 値 (要件 033)
+	Watcher         *watch.Watcher                 // 解答ファイルの保存検知
+	InfoLines       []string                       // 再ターゲット時に chat へ出す案内行 (移動先 + 着手)
 }
 
 // Navigate は現ターゲットと要求から次のターゲットを解決する (cmd/atcoder が注入)。
@@ -63,6 +63,11 @@ const (
 
 type splitTickMsg struct{}
 
+// DebugMsg は chat ペインが親 (startSplitModel) に Debug 変化を伝える tea.Msg (要件 033)。
+// chat の :debug / :set debug|nodebug (要件 030) が発火し、親は watch ペインの live Debug を
+// 更新して再判定する。分割画面でない単体 chat (test --interactive) では受け手がいないので無害。
+type DebugMsg struct{ On bool }
+
 // splitSampleMsg は非同期サンプル判定の結果。epoch は発行時の再ターゲット世代で、
 // 現行と不一致なら旧ターゲットの遅延結果として破棄する (要件 027 の target epoch)。
 type splitSampleMsg struct {
@@ -75,11 +80,12 @@ type startSplitModel struct {
 	contestID    string // 現ターゲットの contest_id (ナビ解決の起点)
 	task         string // 現ターゲットの task_id (ナビ解決の起点)
 	solutionPath string
-	runSamples   func() SampleSummary
+	runSamples   func(debug bool) SampleSummary
 	changed      func() bool
 	navigate     Navigate // nil ならナビ無効
 	untilPass    bool
 	poll         time.Duration
+	debug        bool // live Debug 値 (chat の :debug で変わる)。watch 再判定の Debug に渡す (要件 033)
 
 	summary        SampleSummary
 	haveSummary    bool
@@ -96,6 +102,8 @@ var (
 	splitFailStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("#f38ba8"))
 	splitRuleStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("#45475a"))
 	splitHelpStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("#7f849c")).Italic(true)
+	// [debug] バッジ。chat の debug 色 (mochaLavender) に揃えて Debug の一貫性を示す (要件 033)。
+	splitDebugBadgeStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaLavender)).Bold(true)
 )
 
 // RunStartSplit は上下分割の bubbletea プログラムを駆動する。
@@ -117,6 +125,7 @@ func RunStartSplit(cfg StartSplitConfig) (int, error) {
 		navigate:     cfg.Navigate,
 		untilPass:    cfg.UntilPass,
 		poll:         poll,
+		debug:        t.Header.Debug, // 起動時 -d を初期 live Debug にする (要件 033)
 	}
 	if _, err := tea.NewProgram(m, tea.WithAltScreen()).Run(); err != nil {
 		return 1, err
@@ -152,8 +161,9 @@ func (m *startSplitModel) tickCmd() tea.Cmd {
 
 func (m *startSplitModel) runSamplesCmd() tea.Cmd {
 	run := m.runSamples
+	debug := m.debug // 発行時の live Debug を焼き込む (再判定はこの Debug で行う。要件 033)
 	epoch := m.epoch // 発行時の世代を焼き込む (再ターゲット後の遅延結果を破棄するため)
-	return func() tea.Msg { return splitSampleMsg{summary: run(), epoch: epoch} }
+	return func() tea.Msg { return splitSampleMsg{summary: run(debug), epoch: epoch} }
 }
 
 // retarget は移動先ターゲットに watch ペイン・chat ペインを切り替える (要件 027)。
@@ -169,6 +179,9 @@ func (m *startSplitModel) retarget(t StartTarget) tea.Cmd {
 	m.changed = changedFunc(t.Watcher)
 
 	// chat を新ターゲットで作り直す (遅延起動: 入力が来るまで子は起動しない)。
+	// live Debug (実行中の :debug トグル結果) を引き継ぐ。t.Header.Debug は起動時 -d の
+	// 値なので、上書きして chat 表示と watch 判定の Debug を揃える (要件 033)。
+	t.Header.Debug = m.debug
 	m.chat = initialChatModel(t.Header, t.Spawn)
 	var cmds []tea.Cmd
 	if m.ready {
@@ -236,6 +249,18 @@ func (m *startSplitModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, m.retarget(target)
 
+	case DebugMsg:
+		// chat の :debug トグル (要件 030) を watch ペインへ波及させる (要件 033)。live Debug を
+		// 更新し、新 Debug で即再判定する。in-flight の旧判定 (旧 Debug) は epoch を進めて破棄し、
+		// stale な結果で上書きされないようにする (要件 027 の target epoch を Debug 変化に流用)。
+		if m.debug == msg.On {
+			return m, nil // 値が変わっていなければ再判定しない
+		}
+		m.debug = msg.On
+		m.epoch++
+		m.sampleInFlight = true
+		return m, m.runSamplesCmd()
+
 	default:
 		// KeyMsg / chatLineMsg / streamEndMsg などは chat に委譲し、Cmd を伝播する。
 		// chat が Ctrl+C/Ctrl+D で tea.Quit を返したら全体が終了する。
@@ -261,6 +286,11 @@ func (m *startSplitModel) View() string {
 // renderWatchPane は watch ペイン (splitTopLines 行: タイトル + 要約 + 区切り線) を返す。
 func (m *startSplitModel) renderWatchPane() string {
 	title := splitWatchTitleStyle.Render("watch") + "  " + splitHelpStyle.Render(m.solutionPath)
+	if m.debug {
+		// live Debug on を示すバッジ (chat の :debug と同期。要件 033)。タイトル行内に収め、
+		// watch ペインを 3 行 (splitTopLines) に保つ。
+		title += "  " + splitDebugBadgeStyle.Render("[debug]")
+	}
 	rule := splitRuleStyle.Render(strings.Repeat("─", maxInt(m.width, 1)))
 	return strings.Join([]string{title, m.renderSummaryLine(), rule}, "\n")
 }
