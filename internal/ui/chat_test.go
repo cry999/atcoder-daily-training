@@ -138,13 +138,17 @@ func TestCtrlCInterruptRestarts(t *testing.T) {
 	}
 }
 
-// Ctrl+D = chat 終了 (要件 022 のまま): 子を kill して quit する。
-func TestCtrlDQuits(t *testing.T) {
+// Ctrl+D の 1 回目はプログラムのリセットで、即終了しない (要件 030)。
+// 2 回連続での終了・武装解除など状態機械の網羅は chatctrld_test.go。
+func TestCtrlDFirstDoesNotQuit(t *testing.T) {
 	m := initialChatModel(ChatHeader{}, fakeSpawn())
-	m.handle = nil // Kill を踏ませない (nil ガード経由)
+	m.handle = nil // restart の旧プロセス Kill を踏ませない
 	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyCtrlD})
-	if !isQuit(cmd) {
-		t.Error("Ctrl+D should quit the chat")
+	if isQuit(cmd) {
+		t.Error("1st Ctrl+D should reset (not quit) — 要件 030")
+	}
+	if !m.ctrlDArmed {
+		t.Error("1st Ctrl+D should arm a 2nd-press quit")
 	}
 }
 
