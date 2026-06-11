@@ -131,28 +131,53 @@ func parseCommand(s string) command {
 func (m *chatModel) enterCommandMode() tea.Cmd {
 	m.mode = modeCommand
 	m.cmdInput = newCommandInput()
+	m.cmdCandidates = nil
 	return m.cmdInput.Focus()
 }
 
-// updateCommand は command モードのキー処理。Enter で実行、Esc でキャンセル。
+// updateCommand は command モードのキー処理。Enter で実行、Esc でキャンセル、Tab で補完。
 func (m *chatModel) updateCommand(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.Type {
 	case tea.KeyEnter:
 		cmd := parseCommand(m.cmdInput.Value())
+		m.cmdCandidates = nil
 		return m.execCommand(cmd)
 	case tea.KeyEsc:
 		// キャンセル: builder が開いていれば編集に戻る、なければ insert へ。
+		m.cmdCandidates = nil
 		if m.builder != nil {
 			m.mode = modeBuilder
 		} else {
 			m.mode = modeInsert
 		}
 		return m, nil
+	case tea.KeyTab:
+		// Tab 補完 (要件 030): 現トークンを最長共通プレフィックス/一意候補まで埋める。
+		// 子プロセス・stdout には触れず `:` 行の文字列だけを編集する。
+		repl, cands := completeCommandLine(m.cmdInput.Value(), m.header.NavEnabled)
+		if repl != m.cmdInput.Value() {
+			m.cmdInput.SetValue(repl)
+			m.cmdInput.CursorEnd()
+		}
+		m.cmdCandidates = cands
+		return m, nil
 	default:
+		// タイプ中は候補行を消す (補完は Tab を押した直後だけ出す)。
+		m.cmdCandidates = nil
 		var c tea.Cmd
 		m.cmdInput, c = m.cmdInput.Update(msg)
 		return m, c
 	}
+}
+
+// renderCommandLine は command モードの `:` 行を返す。Tab 補完で複数候補があるときは
+// その候補一覧を `:` 行直下に dim で 1 行添える (要件 030)。
+func (m *chatModel) renderCommandLine() string {
+	line := m.cmdInput.View()
+	if len(m.cmdCandidates) == 0 {
+		return line
+	}
+	return line + "\n" + caseBuilderHintStyle.Render("  "+strings.Join(m.cmdCandidates, "  "))
 }
 
 // execCommand は確定したコマンドを実行する。実行後のモード遷移もここで決める。
@@ -386,7 +411,7 @@ func (m *chatModel) renderBuilder() string {
 		hint,
 	}
 	if m.mode == modeCommand {
-		parts = append(parts, m.cmdInput.View())
+		parts = append(parts, m.renderCommandLine())
 	}
 	return strings.Join(parts, "\n")
 }
