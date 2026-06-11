@@ -53,16 +53,17 @@ atcoder start <contest> --task <task> [--until-pass] [--refresh] [-d] [-s] [-j <
 
 | コマンド (別名) | 動作 | 例 |
 |---|---|---|
-| `:next` (`:n`) | 問題記号を次へ (letter +1) | `abc457_d` → `abc457_e` |
-| `:prev` (`:p`) | 問題記号を前へ (letter −1) | `abc457_d` → `abc457_c` |
-| `:fwd` (`:f`) | コンテストを次へ (contest_num +1、letter 保持) | `abc457_d` → `abc458_d` |
-| `:back` (`:b`) | コンテストを前へ (contest_num −1、letter 保持) | `abc457_d` → `abc456_d` |
+| `:task next` (`:task n`) | 問題記号を次へ (letter +1) | `abc457_d` → `abc457_e` |
+| `:task prev` (`:task p`) | 問題記号を前へ (letter −1) | `abc457_d` → `abc457_c` |
+| `:contest next` (`:contest n`) | コンテストを次へ (contest_num +1、letter 保持) | `abc457_d` → `abc458_d` |
+| `:contest prev` (`:contest p`) | コンテストを前へ (contest_num −1、letter 保持) | `abc457_d` → `abc456_d` |
 | `:e <spec>` | 任意の問題へジャンプ | `:e f` (現コンテストの `f`) / `:e abc500_d` (コンテストごと) |
 
-- **移動の 2 軸**: letter 軸 (`:next`/`:prev`) は**同一コンテスト内の次/前の問題**、number 軸 (`:fwd`/`:back`) は**同じ letter の隣コンテスト**。AtCoder の問題 ID (`contest_num` + `letter`) の 2 成分そのままなので、移動の意味が一意に定まる。
+- 第 1 トークンは `task` / `contest` の**フルワードのみ** (1 文字略語は無し。`:c` は `:case` と衝突するため)、第 2 トークンは `next`/`n` か `prev`/`p`。第 2 トークン無し・不正トークンは `E492` で利用法を案内し再ターゲットしない。
+- **移動の 2 軸**: letter 軸 (`:task next`/`:task prev`) は**同一コンテスト内の次/前の問題**、number 軸 (`:contest next`/`:contest prev`) は**同じ letter の隣コンテスト**。AtCoder の問題 ID (`contest_num` + `letter`) の 2 成分そのままなので、移動の意味が一意に定まる。
 - **移動時に着手 + 再ターゲット**: 移動先では start と同じく**着手** (解答ファイルが無ければ空ファイルを作成。`created: <path>` を表示) し、watch ペインのサンプル判定と chat ペインの子プロセスが**新しい問題で作り直される** (再ターゲット)。chat には `(→ abc457_e に移動しました)` の案内行が出る。
 - **既存ファイルは温存**: 移動先に解答ファイルが既にあれば**上書きしない** (`solution: <path> (exists)`)。提出コードを壊さない。`--until-pass` 指定時は、移動後の新しい問題に対して全通過判定が掛かる。
-- **境界・非対応は 1 行エラーで継続**: letter `a` で `:prev`、番号が下限で `:back`、番号を持たない contest での `:fwd`/`:back`、複数文字 letter (`ex` 等) での `:next`/`:prev`、`:e` の引数が空/不正、などは**再ターゲットせず 1 行エラーを出して継続**する (start は落ちず exit code も変わらない)。
+- **境界・非対応は 1 行エラーで継続**: letter `a` で `:task prev`、番号が下限で `:contest prev`、番号を持たない contest での `:contest next`/`:contest prev`、複数文字 letter (`ex` 等) での `:task next`/`:task prev`、`:e` の引数が空/不正、などは**再ターゲットせず 1 行エラーを出して継続**する (start は落ちず exit code も変わらない)。
 
 移動前後の画面イメージ:
 
@@ -73,10 +74,10 @@ atcoder start <contest> --task <task> [--until-pass] [--refresh] [-d] [-s] [-j <
 ┌ interactive (auto-restart) ───────────────────────────┐
   > 5
   10
-  :next            ← Esc → `:next` を入力
+  :task next       ← Esc → `:task next` を入力
 └───────────────────────────────────────────────────────┘
 
-  ↓ :next 実行後 (abc457_e へ着手・再ターゲット)
+  ↓ :task next 実行後 (abc457_e へ着手・再ターゲット)
 
 ┌ watch ─ abc/457/e.py ─────────────────────────────────┐
   …  (未判定 → 初回判定でサンプル取得)
@@ -87,7 +88,7 @@ atcoder start <contest> --task <task> [--until-pass] [--refresh] [-d] [-s] [-j <
 └───────────────────────────────────────────────────────┘
 ```
 
-> ナビゲーションは**分割画面 (start) の chat 限定**。`test --interactive` 単体の chat では `:next` 等は未知コマンド (`E492`) として無視される。既存の `:case`/`:w`/`:set`/`:q` と `Ctrl+C`/`Ctrl+D`/`Ctrl+S` は不変。
+> ナビゲーションは**分割画面 (start) の chat 限定**。`test --interactive` 単体の chat では `:task`/`:contest` 等は未知コマンド (`E492`) として無視される。既存の `:case`/`:w`/`:set`/`:q` と `Ctrl+C`/`Ctrl+D`/`Ctrl+S` は不変。
 
 ## 例
 
