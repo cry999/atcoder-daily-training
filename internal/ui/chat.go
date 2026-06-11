@@ -137,6 +137,7 @@ type chatModel struct {
 	endedOut      bool
 	endedErr      bool
 	running       bool           // 子プロセスが生きているか。遅延起動 / 入力での再実行を制御する
+	ctrlDArmed    bool           // 直前のキーが Ctrl+D (= 次の Ctrl+D で chat 終了)。KeyMsg ごとに先頭でクリアし Ctrl+D 1 回目だけ立て直す (要件 030)
 	autoRestart   bool           // sticky モード。起動フラグ (--auto-restart) で初期化。子終了後は「入力で再実行」になる
 	autoHintShown bool           // auto-restart ヒント表示済みフラグ
 	watcher       *watch.Watcher // 非 nil なら解答ファイルを監視 (保存検知で reload)。nil なら watch-reload 無効
@@ -168,7 +169,7 @@ func initialChatModel(header ChatHeader, spawn Spawner) *chatModel {
 		submitHint = "  /  Ctrl+S で提出準備"
 	}
 	ti := textinput.New()
-	ti.Placeholder = "Enter で送信  /  Ctrl+C で中断・再起動  /  Ctrl+D で終了" + submitHint
+	ti.Placeholder = "Enter で送信  /  Ctrl+C で中断・再起動  /  Ctrl+D でリセット・2回で終了" + submitHint
 	ti.Focus()
 	ti.Prompt = "" // プロンプト記号は View 側で描画する
 
@@ -187,7 +188,7 @@ func initialChatModel(header ChatHeader, spawn Spawner) *chatModel {
 	}
 	// 遅延起動なので「入力で起動する」ことを案内する。子はまだ動いていないので
 	// auto-restart のヒントは初回 spawn 時 (restart) に出す。
-	m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(入力を送ると解答プログラムを起動します — Ctrl+C で中断・再起動 / Ctrl+D で終了" + submitHint + ")"})
+	m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(入力を送ると解答プログラムを起動します — Ctrl+C で中断・再起動 / Ctrl+D でリセット・2回で終了" + submitHint + ")"})
 	return m
 }
 
@@ -284,7 +285,7 @@ func (m *chatModel) restart() tea.Cmd {
 	}
 	// auto-restart 指定時は初回 spawn で一度だけ「子終了後も入力で再実行する」旨を出す。
 	if m.autoRestart && !m.autoHintShown {
-		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(auto-restart on — 子終了後も入力で再実行 / Ctrl+C で中断・再起動 / Ctrl+D で終了)"})
+		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(auto-restart on — 子終了後も入力で再実行 / Ctrl+C で中断・再起動 / Ctrl+D でリセット・2回で終了)"})
 		m.autoHintShown = true
 	}
 	m.refreshViewport()
@@ -353,6 +354,11 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.refreshViewport()
 
 	case tea.KeyMsg:
+		// Ctrl+D の連続押下判定 (要件 030): どのキーでもまず武装を解き、Ctrl+D の
+		// 1 回目だけ立て直す。出力到着等の非キー msg では解かない (この case に来ない)。
+		wasArmedD := m.ctrlDArmed
+		m.ctrlDArmed = false
+
 		// command / builder モードはキーを横取りする (要件 024)。insert モードは従来どおり。
 		switch m.mode {
 		case modeCommand:
@@ -380,12 +386,23 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(プログラムを中断しました — 再起動します)"})
 			return m, m.restart()
 		case tea.KeyCtrlD:
-			// Ctrl+D = chat の終了。子が居れば kill して quit する (子に EOF は送らない —
-			// 要件 021)。中断 (Ctrl+C) と違い chat 自体を閉じる。
-			if m.handle != nil {
-				_ = m.handle.Kill()
+			// Ctrl+D = 1 回目: プログラムをリセット (Ctrl+C 相当の restart()。chat に留まる)
+			// + 「もう一度で終了」を武装。2 回連続: chat を終了 (子 kill → quit)。要件 030。
+			// 「連続」は間に他のキーが挟まらないこと (wasArmedD)。子に EOF は送らない (要件 021)。
+			if wasArmedD {
+				if m.handle != nil {
+					_ = m.handle.Kill()
+				}
+				return m, tea.Quit
 			}
-			return m, tea.Quit
+			m.ctrlDArmed = true
+			if m.spawn == nil {
+				// 再起動できない経路ではリセットできないので武装のみ。
+				m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(もう一度 Ctrl+D で chat を終了)"})
+				return m, nil
+			}
+			m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(プログラムをリセットしました — もう一度 Ctrl+D で chat を終了)"})
+			return m, m.restart()
 		case tea.KeyCtrlS:
 			// Ctrl+S = 提出準備 (test --submit 相当: 解答コピー + 提出ページ起動)。
 			// 子は kill せず chat に留まる。結果は画面内の 1 行で示す (stdout には書かない)。

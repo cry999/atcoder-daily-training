@@ -44,7 +44,7 @@ type verifier struct {
 func newCommandInput() textinput.Model {
 	ti := textinput.New()
 	ti.Prompt = ":"
-	ti.Placeholder = "case | w [name] | set verify | q"
+	ti.Placeholder = "case | w [name] | set verify | debug | cheat | q"
 	return ti
 }
 
@@ -122,6 +122,12 @@ func parseCommand(s string) command {
 	case "e", "edit":
 		// :e <spec> — 任意ジャンプ。arg に spec を載せる (解決は親 Navigate)。
 		return command{name: "e", arg: arg}
+	case "debug":
+		// :debug — Debug 表示 (-d 相当) をトグル。
+		return command{name: "debug", arg: arg}
+	case "cheat", "help", "?":
+		// :cheat / :help / :? — 利用可能なコマンド一覧を表示。
+		return command{name: "cheat", arg: arg}
 	default:
 		return command{name: "unknown", arg: name}
 	}
@@ -215,6 +221,16 @@ func (m *chatModel) execCommand(cmd command) (tea.Model, tea.Cmd) {
 		}
 		m.refreshViewport()
 		return m, nil
+	case "debug":
+		m.toggleDebug()
+		m.returnFromCommand()
+		m.refreshViewport()
+		return m, nil
+	case "cheat":
+		m.showCheat()
+		m.returnFromCommand()
+		m.refreshViewport()
+		return m, nil
 	case "task", "contest", "e":
 		return m.execNav(cmd)
 	default: // unknown
@@ -259,8 +275,62 @@ func (m *chatModel) applySet(arg string) {
 	case "noverify":
 		m.verify = nil
 		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(ライブ検証 off)"})
+	case "debug":
+		m.setDebug(true)
+	case "nodebug":
+		m.setDebug(false)
 	default:
 		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "E518: unknown option :set " + arg})
+	}
+}
+
+// returnFromCommand は command で副作用だけ起こすコマンド (:set/:debug/:cheat) の
+// 後に元のモードへ戻す。builder を開いていれば編集に、なければ insert に戻る。
+func (m *chatModel) returnFromCommand() {
+	if m.builder != nil {
+		m.mode = modeBuilder
+	} else {
+		m.mode = modeInsert
+	}
+}
+
+// setDebug は Debug 表示 (-d 相当、子 stdout の [DEBUG] 行を別カテゴリに振り分け) を
+// on/off する。以後届く行に反映され、既に描画済みの行は遡及して変えない (要件 030)。
+func (m *chatModel) setDebug(on bool) {
+	m.header.Debug = on
+	state := "off"
+	if on {
+		state = "on"
+	}
+	m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(debug " + state + " — 以降の [DEBUG] 行に反映)"})
+}
+
+// toggleDebug は Debug 表示を反転する (:debug)。
+func (m *chatModel) toggleDebug() {
+	m.setDebug(!m.header.Debug)
+}
+
+// showCheat は今この画面で使える command 一覧を info 行で積む (:cheat / :help / :?)。
+// ナビ系 (:task/:contest/:e) は NavEnabled (start 分割画面) のときだけ載せる。
+func (m *chatModel) showCheat() {
+	lines := []string{
+		"利用可能なコマンド (Esc で command モード):",
+		"  :case (:c)            入出力ケース作成画面を開く",
+		"  :w [name]             追加ケースを tests-extra に保存",
+		"  :set verify|noverify  ライブ検証 on/off",
+		"  :debug                Debug 表示 (-d) を切替 (:set debug|nodebug)",
+		"  :cheat (:help :?)     このコマンド一覧",
+		"  :q                    chat 終了 (作成画面中は破棄)",
+	}
+	if m.header.NavEnabled {
+		lines = append(lines,
+			"  :task next|prev (n|p) 問題記号を移動",
+			"  :contest next|prev    コンテストを移動",
+			"  :e <spec>             任意の問題へジャンプ",
+		)
+	}
+	for _, l := range lines {
+		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: l})
 	}
 }
 

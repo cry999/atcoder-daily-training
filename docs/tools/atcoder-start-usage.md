@@ -30,7 +30,7 @@ atcoder start <contest> --task <task> [--until-pass] [--refresh] [-d] [-s] [-j <
    - **下ペイン = 対話 chat**: `test --interactive` と同じ chat。**解答は最初に入力を送った瞬間に起動** (遅延起動)、入力ボックスに 1 行 → `Enter` で送信、子の出力は届き次第表示。auto-restart 付きなので子が終了しても閉じず、**次の入力で再実行**する (入力を読まず即終了する解答でも無限ループにならない)。
 4. 編集 → 保存すると、**上ペイン (サンプル再判定) と下ペイン (chat を最新コードで reload) の両方**が新しいコードを反映する (`test --interactive` の watch-reload と同じ)。
 5. 終了:
-   - `Ctrl+C` または `Ctrl+D` で全体を終了 (exit 0)。
+   - `Ctrl+D` を **2 回連続**で押すと全体を終了 (exit 0)。1 回目はプログラムのリセット (子を再起動)、2 回目で終了。`Ctrl+C` は終了ではなくプログラムの中断・再起動 (chat に留まる)。
    - `--until-pass` 指定時は、**上ペインのサンプルが全通過した回**で自動終了 (exit 0)。
 
 ### キー操作
@@ -40,7 +40,8 @@ atcoder start <contest> --task <task> [--until-pass] [--refresh] [-d] [-s] [-j <
 | 文字入力 + `Enter` | 下ペインの chat に送信 (子の stdin へ) |
 | `↑` / `↓` | chat の入力履歴 |
 | `Ctrl+S` | **提出準備** (`test --submit` 相当: 解答をクリップボードへコピー + 提出ページをブラウザで起動)。子は止めず chat に留まり、結果を 1 行表示。**実提出 (POST) はしない** |
-| `Ctrl+D` / `Ctrl+C` | 全体を終了 (exit 0) |
+| `Ctrl+D` (2 回連続) | 全体を終了 (exit 0)。1 回目はプログラムのリセット (子を再起動)、間に他キーで連続カウントは戻る |
+| `Ctrl+C` | プログラムの中断・再起動 (子を kill して再実行・chat に留まる) |
 | (解答を保存) | 上ペイン (watch) を自動再判定 + 下ペインの chat を最新コードで reload |
 
 > `Ctrl+S` の提出準備は**サンプル全通過を待たない** (`test --submit` のゲートと違い、対話中はバッチ判定が走っていないため)。提出前に確認したいときは上ペインのサンプル結果を見るか、一度抜けて `atcoder test <contest> --task <task> --submit` を使う。

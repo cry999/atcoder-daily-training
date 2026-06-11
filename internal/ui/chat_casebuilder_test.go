@@ -164,3 +164,94 @@ func TestSetVerifyNeedsExpected(t *testing.T) {
 		t.Errorf("expected guidance message; msgs=%v", m.msgs)
 	}
 }
+
+// :debug / :cheat (別名 :help / :?) が parseCommand で正規化される (要件 030)。
+func TestParseDebugCheat(t *testing.T) {
+	cases := map[string]string{
+		"debug": "debug",
+		"cheat": "cheat",
+		"help":  "cheat",
+		"?":     "cheat",
+	}
+	for in, want := range cases {
+		if got := parseCommand(in); got.name != want {
+			t.Errorf("parseCommand(%q).name = %q, want %q", in, got.name, want)
+		}
+	}
+}
+
+// :debug は header.Debug をトグルし、状態を info 行で示す。
+func TestToggleDebug(t *testing.T) {
+	m := initialChatModel(ChatHeader{}, fakeSpawn())
+	if m.header.Debug {
+		t.Fatal("Debug should default off")
+	}
+	m.toggleDebug()
+	if !m.header.Debug || !hasInfo(m, "debug on") {
+		t.Errorf("toggle should turn debug on with info; Debug=%v msgs=%v", m.header.Debug, m.msgs)
+	}
+	m.toggleDebug()
+	if m.header.Debug || !hasInfo(m, "debug off") {
+		t.Errorf("toggle should turn debug off with info; Debug=%v", m.header.Debug)
+	}
+}
+
+// :set debug / :set nodebug が明示 on/off する。
+func TestApplySetDebug(t *testing.T) {
+	m := initialChatModel(ChatHeader{}, fakeSpawn())
+	m.applySet("debug")
+	if !m.header.Debug {
+		t.Error(":set debug should enable Debug")
+	}
+	m.applySet("nodebug")
+	if m.header.Debug {
+		t.Error(":set nodebug should disable Debug")
+	}
+}
+
+// :debug 後に届く [DEBUG] stdout 行は kindDebug に振り分けられる (既描画行は遡及しない)。
+func TestDebugReclassifiesFutureLines(t *testing.T) {
+	m := initialChatModel(ChatHeader{}, fakeSpawn())
+	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m.sessionN = 1 // chatLineMsg.epoch と一致させる
+	m.toggleDebug()
+	m.Update(chatLineMsg{kind: kindOut, text: "[DEBUG] x", epoch: 1})
+	last := m.msgs[len(m.msgs)-1]
+	if last.kind != kindDebug || last.text != "x" {
+		t.Errorf("debug-on: [DEBUG] line should become kindDebug 'x'; got kind=%q text=%q", last.kind, last.text)
+	}
+	// 通常の出力行はそのまま kindOut。
+	m.Update(chatLineMsg{kind: kindOut, text: "plain", epoch: 1})
+	last = m.msgs[len(m.msgs)-1]
+	if last.kind != kindOut {
+		t.Errorf("plain line should stay kindOut; got %q", last.kind)
+	}
+}
+
+// :cheat はコマンド一覧を出す。:task 等は NavEnabled のときだけ載る。
+func TestShowCheatNavGating(t *testing.T) {
+	off := initialChatModel(ChatHeader{}, fakeSpawn())
+	off.showCheat()
+	if !hasInfo(off, ":case") || !hasInfo(off, ":debug") {
+		t.Error("cheat should always list :case and :debug")
+	}
+	if hasInfo(off, ":task") {
+		t.Error("cheat without NavEnabled should not list :task")
+	}
+	on := initialChatModel(ChatHeader{NavEnabled: true}, fakeSpawn())
+	on.showCheat()
+	if !hasInfo(on, ":task") {
+		t.Error("cheat with NavEnabled should list :task")
+	}
+}
+
+// :cheat / :debug は作成画面 (builder) を開いたまま元のモードへ戻す。
+func TestCheatPreservesBuilder(t *testing.T) {
+	m := initialChatModel(ChatHeader{}, fakeSpawn())
+	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m.execCommand(parseCommand("case")) // builder を開く
+	m.execCommand(parseCommand("cheat"))
+	if m.builder == nil || m.mode != modeBuilder {
+		t.Errorf(":cheat should keep builder open and return to builder; builder=%v mode=%d", m.builder, m.mode)
+	}
+}
