@@ -148,9 +148,25 @@ func (m *chatModel) updateCommand(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		cmd := parseCommand(m.cmdInput.Value())
 		m.cmdCandidates = nil
 		return m.execCommand(cmd)
+	case tea.KeyPgUp:
+		// scrollback を 1 ページ上へ (要件 032)。以降の出力で最下部に引き戻さない。
+		m.viewport.ViewUp()
+		m.cmdScrolled = true
+		return m, nil
+	case tea.KeyPgDown:
+		// 1 ページ下へ。最下部に達したら追従を再開する。
+		m.viewport.ViewDown()
+		if m.viewport.AtBottom() {
+			m.cmdScrolled = false
+		}
+		return m, nil
 	case tea.KeyEsc:
 		// キャンセル: builder が開いていれば編集に戻る、なければ insert へ。
+		// 上にスクロールしていたら最下部 (最新) に戻す (insert モードはスクロール
+		// キーを持たないので「上に張り付いたまま」を避ける、要件 032)。
 		m.cmdCandidates = nil
+		m.cmdScrolled = false
+		m.viewport.GotoBottom()
 		if m.builder != nil {
 			m.mode = modeBuilder
 		} else {
@@ -188,6 +204,9 @@ func (m *chatModel) renderCommandLine() string {
 
 // execCommand は確定したコマンドを実行する。実行後のモード遷移もここで決める。
 func (m *chatModel) execCommand(cmd command) (tea.Model, tea.Cmd) {
+	// コマンド実行で command モードを抜けるので、上スクロールは解除して最下部へ戻す
+	// (末尾の refreshViewport が GotoBottom する。要件 032)。
+	m.cmdScrolled = false
 	switch cmd.name {
 	case "": // 空コマンド → 何もせず元のモードへ
 		if m.builder != nil {

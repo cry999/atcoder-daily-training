@@ -138,6 +138,7 @@ type chatModel struct {
 	endedErr      bool
 	running       bool           // 子プロセスが生きているか。遅延起動 / 入力での再実行を制御する
 	ctrlDArmed    bool           // 直前のキーが Ctrl+D (= 次の Ctrl+D で chat 終了)。KeyMsg ごとに先頭でクリアし Ctrl+D 1 回目だけ立て直す (要件 030)
+	cmdScrolled   bool           // command モードで scrollback を上にスクロール中 (= 出力到着で最下部に引き戻さない)。command モードを抜けると false (要件 032)
 	autoRestart   bool           // sticky モード。起動フラグ (--auto-restart) で初期化。子終了後は「入力で再実行」になる
 	autoHintShown bool           // auto-restart ヒント表示済みフラグ
 	watcher       *watch.Watcher // 非 nil なら解答ファイルを監視 (保存検知で reload)。nil なら watch-reload 無効
@@ -623,6 +624,9 @@ func (m *chatModel) refreshViewport() {
 			content = spin
 		}
 	}
+	// command モードで上にスクロール中は、出力到着で最下部に引き戻さないよう
+	// 現在のスクロール位置 (YOffset) を退避し、content 差し替え後に復元する (要件 032)。
+	savedOffset := m.viewport.YOffset
 	m.viewport.SetContent(content)
 
 	// 高さを content の表示行数に合わせる。content が "" なら 1 行確保。
@@ -635,7 +639,11 @@ func (m *chatModel) refreshViewport() {
 		lines = max
 	}
 	m.viewport.Height = lines
-	m.viewport.GotoBottom()
+	if m.cmdScrolled {
+		m.viewport.SetYOffset(savedOffset) // 上スクロール位置を維持 (SetYOffset は範囲内にクランプ)
+	} else {
+		m.viewport.GotoBottom()
+	}
 }
 
 // durWidth は経過時間を右寄せで揃える固定幅 (最大は "9999ms" の 6 桁)。
