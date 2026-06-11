@@ -154,7 +154,7 @@ type chatModel struct {
 	// ケース作成 + ライブ検証 (要件 024)。
 	mode          chatMode        // insert (既定) / command / builder
 	cmdInput      textinput.Model // command モードの `:` 行
-	cmdCandidates []string        // Tab 補完の候補一覧 (複数一致時に `:` 行直下へ表示。要件 030)
+	cmdCandidates []string        // Tab 補完の候補一覧 (複数一致時に `:` 行直下へ表示。要件 031)
 	builder       *caseBuilder    // 非 nil ならケースビルダーを開いている
 	verify        *verifier       // 非 nil ならライブ検証中
 	lastExpected  []string        // 直近のビルダーで入力した expected (`:set verify` の対象)

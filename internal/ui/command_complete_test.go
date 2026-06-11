@@ -18,9 +18,11 @@ func TestCompleteCommandLine(t *testing.T) {
 		{"unique prefix appends space for arg cmd", "se", true, "set ", nil},
 		{"unique nav cmd appends space", "ta", true, "task ", nil},
 		{"unique nav cmd contest", "co", true, "contest ", nil},
-		{"ambiguous keeps LCP and lists", "c", true, "c", []string{"case", "contest"}},
-		{"empty lists all (nav)", "", true, "", []string{"case", "contest", "e", "q", "set", "task", "w"}},
-		{"empty lists base only (no nav)", "", false, "", []string{"case", "q", "set", "w"}},
+		{"debug unique (no arg)", "de", true, "debug", nil},
+		{"cheat unique (no arg)", "ch", true, "cheat", nil},
+		{"ambiguous keeps LCP and lists", "c", true, "c", []string{"case", "cheat", "contest"}},
+		{"empty lists all (nav)", "", true, "", []string{"case", "cheat", "contest", "debug", "e", "q", "set", "task", "w"}},
+		{"empty lists base only (no nav)", "", false, "", []string{"case", "cheat", "debug", "q", "set", "w"}},
 		{"no match no change", "zzz", true, "zzz", nil},
 		// nav コマンドは navEnabled=false では候補に出ない。
 		{"task hidden without nav", "ta", false, "ta", nil},
@@ -28,9 +30,11 @@ func TestCompleteCommandLine(t *testing.T) {
 		{"w unique without nav", "w", false, "w", nil}, // w は引数任意なので空白を付けない
 
 		// --- 第 2 トークン (サブトークン) ---
-		{"set space lists args", "set ", true, "set ", []string{"noverify", "verify"}},
+		{"set space lists args", "set ", true, "set ", []string{"debug", "nodebug", "noverify", "verify"}},
 		{"set verify unique", "set v", true, "set verify", nil},
-		{"set noverify unique", "set n", true, "set noverify", nil},
+		{"set debug unique", "set d", true, "set debug", nil},
+		{"set no is ambiguous", "set no", true, "set no", []string{"nodebug", "noverify"}},
+		{"set n is ambiguous (nodebug/noverify)", "set n", true, "set no", []string{"nodebug", "noverify"}},
 		{"task space lists next/prev", "task ", true, "task ", []string{"next", "prev"}},
 		{"task next unique", "task n", true, "task next", nil},
 		{"task prev unique", "task p", true, "task prev", nil},
@@ -61,8 +65,9 @@ func TestLongestCommonPrefix(t *testing.T) {
 	}{
 		{[]string{"next", "prev"}, ""},
 		{[]string{"case", "contest"}, "c"},
+		{[]string{"case", "cheat", "contest"}, "c"},
+		{[]string{"nodebug", "noverify"}, "no"},
 		{[]string{"verify"}, "verify"},
-		{[]string{"noverify", "verify"}, ""},
 		{nil, ""},
 	}
 	for _, c := range cases {

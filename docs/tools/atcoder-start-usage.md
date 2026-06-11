@@ -65,7 +65,7 @@ atcoder start <contest> --task <task> [--until-pass] [--refresh] [-d] [-s] [-j <
 - **移動時に着手 + 再ターゲット**: 移動先では start と同じく**着手** (解答ファイルが無ければ空ファイルを作成。`created: <path>` を表示) し、watch ペインのサンプル判定と chat ペインの子プロセスが**新しい問題で作り直される** (再ターゲット)。chat には `(→ abc457_e に移動しました)` の案内行が出る。
 - **既存ファイルは温存**: 移動先に解答ファイルが既にあれば**上書きしない** (`solution: <path> (exists)`)。提出コードを壊さない。`--until-pass` 指定時は、移動後の新しい問題に対して全通過判定が掛かる。
 - **境界・非対応は 1 行エラーで継続**: letter `a` で `:task prev`、番号が下限で `:contest prev`、番号を持たない contest での `:contest next`/`:contest prev`、複数文字 letter (`ex` 等) での `:task next`/`:task prev`、`:e` の引数が空/不正、などは**再ターゲットせず 1 行エラーを出して継続**する (start は落ちず exit code も変わらない)。
-- **Tab 補完**: `:` 行で `Tab` を押すとコマンド名 (`:case`/`:w`/`:set`/`:q`/`:task`/`:contest`/`:e`) と `next|prev`・`verify|noverify` などのサブトークンを補完する。一意なら確定し、複数候補は `:` 行直下に一覧表示する (要件 [030](./requirements/030-command-mode-completion.md))。
+- **Tab 補完**: `:` 行で `Tab` を押すとコマンド名 (`:case`/`:w`/`:set`/`:q`/`:debug`/`:cheat`/`:task`/`:contest`/`:e`) と `next|prev`・`verify|noverify` などのサブトークンを補完する。一意なら確定し、複数候補は `:` 行直下に一覧表示する (要件 [031](./requirements/031-command-mode-completion.md))。
 
 移動前後の画面イメージ:
 

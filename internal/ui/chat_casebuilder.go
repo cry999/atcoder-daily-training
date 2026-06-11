@@ -158,7 +158,7 @@ func (m *chatModel) updateCommand(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case tea.KeyTab:
-		// Tab 補完 (要件 030): 現トークンを最長共通プレフィックス/一意候補まで埋める。
+		// Tab 補完 (要件 031): 現トークンを最長共通プレフィックス/一意候補まで埋める。
 		// 子プロセス・stdout には触れず `:` 行の文字列だけを編集する。
 		repl, cands := completeCommandLine(m.cmdInput.Value(), m.header.NavEnabled)
 		if repl != m.cmdInput.Value() {
@@ -177,7 +177,7 @@ func (m *chatModel) updateCommand(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 // renderCommandLine は command モードの `:` 行を返す。Tab 補完で複数候補があるときは
-// その候補一覧を `:` 行直下に dim で 1 行添える (要件 030)。
+// その候補一覧を `:` 行直下に dim で 1 行添える (要件 031)。
 func (m *chatModel) renderCommandLine() string {
 	line := m.cmdInput.View()
 	if len(m.cmdCandidates) == 0 {

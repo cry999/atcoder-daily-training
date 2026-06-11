@@ -16,8 +16,8 @@ chat (`test --interactive` 単体 / `atcoder start` 分割画面の下ペイン)
 |---|---|---|
 | トリガ | コマンドモード (`:` 行) での `Tab` のみ | `Shift+Tab` で逆方向循環 |
 | 補完位置 | 第 1 トークン (コマンド名) / 第 2 トークン (既知サブトークン) | 第 3 トークン以降 |
-| コマンド名候補 | `case`/`w`/`set`/`q` (常時) + `task`/`contest`/`e` (NavEnabled 時) | ユーザ定義エイリアス |
-| サブトークン候補 | `:set` → `verify`/`noverify`、`:task`/`:contest` → `next`/`prev` | — |
+| コマンド名候補 | `case`/`w`/`set`/`q`/`debug`/`cheat` (常時) + `task`/`contest`/`e` (NavEnabled 時) | ユーザ定義エイリアス |
+| サブトークン候補 | `:set` → `verify`/`noverify`/`debug`/`nodebug`、`:task`/`:contest` → `next`/`prev` | — |
 | `:e <spec>` の候補 | **対象外** (問題知識が要るため。第 1 トークン `e` の補完のみ) | letter 一覧・隣接 contest・履歴からの候補 ([027] 将来拡張と連携) |
 | 候補の出し方 | 最長共通プレフィックスまで補完 + 複数なら候補一覧を 1 行表示 (bash 風) | 循環 (menu-complete)・候補のハイライト選択 |
 | 表示 | command モードの `:` 行の直下に dim な候補行 | 補完候補のグリッド整形 |
@@ -37,8 +37,8 @@ chat (`test --interactive` 単体 / `atcoder start` 分割画面の下ペイン)
 
 | 位置 | 入力状態 | 候補集合 |
 |---|---|---|
-| 第 1 トークン | `:` 行が空、または 1 語目を入力中 (末尾が空白でない) | `case`/`q`/`set`/`w` (常時) + `contest`/`e`/`task` (NavEnabled 時)。アルファベット順 |
-| 第 2 トークン | 1 語目 + 空白の後、または 2 語目を入力中 | 1 語目が `set` → `noverify`/`verify`、`task`/`contest` → `next`/`prev`。それ以外 → 候補なし |
+| 第 1 トークン | `:` 行が空、または 1 語目を入力中 (末尾が空白でない) | `case`/`cheat`/`debug`/`q`/`set`/`w` (常時) + `contest`/`e`/`task` (NavEnabled 時)。アルファベット順 |
+| 第 2 トークン | 1 語目 + 空白の後、または 2 語目を入力中 | 1 語目が `set` → `debug`/`nodebug`/`noverify`/`verify`、`task`/`contest` → `next`/`prev`。それ以外 → 候補なし |
 | 第 3 トークン以降 | 2 語目 + 空白の後 | 候補なし (無反応) |
 
 ### 補完の挙動 (`Tab` 1 回)

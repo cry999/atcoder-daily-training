@@ -5,16 +5,17 @@ import (
 	"strings"
 )
 
-// 補完候補の単一情報源 (要件 030)。canonical 名のみを返し、別名 (c/n/p 等) は
+// 補完候補の単一情報源 (要件 031)。canonical 名のみを返し、別名 (c/n/p 等) は
 // 候補に出さない (入力中のプレフィックスとしては parseCommand が受理する)。
 var (
-	// 常時出すコマンド名。
-	completeNamesBase = []string{"case", "q", "set", "w"}
+	// 常時出すコマンド名 (`:debug`/`:cheat` は要件 030 で追加)。
+	completeNamesBase = []string{"case", "cheat", "debug", "q", "set", "w"}
 	// NavEnabled (start 分割画面) のときだけ出すコマンド名 (要件 027)。
 	completeNamesNav = []string{"contest", "e", "task"}
-	// 第 2 トークンの候補 (1 語目 → サブトークン)。
+	// 第 2 トークンの候補 (1 語目 → サブトークン)。:set は verify/noverify に加え
+	// Debug 表示トグルの debug/nodebug も取る (要件 030)。
 	completeSubTokens = map[string][]string{
-		"set":     {"noverify", "verify"},
+		"set":     {"debug", "nodebug", "noverify", "verify"},
 		"task":    {"next", "prev"},
 		"contest": {"next", "prev"},
 	}
@@ -33,7 +34,7 @@ func commandNames(navEnabled bool) []string {
 	return names
 }
 
-// completeCommandLine は command モードの `:` 行 line を Tab 補完する純粋関数 (要件 030)。
+// completeCommandLine は command モードの `:` 行 line を Tab 補完する純粋関数 (要件 031)。
 // navEnabled は task/contest/e を候補に含めるか。replacement は補完後の行 (変化が無ければ
 // line と同じ)、candidates は複数一致のとき表示する候補一覧 (1 件確定・0 件なら nil)。
 func completeCommandLine(line string, navEnabled bool) (replacement string, candidates []string) {
