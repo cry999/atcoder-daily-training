@@ -33,6 +33,16 @@ func TestNextTarget(t *testing.T) {
 		{"explicit contest_letter", "abc457", "abc457_d", ui.NavRequest{Kind: ui.NavExplicit, Spec: "abc500_d"}, "abc500", "abc500_d", false, ""},
 		{"explicit empty", "abc457", "abc457_d", ui.NavRequest{Kind: ui.NavExplicit, Spec: ""}, "", "", true, "E492"},
 		{"explicit bare contest", "abc457", "abc457_d", ui.NavRequest{Kind: ui.NavExplicit, Spec: "abc500"}, "", "", true, "E492"},
+		// 直指定 (:task <letter> / :contest <num|id>) — 要件 031。
+		{"task direct letter", "abc457", "abc457_d", ui.NavRequest{Kind: ui.NavLetterExplicit, Spec: "f"}, "abc457", "abc457_f", false, ""},
+		{"task direct uppercase", "abc457", "abc457_d", ui.NavRequest{Kind: ui.NavLetterExplicit, Spec: "F"}, "abc457", "abc457_f", false, ""},
+		{"task direct invalid", "abc457", "abc457_d", ui.NavRequest{Kind: ui.NavLetterExplicit, Spec: "foo"}, "", "", true, "E492"},
+		{"contest direct num", "abc457", "abc457_d", ui.NavRequest{Kind: ui.NavContestExplicit, Spec: "123"}, "abc123", "abc123_d", false, ""},
+		{"contest direct num zero-pad keeps letter", "abc457", "abc457_e", ui.NavRequest{Kind: ui.NavContestExplicit, Spec: "5"}, "abc005", "abc005_e", false, ""},
+		{"contest direct id keeps letter", "abc457", "abc457_d", ui.NavRequest{Kind: ui.NavContestExplicit, Spec: "arc100"}, "arc100", "arc100_d", false, ""},
+		{"contest direct num < 1", "abc457", "abc457_d", ui.NavRequest{Kind: ui.NavContestExplicit, Spec: "0"}, "", "", true, "1 以上"},
+		{"contest direct bad form", "abc457", "abc457_d", ui.NavRequest{Kind: ui.NavContestExplicit, Spec: "xyz"}, "", "", true, "E492"},
+		{"contest direct on non-numbered", "dp", "dp_a", ui.NavRequest{Kind: ui.NavContestExplicit, Spec: "123"}, "", "", true, "番号指定に対応していません"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

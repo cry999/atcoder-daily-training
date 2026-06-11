@@ -123,6 +123,40 @@ func TestShiftContest(t *testing.T) {
 	}
 }
 
+func TestWithContestNum(t *testing.T) {
+	cases := []struct {
+		in      string
+		n       int
+		want    string
+		wantErr error
+	}{
+		{"abc457", 123, "abc123", nil},
+		{"abc457", 5, "abc005", nil},     // 桁数 (ゼロ詰め幅) は元を下限に保持
+		{"abc457", 1000, "abc1000", nil}, // 桁数は下限なので超過は伸びる
+		{"abc457", 1, "abc001", nil},
+		{"abc457", 0, "", ErrContestBound}, // 1 未満
+		{"abc457", -3, "", ErrContestBound},
+		{"arc183", 7, "arc007", nil},   // abc 以外の接頭辞も可
+		{"dp", 1, "", ErrContestShape}, // 数字接尾辞なし
+		{"", 1, "", ErrContestShape},   // 空
+	}
+	for _, c := range cases {
+		got, err := WithContestNum(c.in, c.n)
+		if c.wantErr != nil {
+			if !errors.Is(err, c.wantErr) {
+				t.Errorf("WithContestNum(%q, %d) err = %v, want %v", c.in, c.n, err, c.wantErr)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("WithContestNum(%q, %d) unexpected error: %v", c.in, c.n, err)
+		}
+		if got != c.want {
+			t.Errorf("WithContestNum(%q, %d) = %q, want %q", c.in, c.n, got, c.want)
+		}
+	}
+}
+
 func TestContestNum(t *testing.T) {
 	cases := []struct {
 		in     string
@@ -153,9 +187,9 @@ func TestABCSolutionPath(t *testing.T) {
 		{"abc457", "abc457_d", "abc/457/d.py", false},
 		{"abc457", "D", "abc/457/d.py", false},
 		{"abc999", "g", "abc/999/g.py", false},
-		{"arc170", "d", "", true},          // 非 ABC
-		{"abc", "d", "", true},             // 数字なし
-		{"abc457", "", "", true},           // 空 task
+		{"arc170", "d", "", true}, // 非 ABC
+		{"abc", "d", "", true},    // 数字なし
+		{"abc457", "", "", true},  // 空 task
 	}
 	for _, c := range cases {
 		got, err := ABC{}.SolutionPath(c.contest, c.task)

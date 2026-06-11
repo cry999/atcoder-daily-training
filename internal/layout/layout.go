@@ -101,6 +101,22 @@ func ShiftContest(contestID string, delta int) (string, error) {
 	return fmt.Sprintf("%s%0*d", prefix, len(num), n), nil
 }
 
+// WithContestNum は <英字接頭辞><数字> 形式の contest_id の数字部を n に**絶対設定**する
+// (chat ナビの直指定 `:contest <num>` 用)。接頭辞と元の桁数 (ゼロ詰め幅の下限) を保つ。
+//   - ("abc457", 123) → "abc123" / ("abc457", 5) → "abc005"
+//
+// 形式に一致しなければ ErrContestShape、n が 1 未満なら ErrContestBound。
+func WithContestNum(contestID string, n int) (string, error) {
+	prefix, num, ok := splitContestID(contestID)
+	if !ok {
+		return "", ErrContestShape
+	}
+	if n < 1 {
+		return "", ErrContestBound
+	}
+	return fmt.Sprintf("%s%0*d", prefix, len(num), n), nil
+}
+
 // TaskID は短縮形 task ("d") を AtCoder の task ID ("abc457_d") に展開する。
 // 既に `_` を含んでいればそのまま返す (例: "abc457_d" → "abc457_d")。
 // layout に依存しない (cache key / AtCoder URL 共通)。

@@ -114,10 +114,10 @@ func parseCommand(s string) command {
 	case "q", "quit":
 		return command{name: "q", arg: arg}
 	case "task":
-		// :task next|prev (別名 n|p) — 問題記号 (letter) 移動。arg に第 2 トークンを載せる。
+		// :task next|prev (n|p) で記号移動、:task <letter> で直指定。arg に第 2 トークンを載せる。
 		return command{name: "task", arg: arg}
 	case "contest":
-		// :contest next|prev (別名 n|p) — コンテスト番号移動。arg に第 2 トークンを載せる。
+		// :contest next|prev (n|p) で番号移動、:contest <num|id> で直指定。arg に第 2 トークンを載せる。
 		return command{name: "contest", arg: arg}
 	case "e", "edit":
 		// :e <spec> — 任意ジャンプ。arg に spec を載せる (解決は親 Navigate)。
@@ -256,8 +256,8 @@ func (m *chatModel) execNav(cmd command) (tea.Model, tea.Cmd) {
 	if req, ok := navRequestFor(cmd); ok {
 		return m, func() tea.Msg { return NavMsg{Req: req} }
 	}
-	// :task / :contest の第 2 トークンが欠落・不正 → 利用法を案内 (再ターゲットせず継続)。
-	m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "E492: :" + cmd.name + " next|prev (別名 n|p)"})
+	// :task / :contest の第 2 トークンが欠落 → 利用法を案内 (再ターゲットせず継続)。
+	m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "E492: :" + cmd.name + " next|prev (n|p) または直指定"})
 	m.refreshViewport()
 	return m, nil
 }
@@ -324,9 +324,9 @@ func (m *chatModel) showCheat() {
 	}
 	if m.header.NavEnabled {
 		lines = append(lines,
-			"  :task next|prev (n|p) 問題記号を移動",
-			"  :contest next|prev    コンテストを移動",
-			"  :e <spec>             任意の問題へジャンプ",
+			"  :task next|prev|<letter>   記号を移動 / 直指定 (例 :task f)",
+			"  :contest next|prev|<num>   コンテスト移動 / 直指定 (例 :contest 123)",
+			"  :e <spec>                  任意の問題へジャンプ (例 :e abc500_d)",
 		)
 	}
 	for _, l := range lines {

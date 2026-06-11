@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -266,9 +267,74 @@ func nextTarget(contestID, task string, req ui.NavRequest) (newID, newTask strin
 	case ui.NavExplicit:
 		return parseExplicitSpec(req.Spec, contestID)
 
+	case ui.NavLetterExplicit:
+		// :task <letter> — 現コンテストの記号を直指定。単一 a–z を検証する。
+		letter, lerr := layout.ShiftLetter(strings.ToLower(strings.TrimSpace(req.Spec)), 0)
+		if lerr != nil {
+			return "", "", errors.New("E492: 記号は単一英字で指定してください (例 :task f / 任意は :e <task_id>)")
+		}
+		return contestID, layout.TaskID(contestID, letter), nil
+
+	case ui.NavContestExplicit:
+		// :contest <num|id> — コンテストを直指定し、現 letter を保持する。
+		letter, lerr := layout.Letter(task)
+		if lerr != nil {
+			return "", "", errors.New("この問題は番号移動に対応していません")
+		}
+		newID, cerr := resolveContestSpec(req.Spec, contestID)
+		if cerr != nil {
+			return "", "", cerr
+		}
+		return newID, layout.TaskID(newID, letter), nil
+
 	default:
 		return "", "", errors.New("不明なナビゲーション要求です")
 	}
+}
+
+// resolveContestSpec は :contest <spec> の spec を移動先 contest_id に解決する。
+//   - 数字のみ         → 現シリーズ (接頭辞・桁数保持) の番号 (例 "abc457" + "123" → "abc123")
+//   - コンテスト ID 形 → そのまま採用 (例 "arc100")。数字接尾辞を持つことを検証
+func resolveContestSpec(spec, contestID string) (string, error) {
+	spec = strings.TrimSpace(spec)
+	if spec == "" {
+		return "", errors.New("E492: :contest <番号> か :contest <id> を指定してください")
+	}
+	if n, err := strconv.Atoi(spec); err == nil {
+		nid, serr := layout.WithContestNum(contestID, n)
+		if serr != nil {
+			if errors.Is(serr, layout.ErrContestBound) {
+				return "", errors.New("コンテスト番号は 1 以上で指定してください")
+			}
+			return "", errors.New("このコンテストは番号指定に対応していません")
+		}
+		return nid, nil
+	}
+	// 数字以外を含む → コンテスト ID 直指定。数字接尾辞を持つ形のみ受ける。
+	if _, ok := layout.ContestNum(spec); !ok {
+		// ContestNum は abc 限定なので、汎用に「英字+数字」の形だけ確かめる。
+		if !contestIDLike(spec) {
+			return "", errors.New("E492: :contest <番号> か :contest <id> (例 abc123 / arc100) を指定してください")
+		}
+	}
+	return strings.ToLower(spec), nil
+}
+
+// contestIDLike は <英字+><数字+> 形 (例 abc123 / arc100) かを判定する簡易チェック。
+func contestIDLike(s string) bool {
+	i := 0
+	for i < len(s) && ((s[i] >= 'a' && s[i] <= 'z') || (s[i] >= 'A' && s[i] <= 'Z')) {
+		i++
+	}
+	if i == 0 || i == len(s) {
+		return false // 英字接頭辞が無い / 数字部が無い
+	}
+	for j := i; j < len(s); j++ {
+		if s[j] < '0' || s[j] > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 // parseExplicitSpec は :e <spec> を移動先 (contestID, task) に解決する純粋関数。

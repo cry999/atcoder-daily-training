@@ -6,15 +6,17 @@ import "strings"
 type NavKind int
 
 const (
-	NavLetterNext  NavKind = iota // :task next / :task n      — 問題記号 (letter) +1
-	NavLetterPrev                 // :task prev / :task p      — 問題記号 (letter) -1
-	NavContestNext                // :contest next / :contest n — コンテスト番号 +1 (letter 保持)
-	NavContestPrev                // :contest prev / :contest p — コンテスト番号 -1 (letter 保持)
-	NavExplicit                   // :e <spec>                  — 任意ジャンプ
+	NavLetterNext      NavKind = iota // :task next / :task n      — 問題記号 (letter) +1
+	NavLetterPrev                     // :task prev / :task p      — 問題記号 (letter) -1
+	NavContestNext                    // :contest next / :contest n — コンテスト番号 +1 (letter 保持)
+	NavContestPrev                    // :contest prev / :contest p — コンテスト番号 -1 (letter 保持)
+	NavExplicit                       // :e <spec>                  — 任意ジャンプ
+	NavLetterExplicit                 // :task <letter>             — 記号を直指定 (現コンテスト)。Spec=letter
+	NavContestExplicit                // :contest <num|id>          — コンテストを直指定 (letter 保持)。Spec=指定
 )
 
 // NavRequest は chat がパースしたナビゲーション要求。
-// Spec は NavExplicit のときの :e 引数 (それ以外は空)。
+// Spec は直指定系 (NavExplicit / NavLetterExplicit / NavContestExplicit) の引数 (相対移動では空)。
 type NavRequest struct {
 	Kind NavKind
 	Spec string
@@ -36,6 +38,10 @@ func navRequestFor(cmd command) (NavRequest, bool) {
 		case "prev":
 			return NavRequest{Kind: NavLetterPrev}, true
 		}
+		// next/prev 以外の非空トークンは記号の直指定 (:task f)。
+		if tok := navFirstToken(cmd.arg); tok != "" {
+			return NavRequest{Kind: NavLetterExplicit, Spec: tok}, true
+		}
 		return NavRequest{}, false
 	case "contest":
 		switch navSub(cmd.arg) {
@@ -43,6 +49,10 @@ func navRequestFor(cmd command) (NavRequest, bool) {
 			return NavRequest{Kind: NavContestNext}, true
 		case "prev":
 			return NavRequest{Kind: NavContestPrev}, true
+		}
+		// next/prev 以外の非空トークンはコンテストの直指定 (:contest 123 / :contest arc100)。
+		if tok := navFirstToken(cmd.arg); tok != "" {
+			return NavRequest{Kind: NavContestExplicit, Spec: tok}, true
 		}
 		return NavRequest{}, false
 	case "e":
@@ -67,4 +77,13 @@ func navSub(arg string) string {
 	default:
 		return ""
 	}
+}
+
+// navFirstToken は arg の第 1 トークンを返す (直指定の Spec)。空白のみ・空なら ""。
+func navFirstToken(arg string) string {
+	f := strings.Fields(arg)
+	if len(f) == 0 {
+		return ""
+	}
+	return f[0]
 }

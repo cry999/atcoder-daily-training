@@ -56,9 +56,13 @@ func TestNavRequestFor(t *testing.T) {
 		{command{name: "contest", arg: "p"}, NavRequest{Kind: NavContestPrev}, true},
 		{command{name: "e", arg: "abc500_d"}, NavRequest{Kind: NavExplicit, Spec: "abc500_d"}, true},
 		{command{name: "e"}, NavRequest{Kind: NavExplicit}, true},
-		// 第 2 トークン欠落・不正は ok=false。
+		// 直指定 (next/prev 以外の非空トークン)。形のみ受け、妥当性は nextTarget が見る。
+		{command{name: "task", arg: "f"}, NavRequest{Kind: NavLetterExplicit, Spec: "f"}, true},
+		{command{name: "task", arg: "foo"}, NavRequest{Kind: NavLetterExplicit, Spec: "foo"}, true},
+		{command{name: "contest", arg: "123"}, NavRequest{Kind: NavContestExplicit, Spec: "123"}, true},
+		{command{name: "contest", arg: "arc100"}, NavRequest{Kind: NavContestExplicit, Spec: "arc100"}, true},
+		// 第 2 トークン欠落は ok=false (利用法案内)。
 		{command{name: "task"}, NavRequest{}, false},
-		{command{name: "task", arg: "foo"}, NavRequest{}, false},
 		{command{name: "contest"}, NavRequest{}, false},
 		{command{name: "case"}, NavRequest{}, false},
 		{command{name: "unknown", arg: "zzz"}, NavRequest{}, false},
