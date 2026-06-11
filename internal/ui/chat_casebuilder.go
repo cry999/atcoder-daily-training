@@ -113,14 +113,12 @@ func parseCommand(s string) command {
 		return command{name: "set", arg: arg}
 	case "q", "quit":
 		return command{name: "q", arg: arg}
-	case "next", "n":
-		return command{name: "next", arg: arg}
-	case "prev", "p":
-		return command{name: "prev", arg: arg}
-	case "fwd", "f":
-		return command{name: "fwd", arg: arg}
-	case "back", "b":
-		return command{name: "back", arg: arg}
+	case "task":
+		// :task next|prev (別名 n|p) — 問題記号 (letter) 移動。arg に第 2 トークンを載せる。
+		return command{name: "task", arg: arg}
+	case "contest":
+		// :contest next|prev (別名 n|p) — コンテスト番号移動。arg に第 2 トークンを載せる。
+		return command{name: "contest", arg: arg}
 	case "e", "edit":
 		// :e <spec> — 任意ジャンプ。arg に spec を載せる (解決は親 Navigate)。
 		return command{name: "e", arg: arg}
@@ -192,7 +190,7 @@ func (m *chatModel) execCommand(cmd command) (tea.Model, tea.Cmd) {
 		}
 		m.refreshViewport()
 		return m, nil
-	case "next", "prev", "fwd", "back", "e":
+	case "task", "contest", "e":
 		return m.execNav(cmd)
 	default: // unknown
 		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "E492: unknown command :" + cmd.arg})
@@ -202,17 +200,23 @@ func (m *chatModel) execCommand(cmd command) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// execNav はナビゲーションコマンド (:next/:prev/:fwd/:back/:e) を処理する。
+// execNav はナビゲーションコマンド (:task / :contest / :e) を処理する。
 // NavEnabled が真 (start 分割画面) なら NavRequest を組んで親へ NavMsg を発火する
 // (layout 解決・着手・再ターゲットは親 startSplitModel + 注入 Navigate が握る)。
 // 偽 (test --interactive 単体) なら従来どおり未知コマンド扱い (E492) にする。
 func (m *chatModel) execNav(cmd command) (tea.Model, tea.Cmd) {
 	m.mode = modeInsert
-	req, ok := navRequestFor(cmd)
-	if ok && m.header.NavEnabled {
+	if !m.header.NavEnabled {
+		// test --interactive 単体: ナビ無効 → 未知コマンド扱い。
+		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "E492: unknown command :" + cmd.name})
+		m.refreshViewport()
+		return m, nil
+	}
+	if req, ok := navRequestFor(cmd); ok {
 		return m, func() tea.Msg { return NavMsg{Req: req} }
 	}
-	m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "E492: unknown command :" + cmd.name})
+	// :task / :contest の第 2 トークンが欠落・不正 → 利用法を案内 (再ターゲットせず継続)。
+	m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "E492: :" + cmd.name + " next|prev (別名 n|p)"})
 	m.refreshViewport()
 	return m, nil
 }
