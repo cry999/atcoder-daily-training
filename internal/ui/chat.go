@@ -28,7 +28,7 @@ type ChatHeader struct {
 	Submit      SubmitFunc // 非 nil なら Ctrl+S で提出準備を呼べる。composition root が注入する
 	TaskDir     string     // cache の <contest>/<task> dir。非空なら :w でケースを tests-extra に保存できる (要件 024)
 	Tolerance   float64    // ライブ検証の許容誤差 (0 なら既定 1e-6)
-	NavEnabled  bool       // true なら :next/:prev/:fwd/:back/:e で問題ナビ可 (start 分割画面限定。要件 027)
+	NavEnabled  bool       // true なら :task next|prev / :contest next|prev / :e で問題ナビ可 (start 分割画面限定。要件 027)
 }
 
 // SubmitResult は chat の Ctrl+S 提出準備の結果。chat はこれを 1 行に整形して表示する。

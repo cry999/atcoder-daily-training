@@ -50,7 +50,7 @@ type Navigate func(contestID, task string, req NavRequest) (StartTarget, error)
 // ナビゲーション解決 (Navigate) を受け取る。Navigate が nil ならナビは無効。
 type StartSplitConfig struct {
 	Initial   StartTarget   // 起動時の問題
-	Navigate  Navigate      // :next/:prev/... の解決 (nil ならナビ無効)
+	Navigate  Navigate      // :task/:contest/:e の解決 (nil ならナビ無効)
 	UntilPass bool          // 全通過で終了
 	Poll      time.Duration // 保存検知のポーリング間隔 (0 → 既定)
 }
