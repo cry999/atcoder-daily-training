@@ -18,7 +18,7 @@ func TestHardWrap(t *testing.T) {
 		{"abcdef", 3, []string{"abc", "def"}},
 		{"abcdefg", 3, []string{"abc", "def", "g"}},
 		{"ab", 5, []string{"ab"}},
-		{"", 5, []string{""}},      // 空文字でも 1 行確保
+		{"", 5, []string{""}},               // 空文字でも 1 行確保
 		{"abc", 0, []string{"a", "b", "c"}}, // 幅 0 は 1 にクランプ
 	}
 	for _, c := range cases {
@@ -80,6 +80,51 @@ func TestRenderMsgBlockWrapsAligned(t *testing.T) {
 	}
 	if joined.String() != text {
 		t.Errorf("reassembled text = %q, want %q (no characters dropped)", joined.String(), text)
+	}
+}
+
+// debug 行は角丸ピル ( DEBUG ) を行頭に置き、本文・継続行が幅に収まり揃う。
+func TestRenderMsgBlockDebugPill(t *testing.T) {
+	const width = 40
+	text := strings.Repeat("z", 60) // 折り返すだけの長さ
+	msg := chatLine{kind: kindDebug, text: text, hasDur: true, dur: 2 * time.Millisecond}
+
+	block := renderMsgBlock(msg, width)
+	lines := strings.Split(block, "\n")
+	if len(lines) < 2 {
+		t.Fatalf("long debug line should wrap, got %d lines", len(lines))
+	}
+
+	// 各行は viewport 幅に収まる。
+	for i, ln := range lines {
+		if w := lipgloss.Width(ln); w > width {
+			t.Errorf("line %d width %d > %d: %q", i, w, width, ansi.Strip(ln))
+		}
+	}
+
+	// 1 行目には角丸キャップで挟んだ DEBUG ピルが含まれる。
+	first := ansi.Strip(lines[0])
+	if !strings.Contains(first, plRoundLeft+"DEBUG"+plRoundRight) {
+		t.Errorf("first line missing rounded DEBUG pill: %q", first)
+	}
+
+	// 継続行は leadColW + (debugPillWidth-1) 空白 + マーカーで、本文カラムが 1 行目と揃う。
+	contPrefix := strings.Repeat(" ", leadColW+debugPillWidth-1) + wrapMarker + " "
+	for i := 1; i < len(lines); i++ {
+		if cont := ansi.Strip(lines[i]); !strings.HasPrefix(cont, contPrefix) {
+			t.Errorf("continuation line %d = %q, want prefix %q", i, cont, contPrefix)
+		}
+	}
+
+	// 本文を連結すると元に戻る (折り返しで欠落しない)。
+	pillPrefix := plRoundLeft + "DEBUG" + plRoundRight + " "
+	var joined strings.Builder
+	joined.WriteString(strings.TrimPrefix(first[leadColW:], pillPrefix))
+	for i := 1; i < len(lines); i++ {
+		joined.WriteString(strings.TrimPrefix(ansi.Strip(lines[i]), contPrefix))
+	}
+	if joined.String() != text {
+		t.Errorf("reassembled text = %q, want %q", joined.String(), text)
 	}
 }
 

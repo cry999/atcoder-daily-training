@@ -705,6 +705,22 @@ const leadColW = durWidth + 1
 // wrapMarker は折り返しの継続行を示すマーカー (矢印カラムに dim で置く)。
 const wrapMarker = "↪"
 
+// powerline の角丸キャップ。debug ピルの左右の縁に使う (要 powerline / Nerd Font)。
+const (
+	plRoundLeft  = "" //  左の半円キャップ (U+E0B6)
+	plRoundRight = "" //  右の半円キャップ (U+E0B4)
+)
+
+// debugPillWidth は debug ピルの表示幅: 左キャップ(1) + "DEBUG"(5) + 右キャップ(1)。
+const debugPillWidth = 7
+
+// debugPill は debug 行の行頭に置く角丸ピル (チップ) を描画する。
+func debugPill() string {
+	return chatDebugPillCapStyle.Render(plRoundLeft) +
+		chatDebugPillTextStyle.Render("DEBUG") +
+		chatDebugPillCapStyle.Render(plRoundRight)
+}
+
 // renderMsgBlock は 1 メッセージを viewport 幅で折り返した複数行ブロックにする。
 //   - 1 行目: 経過時間カラム + 矢印 + 本文の先頭チャンク
 //   - 継続行: leadColW 分の空白 + 折り返しマーカー (↪) + 本文の続き
@@ -723,31 +739,35 @@ func renderMsgBlock(msg chatLine, width int) string {
 		return strings.Join(chunks, "\n")
 	}
 
-	var arrow string
-	var promptStyle, textStyle lipgloss.Style
+	// prompt = 行頭インディケーター (描画済み文字列)、promptW = その表示幅。
+	// debug 行だけは powerline の角丸キャップで囲んだ DEBUG ピル (幅 debugPillWidth) にする。
+	var prompt string
+	var promptW int
+	var textStyle lipgloss.Style
 	switch msg.kind {
 	case kindIn:
-		arrow, promptStyle, textStyle = "→", chatInPromptStyle, chatInTextStyle
+		prompt, promptW, textStyle = chatInPromptStyle.Render("→"), 1, chatInTextStyle
 	case kindOut:
-		arrow, promptStyle, textStyle = "←", chatOutPromptStyle, chatOutTextStyle
+		prompt, promptW, textStyle = chatOutPromptStyle.Render("←"), 1, chatOutTextStyle
 	case kindDebug:
-		arrow, promptStyle, textStyle = "*", chatDebugPromptStyle, chatDebugTextStyle
+		prompt, promptW, textStyle = debugPill(), debugPillWidth, chatDebugTextStyle
 	case kindErr:
-		arrow, promptStyle, textStyle = "✖", chatErrPromptStyle, chatErrTextStyle
+		prompt, promptW, textStyle = chatErrPromptStyle.Render("✖"), 1, chatErrTextStyle
 	}
 
-	// 本文の開始カラム = leadColW + 矢印(1) + スペース(1)。残り幅で折り返す。
-	avail := width - (leadColW + 2)
+	// 本文の開始カラム = leadColW + インディケーター幅 + スペース(1)。残り幅で折り返す。
+	avail := width - (leadColW + promptW + 1)
 	if avail < 1 {
 		avail = 1
 	}
 	chunks := hardWrap(msg.text, avail)
-	contIndent := strings.Repeat(" ", leadColW)
+	// 継続行のマーカー (↪) はインディケーター末尾カラムに置き、本文カラムを 1 行目と揃える。
+	contIndent := strings.Repeat(" ", leadColW+promptW-1)
 	out := make([]string, 0, len(chunks))
 	for i, c := range chunks {
 		if i == 0 {
 			// 1 行目の末尾にライブ検証の判定 (✓ / ✗ expected …) を添える。
-			out = append(out, leadCol(msg)+promptStyle.Render(arrow)+" "+textStyle.Render(c)+verdictSuffix(msg))
+			out = append(out, leadCol(msg)+prompt+" "+textStyle.Render(c)+verdictSuffix(msg))
 		} else {
 			out = append(out, contIndent+chatWrapStyle.Render(wrapMarker)+" "+textStyle.Render(c))
 		}
@@ -839,10 +859,14 @@ var (
 	chatInTextStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay1)).Italic(true)
 	chatOutPromptStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaGreen)).Bold(true)
 	chatOutTextStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaText))
-	chatDebugPromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaLavender)).Bold(true)
-	chatDebugTextStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay0)) // debug 本文は補助情報なので最も dim な overlay 色に落とす
-	chatErrPromptStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaRed)).Bold(true)
-	chatErrTextStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaMaroon))
+	// debug 行のインディケーターは powerline の角丸キャップ ( / ) で
+	// ラベンダー背景の "DEBUG" を挟んだ角丸ピル (チップ) にしてポップに見せる。
+	// キャップは「ピル背景色」を foreground にして端末既定背景の上に描くことで丸い縁になる。
+	chatDebugPillCapStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaLavender))
+	chatDebugPillTextStyle = lipgloss.NewStyle().Background(lipgloss.Color(mochaLavender)).Foreground(lipgloss.Color(mochaBase)).Bold(true)
+	chatDebugTextStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay0)) // debug 本文は補助情報なので最も dim な overlay 色に落とす
+	chatErrPromptStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaRed)).Bold(true)
+	chatErrTextStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaMaroon))
 	// 出力行に添える経過時間。種別の色を邪魔しないよう最も dim な overlay 色。
 	chatTimeStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay0))
 	// 折り返し継続行のマーカー (↪)。本文を邪魔しないよう dim な overlay 色。
