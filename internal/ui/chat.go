@@ -792,7 +792,7 @@ var (
 	chatOutPromptStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaGreen)).Bold(true)
 	chatOutTextStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaText))
 	chatDebugPromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaLavender)).Bold(true)
-	chatDebugTextStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaLavender))
+	chatDebugTextStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay0)) // debug 本文は補助情報なので最も dim な overlay 色に落とす
 	chatErrPromptStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaRed)).Bold(true)
 	chatErrTextStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaMaroon))
 	// 出力行に添える経過時間。種別の色を邪魔しないよう最も dim な overlay 色。
