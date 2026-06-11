@@ -1,5 +1,7 @@
 # `atcoder start` 問題ナビゲーション (letter / number の next・prev 移動) 要件定義
 
+> **追記 ([031](031-nav-direct-target.md)):** `:contest` / `:task` に **直指定 (絶対ジャンプ)** を足した。`next`/`prev` 以外の非空トークンを `:task <letter>` (現コンテストの記号) / `:contest <num|id>` (コンテスト直指定・letter 保持) として解決する (`NavLetterExplicit` / `NavContestExplicit`)。相対移動と `:e` は不変。
+
 ## 概要
 
 `atcoder start` の分割画面に居たまま、**現在の問題から隣の問題へ移動**できるようにする。下ペイン chat の **vim 風コマンドモード** ([024](024-interactive-case-builder.md) / [ADR 0007](../decisions/0007-interactive-command-mode-trigger.md)) を拡張し、
