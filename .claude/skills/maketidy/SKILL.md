@@ -1,6 +1,6 @@
 ---
 name: maketidy
-description: 実装 (cmd/atcoder + internal/) とドキュメント (docs/・skills・CLAUDE.md) の整合性を点検し、見つかったズレを「ドキュメント側を実装に合わせて直す」整頓スキル。usage 構文行とフラグ表の実装との一致、リンク切れ (実体のない doc 参照)、ロードマップの DONE 状態、requirements 相互リンクを系統的にチェックする。実装の挙動は変えない。新しい利用ドキュメントの書き起こしや新フラグ追加が要るギャップは feature へ申し送る。
+description: 実装 (cmd/atcoder + internal/) とドキュメント (docs/・skills・CLAUDE.md) の整合性、およびドキュメント内部の自己整合 (採番・索引・相互リンク) を点検し、見つかったズレを「ドキュメント側を直す」整頓スキル。usage 構文行とフラグ表の実装との一致、リンク切れ (実体のない doc 参照)、ロードマップの DONE 状態、requirements 相互リンク、要件番号やロードマップ節レターの重複、ADR 索引の網羅、陳腐化した注記を系統的にチェックする。実装の挙動は変えない。新しい利用ドキュメントの書き起こしや新フラグ追加が要るギャップは feature へ申し送る。
 ---
 
 # maketidy
@@ -14,6 +14,7 @@ description: 実装 (cmd/atcoder + internal/) とドキュメント (docs/・ski
 - 「実装とドキュメントの整合性を確認して」「docs が古くなっていないか点検して」といった整頓依頼。
 - 機能追加やリネームの後、波及した docs/skills/ロードマップを揃え直したいとき。
 - リリース前・節目に、CLI の表面 (usage・フラグ) と手引きの突き合わせをしたいとき。
+- **並行 worktree が増えた後の棚卸し**: 要件番号の重複・ロードマップ節レターの重複・ADR 索引の漏れ・陳腐化した注記をまとめて掃除したいとき (下の **軸 B**)。
 
 ## いつ使わないか (→ 別の道)
 
@@ -24,7 +25,9 @@ description: 実装 (cmd/atcoder + internal/) とドキュメント (docs/・ski
 
 ## 点検チェックリスト
 
-実装を「正」とし、ドキュメントがそれに一致しているかを上から確認する。
+点検は 2 軸ある。**A. 実装 ⇄ ドキュメント** (実装を「正」にドキュメントを合わせる) と、**B. ドキュメント内部の自己整合** (採番・索引・相互リンクが doc 群の中で破綻していないか)。並行 worktree が増えるほど B のドリフト (要件番号の衝突・節レターの重複・索引漏れ) が起きやすい。どちらも**実装挙動は変えない**。
+
+### A. 実装 ⇄ ドキュメント (実装が正)
 
 | # | 点検対象 | 突き合わせ方 |
 |---|---|---|
@@ -35,15 +38,36 @@ description: 実装 (cmd/atcoder + internal/) とドキュメント (docs/・ski
 | 5 | **requirements 相互リンク** | `docs/tools/requirements/00N-*.md` 間・living docs からの参照が現行のファイル名/パスに合っているか |
 | 6 | **skills / CLAUDE.md** | コマンド名・ディレクトリ規約・doc パスの記述が実装と一致するか (リネーム後に特に効く) |
 
+### B. ドキュメント内部の自己整合 (採番・索引・相互リンク)
+
+ここは「実装→doc」ではなく **doc 群どうしの整合**。並行作業 (worktree) は同じ「次番号/次レター」を取り合うため、衝突や索引漏れが定常的に溜まる。
+
+| # | 点検対象 | 突き合わせ方・直し方 |
+|---|---|---|
+| 7 | **要件番号の重複** | `docs/tools/requirements/` の `NNN-` 番号が一意か。重複分は**次の空き番号にリネーム + 参照を全て追従** (todo・他要件の相互リンク・本文)。新規採番は **`git ls-tree main`** で確認する (ローカル `ls` は in-flight ブランチの番号を見落とすので衝突する)。本文には番号を書かずファイル名にだけ持たせると追従が楽 |
+| 8 | **ロードマップの節識別子** | `todo.md` / `abc-todo.md` の `## X.` レターが一意か・枯渇していないか。重複は振り直し、`A`–`Z` を使い切ったら `AA`/`AB`… へ継続する |
+| 9 | **ADR 索引の網羅** | `docs/tools/decisions/README.md` の一覧 ⇄ 実在する `NNNN-*.md`。掲載漏れ (過去に 0005/0006 が欠落) を埋める |
+| 10 | **陳腐化した注記** | 「未実装」「設計済み (実装待ち)」等が、実装済みになった機能を指したまま残っていないか (but-now-false な状態注記・相互参照) |
+
 便利な探索コマンド:
 
 ```sh
-# usage() の現物
-sed -n '/func usage/,/^}/p' cmd/atcoder/main.go
-# 各サブコマンドの実フラグ
-grep -rn 'flags\.\(String\|Bool\|Int\|Float64\|Duration\)\|.*Var(' cmd/atcoder/*.go
-# 実体のない doc 参照 (リンク切れ候補)
-grep -rn 'exercise-[a-z-]*-requirements\.md' docs   # 再編前の旧名など
+# --- A: 実装 ⇄ ドキュメント ---
+sed -n '/func usage/,/^}/p' cmd/atcoder/main.go              # usage() の現物
+grep -rn 'flags\.\(String\|Bool\|Int\|Float64\|Duration\)\|.*Var(' cmd/atcoder/*.go  # 各サブコマンドの実フラグ
+grep -rn 'exercise-[a-z-]*-requirements\.md' docs            # 実体のない doc 参照 (旧名など)
+
+# --- B: ドキュメント内部の自己整合 ---
+# B-7 要件番号の重複 / 次の空き番号 (採番は in-flight も拾う main 基準で)
+ls docs/tools/requirements/ | sed -E 's/^([0-9]+).*/\1/' | sort | uniq -d
+git ls-tree --name-only main docs/tools/requirements/ | sed -E 's#.*/##' | sort | tail -3
+# B-8 ロードマップ節レターの重複
+grep -hoE '^## [A-Z]+\.' docs/tools/todo.md docs/tools/abc-todo.md | sort | uniq -d
+# B-9 ADR 索引の漏れ (実在にあって README に無い番号)
+comm -23 <(ls docs/tools/decisions/ | grep -oE '^[0-9]{4}' | sort -u) \
+         <(grep -oE '[0-9]{4}-[a-z]' docs/tools/decisions/README.md | grep -oE '^[0-9]{4}' | sort -u)
+# B-10 陳腐化注記の候補 (目視で実装済みを指すものを選別)
+grep -rn '未実装\|実装待ち\|設計済み' docs/tools/todo.md docs/tools/abc-todo.md docs/tools/requirements/
 ```
 
 ## ワークフロー (smallwork に乗せる)
@@ -56,6 +80,8 @@ grep -rn 'exercise-[a-z-]*-requirements\.md' docs   # 再編前の旧名など
 4. **検証する** — docs のみなのでビルド不要。代わりに:
    - リンクの**張り直し先が実在**することを確認 (`[ -f <path> ]`)。
    - 直した種類のズレが**残っていない**ことを再 grep で確認 (例: dangling パターンが 0 件)。
+   - **軸 B を直したら、上の B-7〜B-9 コマンドを再実行して `uniq -d` / `comm` の出力が空になる**ことを確認する (番号・レターの重複ゼロ、ADR 索引の漏れゼロ)。
+   - 要件番号をリネームしたら、`grep -rn '<旧番号>-<name>' docs` で**古い参照が残っていない**ことを確認する。
    - ツールコードにも触れた場合のみ `test-tool` (`./fixtures/run.sh`) と `go build ./...`。
 5. **コミット** — `docs(tools): sync usage docs with implementation` のように Conventional Commits。末尾に環境指定の `Co-Authored-By` trailer。
 6. **main へ ff-merge** して worktree を畳む。`--ff-only` が拒否されたら (main が進んでいたら) worktree 内で `git rebase main` してから再度 ff-merge。
