@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/viewport"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
@@ -18,6 +19,13 @@ type CaseVerdict struct {
 	Name  string // ケース名 (例 "01")
 	Label string // "AC" / "WA" / "TLE" / "RE"
 	OK    bool   // AC (Pass) なら true。色分けに使う
+	// 詳細表示 (Ctrl+G) 用。失敗ケース (OK==false) のときだけ start.go がセットする
+	// (AC は空)。判定の I/O は CaseResult が既に持つものを運ぶだけ。要件 034。
+	Input    string
+	Expected string
+	Actual   string
+	Stderr   string        // RE のみ
+	Elapsed  time.Duration // 実行時間
 }
 
 // SampleSummary は分割画面 watch ペインのコンパクト要約 (diff は含まない)。
@@ -91,6 +99,9 @@ type startSplitModel struct {
 	haveSummary    bool
 	sampleInFlight bool
 	epoch          int // 再ターゲット世代。旧ターゲットの遅延サンプル結果を破棄する
+
+	detail   bool           // 詳細オーバーレイ表示中 (Ctrl+G)。失敗ケースの diff を出す。要件 034
+	detailVP viewport.Model // 詳細表示のスクロール viewport
 
 	width, height int
 	ready         bool
@@ -213,6 +224,37 @@ func (m *startSplitModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// chat には watch + help を引いた高さを渡す。
 		cm, cmd := m.chat.Update(tea.WindowSizeMsg{Width: msg.Width, Height: m.chatHeight()})
 		m.chat = cm.(*chatModel)
+		if m.detail { // 詳細オーバーレイ表示中ならそのサイズも追従させる。
+			m.detailVP.Width = maxInt(m.width, 1)
+			m.detailVP.Height = maxInt(m.height-detailChromeLines, 1)
+			m.detailVP.SetContent(m.buildDetailContent())
+		}
+		return m, cmd
+
+	case tea.KeyMsg:
+		// 詳細オーバーレイ表示中はキーを横取りする (chat には渡さない)。要件 034。
+		if m.detail {
+			switch msg.Type {
+			case tea.KeyCtrlG, tea.KeyEsc:
+				m.detail = false // 閉じて分割画面へ戻る
+			case tea.KeyPgUp:
+				m.detailVP.ViewUp()
+			case tea.KeyPgDown:
+				m.detailVP.ViewDown()
+			case tea.KeyUp:
+				m.detailVP.LineUp(1)
+			case tea.KeyDown:
+				m.detailVP.LineDown(1)
+			}
+			return m, nil // 他のキーは無視 (chat に渡さない)
+		}
+		// 分割画面: Ctrl+G で詳細を開く。それ以外は従来どおり chat に委譲。
+		if msg.Type == tea.KeyCtrlG {
+			m.openDetail()
+			return m, nil
+		}
+		cm, cmd := m.chat.Update(msg)
+		m.chat = cm.(*chatModel)
 		return m, cmd
 
 	case splitTickMsg:
@@ -230,6 +272,9 @@ func (m *startSplitModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.summary = msg.summary
 		m.haveSummary = true
 		m.sampleInFlight = false
+		if m.detail { // 詳細表示中に再判定が来たら最新の失敗ケースで作り直す。
+			m.detailVP.SetContent(m.buildDetailContent())
+		}
 		if m.untilPass && msg.summary.AllPassed {
 			return m, tea.Quit
 		}
@@ -270,16 +315,76 @@ func (m *startSplitModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 }
 
+// detailChromeLines は詳細オーバーレイのヘッダ + フッタの行数 (viewport 高さの控除分)。
+const detailChromeLines = 2
+
+// openDetail は詳細オーバーレイを開く。現在の summary の失敗ケースから内容を組み、
+// 詳細用 viewport に流して先頭から見せる。要件 034。
+func (m *startSplitModel) openDetail() {
+	m.detail = true
+	m.detailVP = viewport.New(maxInt(m.width, 1), maxInt(m.height-detailChromeLines, 1))
+	m.detailVP.SetContent(m.buildDetailContent())
+	m.detailVP.GotoTop()
+}
+
+// buildDetailContent は失敗ケース (WA/TLE/RE) の詳細を 1 つの文字列に組む。
+// WA/TLE は renderDiff (期待 vs 実際)、RE は stderr。AC は省略。表示のみ (純粋)。
+func (m *startSplitModel) buildDetailContent() string {
+	if !m.haveSummary {
+		return splitHelpStyle.Render("  (まだ判定結果がありません)")
+	}
+	if m.summary.Err != nil {
+		return splitFailStyle.Render("  (判定できません: " + m.summary.Err.Error() + ")")
+	}
+	var b strings.Builder
+	fails := 0
+	for _, c := range m.summary.Cases {
+		if c.OK {
+			continue // AC は省略
+		}
+		if fails > 0 {
+			b.WriteString("\n\n")
+		}
+		fails++
+		b.WriteString(splitFailStyle.Render("["+c.Name+"] "+c.Label) + splitHelpStyle.Render("  "+formatDur(c.Elapsed)) + "\n")
+		if c.Label == "RE" {
+			st := strings.TrimRight(c.Stderr, "\n")
+			if st == "" {
+				st = "(stderr なし)"
+			}
+			for _, ln := range strings.Split(st, "\n") {
+				b.WriteString("  " + ln + "\n")
+			}
+		} else {
+			b.WriteString(renderDiff(c.Expected, c.Actual, true))
+		}
+	}
+	if fails == 0 {
+		return splitHelpStyle.Render("  (失敗ケースはありません)")
+	}
+	return b.String()
+}
+
+// renderDetailView は詳細オーバーレイ (ヘッダ + 詳細 viewport + フッタ) を描画する。
+func (m *startSplitModel) renderDetailView() string {
+	title := splitWatchTitleStyle.Render("詳細 (失敗ケース)") + "  " + splitHelpStyle.Render(m.task)
+	footer := splitHelpStyle.Render("Ctrl+G/Esc で戻る · PageUp/PageDown/↑/↓ でスクロール")
+	return lipgloss.JoinVertical(lipgloss.Left, title, m.detailVP.View(), footer)
+}
+
 func (m *startSplitModel) View() string {
 	if !m.ready {
 		return ""
+	}
+	if m.detail {
+		return m.renderDetailView()
 	}
 	// chat ペインは割り当て高さにパディングして、ヘルプを最下部に固定する。
 	chatPane := lipgloss.NewStyle().Height(m.chatHeight()).MaxHeight(m.chatHeight()).Render(m.chat.View())
 	return lipgloss.JoinVertical(lipgloss.Left,
 		m.renderWatchPane(),
 		chatPane,
-		splitHelpStyle.Render("Enter 送信 · Ctrl+D/Ctrl+C 終了 · 保存で上ペイン再判定"),
+		splitHelpStyle.Render("Enter 送信 · Ctrl+G 詳細 · Ctrl+D/Ctrl+C 終了 · 保存で上ペイン再判定"),
 	)
 }
 

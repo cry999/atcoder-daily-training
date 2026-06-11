@@ -181,7 +181,13 @@ func (c *startConfig) buildTarget(contestID, task string, refresh bool) (t ui.St
 		passed, total, cases := rep.Result()
 		verdicts := make([]ui.CaseVerdict, 0, len(cases))
 		for _, cs := range cases {
-			verdicts = append(verdicts, ui.CaseVerdict{Name: cs.Name, Label: caseLabel(cs.Status), OK: cs.Status == testexec.Pass})
+			cv := ui.CaseVerdict{Name: cs.Name, Label: caseLabel(cs.Status), OK: cs.Status == testexec.Pass}
+			// 詳細表示 (Ctrl+G) 用に、失敗ケースの I/O を載せる (AC は載せない)。要件 034。
+			if cs.Status != testexec.Pass {
+				cv.Input, cv.Expected, cv.Actual = cs.Input, cs.Expected, cs.Actual
+				cv.Stderr, cv.Elapsed = cs.Stderr, cs.Elapsed
+			}
+			verdicts = append(verdicts, cv)
 		}
 		s := ui.SampleSummary{Passed: passed, Total: total, Cases: verdicts, At: time.Now()}
 		if runErr != nil {
