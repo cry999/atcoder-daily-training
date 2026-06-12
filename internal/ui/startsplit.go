@@ -65,8 +65,10 @@ type StartSplitConfig struct {
 
 // 分割画面のレイアウト予約行数。
 const (
-	splitTopLines  = 3 // watch ペイン: タイトル + 要約 + 区切り線
-	splitHelpLines = 1 // 最下部のキーヘルプ
+	splitTopLines        = 3 // watch ペイン: タイトル + 要約 + 区切り線
+	splitHelpLines       = 1 // 最下部のキーヘルプ
+	splitDetailRuleLines = 1 // 詳細表示中、詳細 viewport と chat の間の区切り線 (要件 036)
+	minDetailChatLines   = 3 // 詳細表示中も chat に最低限残す行数 (要件 036)
 )
 
 type splitTickMsg struct{}
@@ -153,12 +155,46 @@ func changedFunc(w *watch.Watcher) func() bool {
 }
 
 // chatHeight は chat ペインに割り当てる高さ (端末高さから watch + help を引く)。
+// 詳細表示中 (m.detail) は上ペインが詳細 viewport + 区切り線ぶん拡張するので、その分も引く。
 func (m *startSplitModel) chatHeight() int {
 	h := m.height - splitTopLines - splitHelpLines
+	if m.detail {
+		h -= m.detailBodyHeight() + splitDetailRuleLines
+	}
 	if h < 1 {
 		h = 1
 	}
 	return h
+}
+
+// detailBodyHeight は詳細表示中に詳細 viewport へ割り当てる高さ。
+// body (watch/help/区切り線を除いた領域) の約 60% を詳細に充て、chat に最低
+// minDetailChatLines を残す。chat と詳細を同時に見られるようにするための配分。
+func (m *startSplitModel) detailBodyHeight() int {
+	body := m.height - splitTopLines - splitHelpLines - splitDetailRuleLines
+	if body < 2 {
+		return 1
+	}
+	h := body * 3 / 5 // 詳細に約 60%
+	if body-h < minDetailChatLines {
+		h = body - minDetailChatLines
+	}
+	if h < 1 {
+		h = 1
+	}
+	return h
+}
+
+// resizeChat は現在の割当高さで chat ペインのレイアウトを更新する。
+// detail の開閉で chatHeight が変わるため、新しい高さの WindowSizeMsg を送り直す。
+// ready 前 (viewport 未作成) は何もしない。
+func (m *startSplitModel) resizeChat() tea.Cmd {
+	if !m.ready {
+		return nil
+	}
+	cm, cmd := m.chat.Update(tea.WindowSizeMsg{Width: m.width, Height: m.chatHeight()})
+	m.chat = cm.(*chatModel)
+	return cmd
 }
 
 func (m *startSplitModel) Init() tea.Cmd {
@@ -224,19 +260,20 @@ func (m *startSplitModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// chat には watch + help を引いた高さを渡す。
 		cm, cmd := m.chat.Update(tea.WindowSizeMsg{Width: msg.Width, Height: m.chatHeight()})
 		m.chat = cm.(*chatModel)
-		if m.detail { // 詳細オーバーレイ表示中ならそのサイズも追従させる。
+		if m.detail { // 詳細表示中ならそのサイズも追従させる。
 			m.detailVP.Width = maxInt(m.width, 1)
-			m.detailVP.Height = maxInt(m.height-detailChromeLines, 1)
+			m.detailVP.Height = maxInt(m.detailBodyHeight(), 1)
 			m.detailVP.SetContent(m.buildDetailContent())
 		}
 		return m, cmd
 
 	case tea.KeyMsg:
-		// 詳細オーバーレイ表示中はキーを横取りする (chat には渡さない)。要件 034。
+		// 詳細表示中はキーを横取りする (chat には渡さない)。要件 036。
 		if m.detail {
 			switch msg.Type {
 			case tea.KeyCtrlG, tea.KeyEsc:
-				m.detail = false // 閉じて分割画面へ戻る
+				m.detail = false         // 閉じて通常の分割画面へ戻る
+				return m, m.resizeChat() // chat を元の高さに戻す
 			case tea.KeyPgUp:
 				m.detailVP.ViewUp()
 			case tea.KeyPgDown:
@@ -251,7 +288,7 @@ func (m *startSplitModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// 分割画面: Ctrl+G で詳細を開く。それ以外は従来どおり chat に委譲。
 		if msg.Type == tea.KeyCtrlG {
 			m.openDetail()
-			return m, nil
+			return m, m.resizeChat() // chat を縮めて詳細領域を空ける
 		}
 		cm, cmd := m.chat.Update(msg)
 		m.chat = cm.(*chatModel)
@@ -315,14 +352,11 @@ func (m *startSplitModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 }
 
-// detailChromeLines は詳細オーバーレイのヘッダ + フッタの行数 (viewport 高さの控除分)。
-const detailChromeLines = 2
-
-// openDetail は詳細オーバーレイを開く。現在の summary の失敗ケースから内容を組み、
-// 詳細用 viewport に流して先頭から見せる。要件 034。
+// openDetail は詳細表示を開く。現在の summary の失敗ケースから内容を組み、
+// 詳細用 viewport (拡張した上ペインの高さ) に流して先頭から見せる。要件 036。
 func (m *startSplitModel) openDetail() {
 	m.detail = true
-	m.detailVP = viewport.New(maxInt(m.width, 1), maxInt(m.height-detailChromeLines, 1))
+	m.detailVP = viewport.New(maxInt(m.width, 1), maxInt(m.detailBodyHeight(), 1))
 	m.detailVP.SetContent(m.buildDetailContent())
 	m.detailVP.GotoTop()
 }
@@ -365,22 +399,24 @@ func (m *startSplitModel) buildDetailContent() string {
 	return b.String()
 }
 
-// renderDetailView は詳細オーバーレイ (ヘッダ + 詳細 viewport + フッタ) を描画する。
-func (m *startSplitModel) renderDetailView() string {
-	title := splitWatchTitleStyle.Render("詳細 (失敗ケース)") + "  " + splitHelpStyle.Render(m.task)
-	footer := splitHelpStyle.Render("Ctrl+G/Esc で戻る · PageUp/PageDown/↑/↓ でスクロール")
-	return lipgloss.JoinVertical(lipgloss.Left, title, m.detailVP.View(), footer)
-}
-
 func (m *startSplitModel) View() string {
 	if !m.ready {
 		return ""
 	}
-	if m.detail {
-		return m.renderDetailView()
-	}
 	// chat ペインは割り当て高さにパディングして、ヘルプを最下部に固定する。
 	chatPane := lipgloss.NewStyle().Height(m.chatHeight()).MaxHeight(m.chatHeight()).Render(m.chat.View())
+	if m.detail {
+		// ペイン拡張: watch (3 行) を残しつつ、その下に詳細 viewport を挿し、
+		// 区切り線を挟んで縮んだ chat ペインを置く。chat を全画面で隠さない。要件 036。
+		rule := splitRuleStyle.Render(strings.Repeat("─", maxInt(m.width, 1)))
+		return lipgloss.JoinVertical(lipgloss.Left,
+			m.renderWatchPane(),
+			m.detailVP.View(),
+			rule,
+			chatPane,
+			splitHelpStyle.Render("Ctrl+G/Esc 閉じる · ↑/↓ PageUp/PageDown スクロール · 保存で再判定"),
+		)
+	}
 	return lipgloss.JoinVertical(lipgloss.Left,
 		m.renderWatchPane(),
 		chatPane,

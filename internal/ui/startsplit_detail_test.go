@@ -6,6 +6,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func detailModel(cases []CaseVerdict) *startSplitModel {
@@ -41,6 +42,48 @@ func TestStartDetail_CtrlGOpensFailingDiff(t *testing.T) {
 	}
 	if strings.Contains(content, "[01]") {
 		t.Fatalf("AC case should be omitted from the detail: %q", content)
+	}
+}
+
+// 要件 036: 詳細はペイン拡張で出す。chat を全画面で隠さず、上ペイン (watch) を残したまま
+// 詳細を挿し、chat は縮んで下に残る。閉じると chat の高さが元に戻る。
+func TestStartDetail_ExpandKeepsChatVisible(t *testing.T) {
+	m := detailModel([]CaseVerdict{
+		{Name: "01", Label: "AC", OK: true},
+		{Name: "02", Label: "WA", OK: false, Expected: "RIGHT", Actual: "WRONG"},
+	})
+	closedChatH := m.chatHeight()
+
+	m.Update(tea.KeyMsg{Type: tea.KeyCtrlG}) // open
+	if !m.detail {
+		t.Fatal("Ctrl+G should open the detail view")
+	}
+	openChatH := m.chatHeight()
+	if openChatH >= closedChatH {
+		t.Fatalf("chat should shrink when detail opens: closed=%d open=%d", closedChatH, openChatH)
+	}
+	if openChatH < 1 {
+		t.Fatalf("chat must keep >=1 line while detail is open, got %d", openChatH)
+	}
+	// 詳細は全画面ではない (端末高未満) — watch と chat が同居できる余地を残す。
+	if bh := m.detailBodyHeight(); bh >= m.height {
+		t.Fatalf("detail body must not take the full height: body=%d height=%d", bh, m.height)
+	}
+
+	view := ansi.Strip(m.View())
+	if !strings.Contains(view, "watch") {
+		t.Fatalf("expand view should keep the watch pane title: %q", view)
+	}
+	if !strings.Contains(view, "WRONG") {
+		t.Fatalf("expand view should show the failing diff (actual output): %q", view)
+	}
+
+	m.Update(tea.KeyMsg{Type: tea.KeyEsc}) // close
+	if m.detail {
+		t.Fatal("Esc should close the detail view")
+	}
+	if got := m.chatHeight(); got != closedChatH {
+		t.Fatalf("chat height should return to %d after closing, got %d", closedChatH, got)
 	}
 }
 

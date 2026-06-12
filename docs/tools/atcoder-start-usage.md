@@ -40,7 +40,7 @@ atcoder start <contest> --task <task> [--until-pass] [--refresh] [-d] [-s] [-j <
 | 文字入力 + `Enter` | 下ペインの chat に送信 (子の stdin へ)。**複数行ペースト**は各行を順に送信 |
 | `↑` / `↓` | chat の入力履歴 |
 | `Ctrl+S` | **提出準備** (`test --submit` 相当: 解答をクリップボードへコピー + 提出ページをブラウザで起動)。子は止めず chat に留まり、結果を 1 行表示。**実提出 (POST) はしない** |
-| `Ctrl+G` | **詳細表示**: 上ペインのサンプル判定の**失敗ケース (WA/TLE/RE) の diff** (期待 vs 実際、RE は stderr) を全画面オーバーレイで表示。もう一度 `Ctrl+G` か `Esc` で戻る。`PageUp`/`PageDown`/`↑`/`↓` でスクロール。AC は省略 ([要件 034](./requirements/036-start-watch-detail-view.md)) |
+| `Ctrl+G` | **詳細表示**: 上ペイン (watch) を下方向に拡張し、サンプル判定の**失敗ケース (WA/TLE/RE) の diff** (期待 vs 実際、RE は stderr) を表示 (chat ペインは縮んで下に残る)。もう一度 `Ctrl+G` か `Esc` で戻る。`PageUp`/`PageDown`/`↑`/`↓` でスクロール。AC は省略 ([要件 036](./requirements/036-start-watch-detail-view.md)) |
 | `Ctrl+D` (2 回連続) | 全体を終了 (exit 0)。1 回目はプログラムのリセット (子を再起動)、間に他キーで連続カウントは戻る |
 | `Ctrl+C` | プログラムの中断・再起動 (子を kill して再実行・chat に留まる) |
 | (解答を保存) | 上ペイン (watch) を自動再判定 + 下ペインの chat を最新コードで reload |
