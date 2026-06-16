@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/cry999/atcoder-daily-training/internal/cachepath"
+	"github.com/cry999/atcoder-daily-training/internal/chatlog"
 	"github.com/cry999/atcoder-daily-training/internal/cliargs"
 	"github.com/cry999/atcoder-daily-training/internal/config"
 	"github.com/cry999/atcoder-daily-training/internal/layout"
@@ -204,6 +205,10 @@ func (c *startConfig) buildTarget(contestID, task string, refresh bool) (t ui.St
 	if c.timeout > 0 {
 		timeLimitMs = int(c.timeout / time.Millisecond)
 	}
+	// :replay (要件 039): 問題ごとに前回入力を先読みし、今回の入力を session ごとに記録する。
+	// buildTarget はナビ再ターゲットごとに呼ばれるので、移動先問題の前回入力に自然に切り替わる。
+	sid := chatlog.NewSessionID()
+	prevInputs, _ := chatlog.LoadLastSession(contestID, task) // best-effort: 失敗時は前回入力なし
 	// WatchPath を渡すと、保存検知で下ペインの chat も最新コードで reload する。
 	header := ui.ChatHeader{
 		Task:        task,
@@ -217,6 +222,8 @@ func (c *startConfig) buildTarget(contestID, task string, refresh bool) (t ui.St
 		Tolerance:   c.tolerance,
 		NavEnabled:  true,
 		Edit:        editFunc(c.editor),
+		PrevInputs:  prevInputs,
+		RecordInput: func(line string) { _ = chatlog.Record(contestID, task, sid, line) },
 	}
 	return ui.StartTarget{
 		ContestID:    contestID,

@@ -44,7 +44,7 @@ type verifier struct {
 func newCommandInput() textinput.Model {
 	ti := textinput.New()
 	ti.Prompt = ":"
-	ti.Placeholder = "case | w [name] | set verify | debug | cheat | q"
+	ti.Placeholder = "case | w [name] | set verify | debug | replay | cheat | q"
 	return ti
 }
 
@@ -128,6 +128,9 @@ func parseCommand(s string) command {
 	case "cheat", "help", "?":
 		// :cheat / :help / :? — 利用可能なコマンド一覧を表示。
 		return command{name: "cheat", arg: arg}
+	case "replay":
+		// :replay — 同じ問題の前回セッション入力を、子をリスタートして順送 (要件 039)。
+		return command{name: "replay", arg: arg}
 	default:
 		return command{name: "unknown", arg: name}
 	}
@@ -250,6 +253,8 @@ func (m *chatModel) execCommand(cmd command) (tea.Model, tea.Cmd) {
 		m.returnFromCommand()
 		m.refreshViewport()
 		return m, nil
+	case "replay":
+		return m.execReplay()
 	case "task", "contest", "e":
 		return m.execNav(cmd)
 	default: // unknown
@@ -346,6 +351,7 @@ func (m *chatModel) showCheat() {
 		"  :w [name]             追加ケースを tests-extra に保存",
 		"  :set verify|noverify  ライブ検証 on/off",
 		"  :debug                Debug 表示 (-d) を切替 (:set debug|nodebug)",
+		"  :replay               前回セッションの入力をリスタートして再送",
 		"  :cheat (:help :?)     このコマンド一覧",
 		"  :q                    chat 終了 (作成画面中は破棄)",
 	}
@@ -359,6 +365,34 @@ func (m *chatModel) showCheat() {
 	for _, l := range lines {
 		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: l})
 	}
+}
+
+// execReplay は前回セッションの入力 (header.PrevInputs) を再生する (:replay。要件 039)。
+// 子をリスタートしてクリーンな状態を作り、前回入力を submitLines で順送する。
+// 前回入力が無ければ info 行を 1 本積むだけで子は起動しない。
+func (m *chatModel) execReplay() (tea.Model, tea.Cmd) {
+	m.returnFromCommand()
+	prev := m.header.PrevInputs
+	if len(prev) == 0 {
+		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(前回のセッションの入力がありません)"})
+		m.refreshViewport()
+		return m, nil
+	}
+	var cmds []tea.Cmd
+	// クリーンな状態から再現するため、動作中でも子を作り直す (restart は同期 spawn し
+	// running=true にして読み取り Cmd を返す)。
+	cmds = append(cmds, m.restart())
+	if !m.running {
+		// spawn 失敗 (restart が tea.Quit を返した)。送らない。
+		m.refreshViewport()
+		return m, tea.Batch(cmds...)
+	}
+	// 子は起動済みなので submitLines は再 restart せず、そのまま前回入力を順送する。
+	// 再生行は現セッションの入力として history/sessionInputs に積まれ RecordInput でも
+	// 永続化される (次回の :replay 対象が「今回」になる一貫した挙動)。
+	m.submitLines(prev, &cmds)
+	m.refreshViewport()
+	return m, tea.Batch(cmds...)
 }
 
 // enableVerify はライブ検証を (再) 開始する。pos は現在の出力位置から始める

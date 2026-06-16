@@ -31,6 +31,13 @@ type ChatHeader struct {
 	Tolerance   float64    // ライブ検証の許容誤差 (0 なら既定 1e-6)
 	NavEnabled  bool       // true なら :task next|prev / :contest next|prev / :e で問題ナビ可 (start 分割画面限定。要件 027)
 	Edit        EditFunc   // 非 nil なら Ctrl+E で解答ファイルをエディタで開ける。composition root が注入する (要件 038)
+
+	// PrevInputs は同じ問題の前回 chat セッションで子へ送った入力行 (:replay の対象)。
+	// composition root が chatlog.LoadLastSession で先読みして渡す (要件 039)。
+	PrevInputs []string
+	// RecordInput は子へ送った各行を永続化するフック。非 nil なら submitLines が各行で呼ぶ。
+	// internal/ui は filesystem/XDG を知らないため composition root が注入する (Submit/Edit と同じ層境界)。
+	RecordInput func(line string)
 }
 
 // EditPlan は Ctrl+E のエディタ起動計画。composition root の EditFunc が返す (要件 038)。
@@ -379,6 +386,9 @@ func (m *chatModel) submitLines(lines []string, cmds *[]tea.Cmd) {
 		}
 		m.msgs = append(m.msgs, chatLine{kind: kindIn, text: txt})
 		m.sessionInputs = append(m.sessionInputs, txt) // :case の .in 前埋め用 (現セッション分)
+		if m.header.RecordInput != nil {
+			m.header.RecordInput(txt) // セッション横断の永続化 (:replay 用。要件 039)。best-effort
+		}
 		if txt != "" && (len(m.history) == 0 || m.history[len(m.history)-1] != txt) {
 			// 直前と同じ内容は履歴に積まない (連続重複の抑制)
 			m.history = append(m.history, txt)
