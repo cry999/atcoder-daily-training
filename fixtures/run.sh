@@ -13,7 +13,7 @@ FIXTURES="$REPO_ROOT/fixtures"
 
 # Build the tool.
 TOOL_DIR="$(mktemp -d)"
-trap 'rm -rf "$TOOL_DIR" "$STAGE" "$CACHE_HOME" "$CONFIG_HOME"' EXIT
+trap 'rm -rf "$TOOL_DIR" "$STAGE" "$CACHE_HOME" "$CONFIG_HOME" "$DATA_HOME"' EXIT
 BIN="$TOOL_DIR/atcoder"
 echo "Building $BIN ..."
 go build -o "$BIN" ./cmd/atcoder
@@ -40,6 +40,12 @@ export XDG_CACHE_HOME="$CACHE_HOME"
 # XDG_CONFIG_HOME at their own staged config.
 CONFIG_HOME="$(mktemp -d)"
 export XDG_CONFIG_HOME="$CONFIG_HOME"
+
+# Isolate XDG_DATA_HOME so usage telemetry (要件 037) records into a throwaway dir,
+# never the real ~/.local/share/atcoder-tools/usage/events.jsonl. The recording hook
+# runs for every invocation below; this keeps it self-contained and cleaned up.
+DATA_HOME="$(mktemp -d)"
+export XDG_DATA_HOME="$DATA_HOME"
 
 cd "$STAGE"
 
@@ -430,6 +436,30 @@ zsh_cands_for() {
         _atcoder
     ' 2>/dev/null || true
 }
+# 利用テレメトリ (要件 037): 上の各ケースが XDG_DATA_HOME に記録されているはず。
+# usage はオフライン・読み取り専用で集計を出す (exit 0)。--flags 内訳も exit 0。
+run_case "usage (offline aggregate)" 0 usage
+run_case "usage --flags" 0 usage --flags
+run_case "usage --json" 0 usage --json
+
+echo
+echo "=== usage telemetry: events were recorded; ATCODER_NO_USAGE disables it ==="
+EVENTS="$DATA_HOME/atcoder-tools/usage/events.jsonl"
+if [[ -s "$EVENTS" ]] && grep -q '"cmd":"test"' "$EVENTS"; then
+    echo "  ✓ events.jsonl recorded test invocations"
+else
+    echo "  ✗ expected recorded 'test' events in $EVENTS"; failures=$((failures + 1))
+fi
+# ATCODER_NO_USAGE=1 で記録しないこと (新しい DATA_HOME に切り替えて検証)。
+NOUSE_HOME="$(mktemp -d)"
+XDG_DATA_HOME="$NOUSE_HOME" ATCODER_NO_USAGE=1 "$BIN" version >/dev/null 2>&1 || true
+if [[ -e "$NOUSE_HOME/atcoder-tools/usage/events.jsonl" ]]; then
+    echo "  ✗ ATCODER_NO_USAGE=1 must not write the usage log"; failures=$((failures + 1))
+else
+    echo "  ✓ ATCODER_NO_USAGE=1 suppressed recording"
+fi
+rm -rf "$NOUSE_HOME"
+
 echo
 echo "=== zsh completion: empty current word must not offer subcommands / repeat flags ==="
 if command -v zsh >/dev/null 2>&1; then

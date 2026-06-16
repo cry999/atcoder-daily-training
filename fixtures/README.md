@@ -34,6 +34,8 @@
 > ユーザ設定 (`config.toml`) も smoke する。`run.sh` は `XDG_CONFIG_HOME` を空 dir に固定して既存テストを config 非依存にしたうえで、専用 dir に `[test] side_by_side = true` を置いて (1) 既定で side-by-side diff になる (出力に `side-by-side` が出る) (2) `--side-by-side=false` でその回だけ unified に戻る (3) 壊れた `config.toml` は `exit 2` を確認する。`side_by_side` は終了コードを変えないため、出力文字列で検証する (`check_output` ヘルパー)。
 >
 > `atcoder config` サブコマンドも smoke する。`config show`/`path` の出力検証、未知サブコマンド・未知キー・型不一致・引数不足の `exit 2`、書き込み専用 dir での `set` → `get` 往復、および `set` した値が `atcoder test` の diff に波及する (出力に `side-by-side` が出る) 経路を確認する。
+>
+> 利用テレメトリ (`atcoder usage`, 要件 037) も smoke する。`run.sh` は `XDG_DATA_HOME` を一時 dir に固定して実ユーザの `~/.local/share/atcoder-tools/usage/` を汚さず、(1) 上の各ケースの実行が `events.jsonl` に記録されること (`test` イベントを grep) (2) `atcoder usage` / `--flags` / `--json` が `exit 0` (3) `ATCODER_NO_USAGE=1` でログを書かないこと、を確認する。記録は dispatch のラップで全コマンドに透過挿入されるため、専用 fixture (`.py`) は不要。
 
 ## ディレクトリ構造
 
