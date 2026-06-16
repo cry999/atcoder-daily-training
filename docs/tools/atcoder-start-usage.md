@@ -70,7 +70,8 @@ atcoder start <contest> --task <task> [--until-pass] [--refresh] [-d] [-s] [-j <
 - **移動時に着手 + 再ターゲット**: 移動先では start と同じく**着手** (解答ファイルが無ければ空ファイルを作成。`created: <path>` を表示) し、watch ペインのサンプル判定と chat ペインの子プロセスが**新しい問題で作り直される** (再ターゲット)。chat には `(→ abc457_e に移動しました)` の案内行が出る。
 - **既存ファイルは温存**: 移動先に解答ファイルが既にあれば**上書きしない** (`solution: <path> (exists)`)。提出コードを壊さない。`--until-pass` 指定時は、移動後の新しい問題に対して全通過判定が掛かる。
 - **境界・非対応は 1 行エラーで継続**: letter `a` で `:task prev`、番号が下限で `:contest prev`、番号を持たない contest での `:contest next`/`:contest prev`、複数文字 letter (`ex` 等) での `:task next`/`:task prev`、直指定の不正値 (`:task <非英字>`・`:contest 0` や形不正)、`:e` の引数が空/不正、などは**再ターゲットせず 1 行エラーを出して継続**する (start は落ちず exit code も変わらない)。
-- **Tab 補完**: `:` 行で `Tab` を押すとコマンド名 (`:case`/`:w`/`:set`/`:q`/`:debug`/`:cheat`/`:task`/`:contest`/`:e`) と `next|prev`・`verify|noverify` などのサブトークンを補完する。一意なら確定し、複数候補は `:` 行直下に一覧表示する (要件 [031](./requirements/031-command-mode-completion.md))。
+- **Tab 補完**: `:` 行で `Tab` を押すとコマンド名 (`:case`/`:w`/`:set`/`:q`/`:debug`/`:replay`/`:cheat`/`:task`/`:contest`/`:e`) と `next|prev`・`verify|noverify` などのサブトークンを補完する。一意なら確定し、複数候補は `:` 行直下に一覧表示する (要件 [031](./requirements/031-command-mode-completion.md))。
+- **入力リプレイ (`:replay`)**: 下ペイン chat で送った入力は問題ごとに永続化され、`:task`/`:contest`/`:e` で移動した先でも**その問題の前回セッション入力**を `:replay` で再送できる (子をリスタートして再現。要件 [039](./requirements/039-chat-replay-previous-session.md))。記録停止は `ATCODER_NO_CHAT_HISTORY=1`。
 
 移動前後の画面イメージ:
 
@@ -139,4 +140,4 @@ atcoder start abc457 --task d
 ## 関連
 
 - 利用手引: [atcoder-test-usage.md](./atcoder-test-usage.md) (watch モードの詳細)
-- 要件: [018-start-command.md](./requirements/018-start-command.md) / [019-start-key-actions.md](./requirements/019-start-key-actions.md) / [023-start-split-screen.md](./requirements/023-start-split-screen.md) / [027-start-problem-navigation.md](./requirements/027-start-problem-navigation.md) (コマンドモードのナビゲーション) / [030-chat-debug-cheat-commands.md](./requirements/030-chat-debug-cheat-commands.md) (`:debug`/`:cheat`) / [034-start-debug-watch-sync.md](./requirements/034-start-debug-watch-sync.md) (`:debug` を watch へ反映) / [004-exercise-test-watch.md](./requirements/004-exercise-test-watch.md)
+- 要件: [018-start-command.md](./requirements/018-start-command.md) / [019-start-key-actions.md](./requirements/019-start-key-actions.md) / [023-start-split-screen.md](./requirements/023-start-split-screen.md) / [027-start-problem-navigation.md](./requirements/027-start-problem-navigation.md) (コマンドモードのナビゲーション) / [030-chat-debug-cheat-commands.md](./requirements/030-chat-debug-cheat-commands.md) (`:debug`/`:cheat`) / [034-start-debug-watch-sync.md](./requirements/034-start-debug-watch-sync.md) (`:debug` を watch へ反映) / [039-chat-replay-previous-session.md](./requirements/039-chat-replay-previous-session.md) (`:replay`) / [004-exercise-test-watch.md](./requirements/004-exercise-test-watch.md)
