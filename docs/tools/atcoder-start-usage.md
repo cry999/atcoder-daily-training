@@ -41,6 +41,7 @@ atcoder start <contest> --task <task> [--until-pass] [--refresh] [-d] [-s] [-j <
 | `↑` / `↓` | chat の入力履歴 |
 | `Ctrl+S` | **提出準備** (`test --submit` 相当: 解答をクリップボードへコピー + 提出ページをブラウザで起動)。子は止めず chat に留まり、結果を 1 行表示。**実提出 (POST) はしない** |
 | `Ctrl+G` | **詳細表示**: 上ペイン (watch) を下方向に拡張し、サンプル判定の**失敗ケース (WA/TLE/RE) の diff** (期待 vs 実際、RE は stderr) を表示 (chat ペインは縮んで下に残る)。もう一度 `Ctrl+G` か `Esc` で戻る。`PageUp`/`PageDown`/`↑`/`↓` でスクロール。AC は省略 ([要件 036](./requirements/036-start-watch-detail-view.md)) |
+| `Ctrl+E` | **解答ファイルをエディタで開く** ([要件 038](./requirements/038-start-edit-in-editor.md))。nvim の `:terminal` 内 (`$NVIM` 在り) なら**親 nvim の新規タブに送る** (`--remote-tab`、新しい nvim を起動せずネスト回避)。nvim 外なら `editor` (config) / `$EDITOR` / `nvim` を一時的に前面起動し、終了で分割画面に戻る。ファイルは開くだけ |
 | `Ctrl+D` (2 回連続) | 全体を終了 (exit 0)。1 回目はプログラムのリセット (子を再起動)、間に他キーで連続カウントは戻る |
 | `Ctrl+C` | プログラムの中断・再起動 (子を kill して再実行・chat に留まる) |
 | (解答を保存) | 上ペイン (watch) を自動再判定 + 下ペインの chat を最新コードで reload |
