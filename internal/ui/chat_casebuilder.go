@@ -367,17 +367,27 @@ func (m *chatModel) showCheat() {
 	}
 }
 
-// execReplay は前回セッションの入力 (header.PrevInputs) を再生する (:replay。要件 039)。
-// 子をリスタートしてクリーンな状態を作り、前回入力を submitLines で順送する。
-// 前回入力が無ければ info 行を 1 本積むだけで子は起動しない。
+// execReplay は入力を再生する (:replay。要件 039)。再生対象は **今回の起動で送った入力
+// (runInputs)** を優先し、まだ何も送っていなければ **前回セッションの入力 (PrevInputs)** に
+// フォールバックする。これでコード修正後に同じ入力を流し直す主用途 (= 今回分の再送) と、
+// 開いた直後に前回の続きを再開する用途の両方をカバーする。子をリスタートしてクリーンな
+// 状態を作り、対象を submitLines で順送する。どちらも空なら info 行のみで子は起動しない。
 func (m *chatModel) execReplay() (tea.Model, tea.Cmd) {
 	m.returnFromCommand()
-	prev := m.header.PrevInputs
-	if len(prev) == 0 {
-		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(前回のセッションの入力がありません)"})
+	lines := m.runInputs // 今回の起動で送った入力を優先
+	if len(lines) == 0 {
+		lines = m.header.PrevInputs // 未入力なら前回セッションへフォールバック
+	}
+	if len(lines) == 0 {
+		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(再生できる入力がありません — まだ何も送っていない初回起動です)"})
 		m.refreshViewport()
 		return m, nil
 	}
+	// submitLines が再生行を runInputs に積み直すので、二重化しないよう一旦スナップショット
+	// してから runInputs をクリアする (再生後は runInputs == この再生分に揃う)。
+	snap := append([]string(nil), lines...)
+	m.runInputs = nil
+
 	var cmds []tea.Cmd
 	// クリーンな状態から再現するため、動作中でも子を作り直す (restart は同期 spawn し
 	// running=true にして読み取り Cmd を返す)。
@@ -387,10 +397,9 @@ func (m *chatModel) execReplay() (tea.Model, tea.Cmd) {
 		m.refreshViewport()
 		return m, tea.Batch(cmds...)
 	}
-	// 子は起動済みなので submitLines は再 restart せず、そのまま前回入力を順送する。
-	// 再生行は現セッションの入力として history/sessionInputs に積まれ RecordInput でも
-	// 永続化される (次回の :replay 対象が「今回」になる一貫した挙動)。
-	m.submitLines(prev, &cmds)
+	// 子は起動済みなので submitLines は再 restart せず、そのまま対象入力を順送する。
+	// 再生行は history/sessionInputs/runInputs に積まれ RecordInput でも永続化される。
+	m.submitLines(snap, &cmds)
 	m.refreshViewport()
 	return m, tea.Batch(cmds...)
 }

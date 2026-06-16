@@ -18,26 +18,54 @@ func TestParseCommandReplay(t *testing.T) {
 	}
 }
 
-// 前回入力が無ければ :replay は info 行のみで子を起動しない。
-func TestExecReplayNoPrevInputs(t *testing.T) {
+// 今回分も前回分も無ければ :replay は info 行のみで子を起動しない。
+func TestExecReplayNoInputs(t *testing.T) {
 	spawnCalls := 0
 	spawn := func() (*runner.ChatHandle, error) { spawnCalls++; return fakeHandle(), nil }
-	m := &chatModel{spawn: spawn, header: ChatHeader{}} // PrevInputs=nil
+	m := &chatModel{spawn: spawn, header: ChatHeader{}} // runInputs=nil, PrevInputs=nil
 
 	m.execReplay()
 
 	if spawnCalls != 0 {
-		t.Errorf("no prev inputs must not spawn, got %d", spawnCalls)
+		t.Errorf("no inputs must not spawn, got %d", spawnCalls)
 	}
 	if m.running {
-		t.Error("no prev inputs: child must not be running")
+		t.Error("no inputs: child must not be running")
 	}
-	if !hasInfo(m, "前回のセッションの入力がありません") {
+	if !hasInfo(m, "再生できる入力がありません") {
 		t.Error("expected the empty-history info line")
 	}
 }
 
-// 前回入力があれば :replay は子をリスタートして全行を順に stdin へ送る。
+// 今回の起動で入力を送っていれば、:replay は (PrevInputs ではなく) 今回分を再生する。
+// コード修正後に同じ入力を流し直す主用途。
+func TestExecReplayPrefersCurrentRunInputs(t *testing.T) {
+	var stdin bytes.Buffer
+	spawn := func() (*runner.ChatHandle, error) {
+		return &runner.ChatHandle{
+			Stdin:  nopWriteCloser{&stdin},
+			Stdout: io.NopCloser(strings.NewReader("")),
+			Stderr: io.NopCloser(strings.NewReader("")),
+		}, nil
+	}
+	// 今回の入力 (runInputs) があり、前回入力 (PrevInputs) とは別物。
+	m := &chatModel{spawn: spawn,
+		runInputs: []string{"now 1", "now 2"},
+		header:    ChatHeader{PrevInputs: []string{"old 1"}},
+	}
+
+	m.execReplay()
+
+	if got, want := stdin.String(), "now 1\nnow 2\n"; got != want {
+		t.Errorf("replay should re-send current-run inputs: stdin = %q, want %q", got, want)
+	}
+	// 二重化防止: 再生後 runInputs は再生分そのものに揃う (倍にならない)。
+	if want := []string{"now 1", "now 2"}; !equalStrings(m.runInputs, want) {
+		t.Errorf("runInputs after replay = %v, want %v (must not double)", m.runInputs, want)
+	}
+}
+
+// 今回まだ何も送っていなければ :replay は前回セッションの入力にフォールバックする。
 func TestExecReplaySendsPrevInputs(t *testing.T) {
 	var stdin bytes.Buffer
 	spawnCalls := 0

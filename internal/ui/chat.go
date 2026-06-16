@@ -184,7 +184,8 @@ type chatModel struct {
 	builder       *caseBuilder    // 非 nil ならケースビルダーを開いている
 	verify        *verifier       // 非 nil ならライブ検証中
 	lastExpected  []string        // 直近のビルダーで入力した expected (`:set verify` の対象)
-	sessionInputs []string        // 現セッションで送信した入力行 (`:case` の .in 前埋め)
+	sessionInputs []string        // 現 (子) セッションで送信した入力行 (`:case` の .in 前埋め。子リスタートで nil)
+	runInputs     []string        // 今回の chat 起動で送信した入力行 (:replay の第一候補。子リスタートをまたいで保持。要件 039)
 }
 
 // initialChatModel は遅延起動の chat モデルを作る。子プロセスは開いた時点では
@@ -386,6 +387,7 @@ func (m *chatModel) submitLines(lines []string, cmds *[]tea.Cmd) {
 		}
 		m.msgs = append(m.msgs, chatLine{kind: kindIn, text: txt})
 		m.sessionInputs = append(m.sessionInputs, txt) // :case の .in 前埋め用 (現セッション分)
+		m.runInputs = append(m.runInputs, txt)         // :replay 用 (今回起動分。子リスタートをまたいで保持)
 		if m.header.RecordInput != nil {
 			m.header.RecordInput(txt) // セッション横断の永続化 (:replay 用。要件 039)。best-effort
 		}
