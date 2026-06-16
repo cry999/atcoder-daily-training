@@ -41,6 +41,7 @@ const FileName = "config.toml"
 // 空 ("") は未設定で、layout.Resolve が auto にフォールバックする。
 type Config struct {
 	Layout string            `toml:"layout,omitempty"`
+	Editor string            `toml:"editor,omitempty"` // start の Ctrl+E (nvim 外) で使うエディタコマンド (要件 038)
 	Test   TestConfig        `toml:"test"`
 	Alias  map[string]string `toml:"alias"` // [alias] 名前→コマンド列 (git 風 alias)
 }

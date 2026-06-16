@@ -85,6 +85,23 @@ var fields = []field{
 		},
 	},
 	{
+		// editor は start の Ctrl+E (nvim 外フォールバック) で使うエディタコマンド (要件 038)。
+		// nvim 内 ($NVIM 在り) は親 nvim へ remote 送信するのでこのキーは効かない。
+		// 空白区切りで argv 展開する自由文字列 (例 "nvim -p" / "code -w")。未設定は $EDITOR→nvim。
+		key:  "editor",
+		kind: "string",
+		repr: func(c *Config) string {
+			if c.Editor == "" {
+				return "(unset)"
+			}
+			return c.Editor
+		},
+		set: func(m map[string]any, raw string) error {
+			setNested(m, []string{"editor"}, strings.TrimSpace(raw))
+			return nil
+		},
+	},
+	{
 		key:  "test.side_by_side",
 		kind: "bool",
 		repr: func(c *Config) string { return strconv.FormatBool(c.Test.SideBySide) },

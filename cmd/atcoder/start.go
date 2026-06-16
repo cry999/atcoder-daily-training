@@ -73,6 +73,7 @@ func cmdStart(args []string) (int, error) {
 		tolerance:  *tolFlag,
 		jobs:       jobs,
 		sideBySide: sideBySide,
+		editor:     cfg.Editor,
 	}
 
 	// 初期ターゲットを構築 (resolveLayout / 着手 はここで)。
@@ -121,6 +122,7 @@ type startConfig struct {
 	tolerance  float64
 	jobs       int
 	sideBySide bool
+	editor     string // config の editor キー (Ctrl+E の nvim 外フォールバック。要件 038)
 }
 
 // buildTarget は (contestID, task) に対する分割画面ターゲットを構築する。レイアウト解決
@@ -214,6 +216,7 @@ func (c *startConfig) buildTarget(contestID, task string, refresh bool) (t ui.St
 		TaskDir:     cachepath.Task(contestID, task),
 		Tolerance:   c.tolerance,
 		NavEnabled:  true,
+		Edit:        editFunc(c.editor),
 	}
 	return ui.StartTarget{
 		ContestID:    contestID,

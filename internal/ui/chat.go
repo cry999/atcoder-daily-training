@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"math"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -29,7 +30,24 @@ type ChatHeader struct {
 	TaskDir     string     // cache の <contest>/<task> dir。非空なら :w でケースを tests-extra に保存できる (要件 024)
 	Tolerance   float64    // ライブ検証の許容誤差 (0 なら既定 1e-6)
 	NavEnabled  bool       // true なら :task next|prev / :contest next|prev / :e で問題ナビ可 (start 分割画面限定。要件 027)
+	Edit        EditFunc   // 非 nil なら Ctrl+E で解答ファイルをエディタで開ける。composition root が注入する (要件 038)
 }
+
+// EditPlan は Ctrl+E のエディタ起動計画。composition root の EditFunc が返す (要件 038)。
+//   - Exec 非 nil: 端末を奪ってエディタを起動する (nvim 外)。chat は tea.ExecProcess で回す。
+//   - Exec nil:    端末を奪わず即完了したケース (nvim へ remote 送信済み or 失敗)。Message を 1 行表示。
+type EditPlan struct {
+	Exec    *exec.Cmd
+	Message string
+	IsError bool
+}
+
+// EditFunc は chat の Ctrl+E で呼ばれるエディタ起動フック。解答パスを受け取り EditPlan を返す。
+// internal/ui は cmd/atcoder を import できないため、composition root が注入する。
+type EditFunc func(path string) EditPlan
+
+// editDoneMsg は tea.ExecProcess (端末を奪うエディタ起動) の完了通知。
+type editDoneMsg struct{ err error }
 
 // SubmitResult は chat の Ctrl+S 提出準備の結果。chat はこれを 1 行に整形して表示する。
 type SubmitResult struct {
@@ -312,6 +330,32 @@ func (m *chatModel) submitPrep() {
 	m.msgs = append(m.msgs, chatLine{kind: kind, text: "(提出準備: " + res.Message + ")"})
 }
 
+// editFile は Ctrl+E のエディタ起動。注入された Edit フックに解答パス (WatchPath) を渡す。
+// nvim 内 (remote 送信) など端末を奪わないケースは結果を 1 行表示して nil を返す。nvim 外で
+// 端末を奪うケースは tea.ExecProcess の tea.Cmd を返す (呼び出し側が return する)。
+func (m *chatModel) editFile() tea.Cmd {
+	if m.header.Edit == nil {
+		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(エディタ起動は利用できません)"})
+		return nil
+	}
+	if m.header.WatchPath == "" {
+		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(エディタで開く解答ファイルが不明です)"})
+		return nil
+	}
+	plan := m.header.Edit(m.header.WatchPath)
+	if plan.Exec != nil {
+		// 端末を奪ってエディタを起動 (nvim 外)。終了後に editDoneMsg で復帰結果を出す。
+		return tea.ExecProcess(plan.Exec, func(err error) tea.Msg { return editDoneMsg{err: err} })
+	}
+	// remote 送信済み or 失敗: 結果を 1 行表示。
+	kind := kindInfo
+	if plan.IsError {
+		kind = kindErr
+	}
+	m.msgs = append(m.msgs, chatLine{kind: kind, text: "(" + plan.Message + ")"})
+	return nil
+}
+
 // submitLines は lines を順に子 stdin へ送る (各 Fprintln + kindIn echo + 履歴)。
 // 単一行 Enter と複数行ペースト ([034]) で共有する送信ロジック。子が居なければ最初の
 // 送信を機に (再) 起動し (遅延起動)、1 行でも送れたら最後に出力待ちを 1 回起動する。
@@ -468,6 +512,14 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// 子は kill せず chat に留まる。結果は画面内の 1 行で示す (stdout には書かない)。
 			m.submitPrep()
 			m.refreshViewport()
+		case tea.KeyCtrlE:
+			// Ctrl+E = 解答ファイルをエディタで開く (要件 038)。nvim 内なら親へ remote 送信
+			// (端末を奪わない)、外なら tea.ExecProcess で起動。子は kill せず chat に留まる。
+			ecmd := m.editFile()
+			m.refreshViewport()
+			if ecmd != nil {
+				return m, ecmd
+			}
 		case tea.KeyEnter:
 			// 現在行を 1 行送信する (複数行ペーストと送信ロジックを共有)。
 			m.submitLines([]string{m.input.Value()}, &cmds)
@@ -580,6 +632,16 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		// 変化なし or 子なしでも、次の保存を拾うためポーリングは続ける。
 		return m, m.pollWatchCmd()
+
+	case editDoneMsg:
+		// tea.ExecProcess (端末を奪ったエディタ) の復帰。結果を 1 行示して分割画面へ戻る。
+		if msg.err != nil {
+			m.msgs = append(m.msgs, chatLine{kind: kindErr, text: "(エディタ終了: " + msg.err.Error() + ")"})
+		} else {
+			m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(エディタを閉じました)"})
+		}
+		m.refreshViewport()
+		return m, nil
 	}
 
 	return m, tea.Batch(cmds...)

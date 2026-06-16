@@ -126,7 +126,7 @@ func cmdTest(args []string) (int, error) {
 		if setAny("refresh", "case", "c", "jobs", "j", "watch", "w", "s", "side-by-side", "submit", "no-open") {
 			return 2, errors.New("--refresh/--case/--jobs/--watch/--side-by-side/--submit are sample-mode flags and cannot be combined with --in/--out/--interactive")
 		}
-		return runAdHoc(contest, task, lay, inFile, outFile, interactive, autoRestart, debug, verbose, *timeoutFlag, *tolFlag)
+		return runAdHoc(contest, task, lay, inFile, outFile, interactive, autoRestart, debug, verbose, *timeoutFlag, *tolFlag, cfg.Editor)
 	}
 
 	// --submit は一回限りの提出準備なので、常駐する --watch とは併用不可。
