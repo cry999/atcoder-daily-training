@@ -133,7 +133,11 @@ type ChatHandle struct {
 
 // Wait は子プロセスの終了を待ち、ProcessResult を返す。タイムアウトの概念は
 // chat モードでは設けない (利用者がリアルタイムで操作するため)。
+// cmd が無い (実プロセスを持たない) handle では即 Exited を返す (防御的)。
 func (h *ChatHandle) Wait() *ProcessResult {
+	if h.cmd == nil {
+		return &ProcessResult{Status: Exited}
+	}
 	err := h.cmd.Wait()
 	elapsed := time.Since(h.start)
 
@@ -151,9 +155,9 @@ func (h *ChatHandle) Wait() *ProcessResult {
 	}
 }
 
-// Kill は子プロセスを強制終了する。
+// Kill は子プロセスを強制終了する。cmd / Process が無ければ no-op (防御的)。
 func (h *ChatHandle) Kill() error {
-	if h.cmd.Process != nil {
+	if h.cmd != nil && h.cmd.Process != nil {
 		return h.cmd.Process.Kill()
 	}
 	return nil

@@ -32,8 +32,9 @@ type ChatHeader struct {
 	NavEnabled  bool       // true なら :task next|prev / :contest next|prev / :e で問題ナビ可 (start 分割画面限定。要件 027)
 	Edit        EditFunc   // 非 nil なら Ctrl+E で解答ファイルをエディタで開ける。composition root が注入する (要件 038)
 
-	// PrevInputs は同じ問題の前回 chat セッションで子へ送った入力行 (:replay の対象)。
-	// composition root が chatlog.LoadLastSession で先読みして渡す (要件 039)。
+	// PrevInputs は同じ問題の前回 chat 起動で子へ送った入力行。:replay の cross-run
+	// フォールバック (今回まだ何も打っていない初回起動でのみ使う)。composition root が
+	// chatlog.LoadLastSession で先読みして渡す (要件 039)。
 	PrevInputs []string
 	// RecordInput は子へ送った各行を永続化するフック。非 nil なら submitLines が各行で呼ぶ。
 	// internal/ui は filesystem/XDG を知らないため composition root が注入する (Submit/Edit と同じ層境界)。
@@ -178,14 +179,14 @@ type chatModel struct {
 	ready         bool
 
 	// ケース作成 + ライブ検証 (要件 024)。
-	mode          chatMode        // insert (既定) / command / builder
-	cmdInput      textinput.Model // command モードの `:` 行
-	cmdCandidates []string        // Tab 補完の候補一覧 (複数一致時に `:` 行直下へ表示。要件 031)
-	builder       *caseBuilder    // 非 nil ならケースビルダーを開いている
-	verify        *verifier       // 非 nil ならライブ検証中
-	lastExpected  []string        // 直近のビルダーで入力した expected (`:set verify` の対象)
-	sessionInputs []string        // 現 (子) セッションで送信した入力行 (`:case` の .in 前埋め。子リスタートで nil)
-	runInputs     []string        // 今回の chat 起動で送信した入力行 (:replay の第一候補。子リスタートをまたいで保持。要件 039)
+	mode              chatMode        // insert (既定) / command / builder
+	cmdInput          textinput.Model // command モードの `:` 行
+	cmdCandidates     []string        // Tab 補完の候補一覧 (複数一致時に `:` 行直下へ表示。要件 031)
+	builder           *caseBuilder    // 非 nil ならケースビルダーを開いている
+	verify            *verifier       // 非 nil ならライブ検証中
+	lastExpected      []string        // 直近のビルダーで入力した expected (`:set verify` の対象)
+	sessionInputs     []string        // 現 (子) セッションで送信した入力行 (`:case` の .in 前埋め / :replay の第一候補。子リスタートで nil)
+	prevSessionInputs []string        // 直前に完了した (空でない) 子セッションの入力行 (:replay のフォールバック。要件 039)
 }
 
 // initialChatModel は遅延起動の chat モデルを作る。子プロセスは開いた時点では
@@ -302,7 +303,7 @@ func (m *chatModel) restart() tea.Cmd {
 	m.endedErr = false
 	m.stopAwaiting()           // 新セッションでは出力待ちをリセット (旧 tick は世代不一致で止まる)
 	m.lastEventAt = time.Now() // 新セッション開始を経過時間の基準にリセット
-	m.sessionInputs = nil      // :case の .in 前埋めは現セッション分のみ
+	m.beginNewSession()        // 直前セッションの入力を prevSessionInputs に退避し sessionInputs をリセット
 	if m.verify != nil {       // 新セッションは expected を頭から照合し直す
 		m.verify.pos = 0
 	}
@@ -365,15 +366,43 @@ func (m *chatModel) editFile() tea.Cmd {
 	return nil
 }
 
+// beginNewSession は子セッションの境界 (restart) で呼ぶ。終わった子セッションの入力を
+// prevSessionInputs に退避し (空セッションでは上書きしない — 直前の実入力を残す)、
+// sessionInputs をリセットする。:replay は「直前の (child) セッションだけ」を再生するため、
+// 起動を通した累積ではなく 1 セッション分だけを保持する (要件 039)。
+func (m *chatModel) beginNewSession() {
+	if len(m.sessionInputs) > 0 {
+		m.prevSessionInputs = m.sessionInputs
+	}
+	m.sessionInputs = nil
+}
+
+// replayLines は :replay の対象とする入力行を返す。優先順位は
+//  1. 現セッションの入力 (sessionInputs)        — いま打っている / 直前に打ったセッション
+//  2. 直前に完了したセッション (prevSessionInputs) — reload 直後など現セッションが空のとき
+//  3. 前回 chat 起動の入力 (header.PrevInputs)   — 今回まだ何も打っていない初回起動
+//
+// いずれも「直前の 1 セッション分」で、起動を通した手入力すべての累積ではない (要件 039)。
+func (m *chatModel) replayLines() []string {
+	if len(m.sessionInputs) > 0 {
+		return m.sessionInputs
+	}
+	if len(m.prevSessionInputs) > 0 {
+		return m.prevSessionInputs
+	}
+	return m.header.PrevInputs
+}
+
 // submitLines は lines を順に子 stdin へ送る (各 Fprintln + kindIn echo + 履歴)。
 // 単一行 Enter と複数行ペースト ([034]) で共有する送信ロジック。子が居なければ最初の
 // 送信を機に (再) 起動し (遅延起動)、1 行でも送れたら最後に出力待ちを 1 回起動する。
 // 必要な tea.Cmd (restart / startAwaiting) は cmds に追記する。
 //
-// record は「これを :replay の対象 / 永続化対象として覚えるか」。手入力 (Enter / ペースト)
-// は true。:replay の再送は false — 再生行を runInputs や chatlog に積むと、次の :replay が
-// それらを巻き込んで膨らみ「手入力したセッション」ではなく過去の再生値を流してしまう
-// (要件 039 のバグ修正)。子への送信・echo・履歴 (Up/Down)・出力待ちは record に依らず行う。
+// record は「この入力を手入力として覚えるか」。手入力 (Enter / ペースト) は true で、
+// sessionInputs (現セッションの :replay 対象・:case 前埋め) と chatlog (セッション横断の
+// 永続化) に積む。:replay の再送は false — 再生行をこれらに積むと、次の :replay が再生値を
+// 巻き込んで膨らみ「手入力したセッション」ではなく過去の再生値を流してしまう (要件 039)。
+// 子への送信・echo・履歴 (Up/Down)・出力待ちは record に依らず行う。
 func (m *chatModel) submitLines(lines []string, cmds *[]tea.Cmd, record bool) {
 	if len(lines) == 0 {
 		return
@@ -393,11 +422,11 @@ func (m *chatModel) submitLines(lines []string, cmds *[]tea.Cmd, record bool) {
 			break // 書き込み失敗以降は送らない
 		}
 		m.msgs = append(m.msgs, chatLine{kind: kindIn, text: txt})
-		m.sessionInputs = append(m.sessionInputs, txt) // :case の .in 前埋め用 (現セッション分)
 		if record {
-			m.runInputs = append(m.runInputs, txt) // :replay 用 (手入力分のみ。今回起動を通して保持)
+			// 手入力のみ現セッションの入力として覚える (:case 前埋め / :replay 対象)。
+			m.sessionInputs = append(m.sessionInputs, txt)
 			if m.header.RecordInput != nil {
-				m.header.RecordInput(txt) // セッション横断の永続化 (:replay 用。要件 039)。best-effort
+				m.header.RecordInput(txt) // セッション横断の永続化 (:replay の cross-run フォールバック用。要件 039)。best-effort
 			}
 		}
 		if txt != "" && (len(m.history) == 0 || m.history[len(m.history)-1] != txt) {

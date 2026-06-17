@@ -18,11 +18,42 @@ func TestParseCommandReplay(t *testing.T) {
 	}
 }
 
+// 子セッションを複数またいでも :replay は **直前の (child) セッション** の入力だけを流す。
+// 起動を通した手入力すべてを累積して流してはいけない (要件 039 / バグ報告)。
+func TestReplayScopedToPreviousSession(t *testing.T) {
+	var stdin bytes.Buffer
+	spawn := func() (*runner.ChatHandle, error) {
+		return &runner.ChatHandle{
+			Stdin:  nopWriteCloser{&stdin},
+			Stdout: io.NopCloser(strings.NewReader("")),
+			Stderr: io.NopCloser(strings.NewReader("")),
+		}, nil
+	}
+	m := &chatModel{spawn: spawn} // 遅延起動
+	var cmds []tea.Cmd
+
+	// セッション 1: A, B を手入力
+	m.submitLines([]string{"A", "B"}, &cmds, true)
+	m.restart() // 子セッション境界 (watch reload / Ctrl+D リセット相当)
+
+	// セッション 2: C, D を手入力
+	m.submitLines([]string{"C", "D"}, &cmds, true)
+	m.restart()
+
+	// :replay は直前のセッション (= セッション 2 の C, D) だけを流すべき。
+	// バグ時は A, B, C, D 全部が流れる。
+	stdin.Reset()
+	m.execReplay()
+	if got, want := stdin.String(), "C\nD\n"; got != want {
+		t.Errorf("replay stdin = %q, want %q (only the previous session, not all run inputs)", got, want)
+	}
+}
+
 // 今回分も前回分も無ければ :replay は info 行のみで子を起動しない。
 func TestExecReplayNoInputs(t *testing.T) {
 	spawnCalls := 0
 	spawn := func() (*runner.ChatHandle, error) { spawnCalls++; return fakeHandle(), nil }
-	m := &chatModel{spawn: spawn, header: ChatHeader{}} // runInputs=nil, PrevInputs=nil
+	m := &chatModel{spawn: spawn, header: ChatHeader{}} // sessionInputs/prevSessionInputs/PrevInputs すべて nil
 
 	m.execReplay()
 
@@ -37,9 +68,9 @@ func TestExecReplayNoInputs(t *testing.T) {
 	}
 }
 
-// 今回の起動で入力を送っていれば、:replay は (PrevInputs ではなく) 今回分を再生する。
+// 現セッションで入力を送っていれば、:replay は (PrevInputs ではなく) その現セッション分を再生する。
 // コード修正後に同じ入力を流し直す主用途。
-func TestExecReplayPrefersCurrentRunInputs(t *testing.T) {
+func TestExecReplayPrefersCurrentSessionInputs(t *testing.T) {
 	var stdin bytes.Buffer
 	spawn := func() (*runner.ChatHandle, error) {
 		return &runner.ChatHandle{
@@ -48,20 +79,16 @@ func TestExecReplayPrefersCurrentRunInputs(t *testing.T) {
 			Stderr: io.NopCloser(strings.NewReader("")),
 		}, nil
 	}
-	// 今回の入力 (runInputs) があり、前回入力 (PrevInputs) とは別物。
+	// 現セッションの入力 (sessionInputs) があり、前回起動入力 (PrevInputs) とは別物。
 	m := &chatModel{spawn: spawn,
-		runInputs: []string{"now 1", "now 2"},
-		header:    ChatHeader{PrevInputs: []string{"old 1"}},
+		sessionInputs: []string{"now 1", "now 2"},
+		header:        ChatHeader{PrevInputs: []string{"old 1"}},
 	}
 
 	m.execReplay()
 
 	if got, want := stdin.String(), "now 1\nnow 2\n"; got != want {
-		t.Errorf("replay should re-send current-run inputs: stdin = %q, want %q", got, want)
-	}
-	// 再生は runInputs を変更しない (record=false) ので、再生後も手入力分のまま。
-	if want := []string{"now 1", "now 2"}; !equalStrings(m.runInputs, want) {
-		t.Errorf("runInputs after replay = %v, want %v (replay must leave it unchanged)", m.runInputs, want)
+		t.Errorf("replay should re-send the current session inputs: stdin = %q, want %q", got, want)
 	}
 }
 
@@ -146,14 +173,14 @@ func TestReplayDoesNotRecord(t *testing.T) {
 	if len(recorded) != 0 {
 		t.Errorf("replay must not persist replayed lines, recorded %v", recorded)
 	}
-	if len(m.runInputs) != 0 {
-		t.Errorf("replay must not add to runInputs, got %v", m.runInputs)
+	if len(m.sessionInputs) != 0 {
+		t.Errorf("replay must not add to sessionInputs (replay source), got %v", m.sessionInputs)
 	}
 }
 
 // バグ再現: 起動直後に :replay (前回フォールバック) してから手入力すると、次の :replay の
-// 対象 (runInputs) は手入力した行だけになるべき。フォールバック/再生で流れた過去のテスト
-// ケース値が runInputs に積もって次回の再生に巻き込まれてはいけない (要件 039)。
+// 対象 (sessionInputs) は手入力した行だけになるべき。フォールバック/再生で流れた過去の
+// テストケース値が現セッションに積もって次回の再生に巻き込まれてはいけない (要件 039)。
 func TestReplayDoesNotAccumulatePreviousValues(t *testing.T) {
 	var stdin bytes.Buffer
 	spawn := func() (*runner.ChatHandle, error) {
@@ -166,17 +193,41 @@ func TestReplayDoesNotAccumulatePreviousValues(t *testing.T) {
 	// 今セッションは未入力。前回セッションにサンプル/テストケース値がある状態 (遅延起動)。
 	m := &chatModel{spawn: spawn, header: ChatHeader{PrevInputs: []string{"4", "1 1", "2 2"}}}
 
-	// 1) 起動直後の :replay → 前回フォールバックでサンプル値を流す (が runInputs には残さない)
+	// 1) 起動直後の :replay → 前回フォールバックでサンプル値を流す (が sessionInputs には残さない)
 	m.execReplay()
-	if len(m.runInputs) != 0 {
-		t.Fatalf("fallback replay must not enter runInputs, got %v", m.runInputs)
+	if len(m.sessionInputs) != 0 {
+		t.Fatalf("fallback replay must not enter sessionInputs, got %v", m.sessionInputs)
 	}
 
-	// 2) 今セッションで手入力 → runInputs は手入力分だけ。前回フォールバックの 3 行は混ざらない。
+	// 2) 今セッションで手入力 → :replay 対象は手入力分だけ。前回フォールバックの 3 行は混ざらない。
 	var cmds []tea.Cmd
 	m.submitLines([]string{"6"}, &cmds, true)
-	if want := []string{"6"}; !equalStrings(m.runInputs, want) {
-		t.Errorf("runInputs = %v, want %v — previous-session/test-case values must not leak into the next replay", m.runInputs, want)
+	if want := []string{"6"}; !equalStrings(m.replayLines(), want) {
+		t.Errorf("replayLines = %v, want %v — previous-session/test-case values must not leak into the next replay", m.replayLines(), want)
+	}
+}
+
+// beginNewSession は直前セッションの (手入力) 入力を prevSessionInputs に退避し、空セッションでは
+// 上書きしない。replayLines は現セッション→直前セッション→前回起動 の順で 1 セッション分を返す。
+func TestSessionRotationAndReplayLines(t *testing.T) {
+	m := &chatModel{sessionInputs: []string{"A", "B"}, header: ChatHeader{PrevInputs: []string{"old"}}}
+	m.beginNewSession() // prev=[A,B], session=[]
+	if want := []string{"A", "B"}; !equalStrings(m.prevSessionInputs, want) {
+		t.Fatalf("prevSessionInputs = %v, want %v", m.prevSessionInputs, want)
+	}
+	// 現セッション空 → 直前セッションを返す (前回起動 PrevInputs より優先)
+	if want := []string{"A", "B"}; !equalStrings(m.replayLines(), want) {
+		t.Errorf("replayLines (empty current) = %v, want %v", m.replayLines(), want)
+	}
+	// 空セッションの回転は prevSessionInputs を上書きしない
+	m.beginNewSession()
+	if want := []string{"A", "B"}; !equalStrings(m.prevSessionInputs, want) {
+		t.Errorf("empty rotation overwrote prevSessionInputs: got %v, want %v", m.prevSessionInputs, want)
+	}
+	// 次のセッションで入力 → 現セッションが優先
+	m.sessionInputs = []string{"C", "D"}
+	if want := []string{"C", "D"}; !equalStrings(m.replayLines(), want) {
+		t.Errorf("replayLines (current present) = %v, want %v", m.replayLines(), want)
 	}
 }
 
