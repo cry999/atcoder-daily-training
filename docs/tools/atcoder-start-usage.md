@@ -72,7 +72,7 @@ atcoder start <contest> --task <task> [--until-pass] [--refresh] [-d] [-s] [-j <
 - **既存ファイルは温存**: 移動先に解答ファイルが既にあれば**上書きしない** (`solution: <path> (exists)`)。提出コードを壊さない。`--until-pass` 指定時は、移動後の新しい問題に対して全通過判定が掛かる。
 - **境界・非対応は 1 行エラーで継続**: letter `a` で `:task prev`、番号が下限で `:contest prev`、番号を持たない contest での `:contest next`/`:contest prev`、複数文字 letter (`ex` 等) での `:task next`/`:task prev`、直指定の不正値 (`:task <非英字>`・`:contest 0` や形不正)、`:e` の引数が空/不正、などは**再ターゲットせず 1 行エラーを出して継続**する (start は落ちず exit code も変わらない)。
 - **Tab 補完**: `:` 行で `Tab` を押すとコマンド名 (`:case`/`:w`/`:set`/`:q`/`:debug`/`:replay`/`:cheat`/`:task`/`:contest`/`:e`) と `next|prev`・`verify|noverify` などのサブトークンを補完する。一意なら確定し、複数候補は `:` 行直下に一覧表示する (要件 [031](./requirements/031-command-mode-completion.md))。
-- **入力リプレイ (`:replay`)**: `:replay` は**今回の起動で送った入力**を子をリスタートして再送する (コード修正後の流し直し)。今回まだ何も送っていなければ**その問題の前回セッション入力**にフォールバックする。下ペイン chat の入力は問題ごとに永続化され、`:task`/`:contest`/`:e` で移動した先でもその問題の前回入力が供給源になる (要件 [039](./requirements/039-chat-replay-previous-session.md))。記録停止は `ATCODER_NO_CHAT_HISTORY=1`。
+- **入力リプレイ (`:replay`)**: `:replay` は**直前のセッションに手入力した行だけ**を子をリスタートして再送する (コード修正後の流し直し)。子のリスタートをまたいだ全入力の累積ではなく、現セッションの手入力 →(空なら)直前に完了したセッション →前回 chat 起動、の順で 1 セッション分を選ぶ。下ペイン chat の手入力は問題ごとに永続化され、`:task`/`:contest`/`:e` で移動した先でもその問題の前回起動分が最後のフォールバックになる (要件 [039](./requirements/039-chat-replay-previous-session.md))。記録停止は `ATCODER_NO_CHAT_HISTORY=1`。
 
 移動前後の画面イメージ:
 
