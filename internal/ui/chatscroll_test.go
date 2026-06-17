@@ -28,8 +28,8 @@ func TestCmdScroll_PageUpHoldsPosition(t *testing.T) {
 	}
 
 	m.updateCommand(tea.KeyMsg{Type: tea.KeyPgUp})
-	if !m.cmdScrolled {
-		t.Fatal("PageUp should set cmdScrolled")
+	if !m.scrolled {
+		t.Fatal("PageUp should set scrolled")
 	}
 	if m.viewport.AtBottom() {
 		t.Fatal("PageUp should scroll up (no longer at bottom)")
@@ -47,11 +47,11 @@ func TestCmdScroll_PageUpHoldsPosition(t *testing.T) {
 	}
 }
 
-// PageDown で最下部に戻ると追従 (cmdScrolled=false) を再開する。
+// PageDown で最下部に戻ると追従 (scrolled=false) を再開する。
 func TestCmdScroll_PageDownResumesFollow(t *testing.T) {
 	m := scrollableCommandModel()
 	m.updateCommand(tea.KeyMsg{Type: tea.KeyPgUp})
-	if !m.cmdScrolled {
+	if !m.scrolled {
 		t.Fatal("armed after PageUp")
 	}
 	for i := 0; i < 10 && !m.viewport.AtBottom(); i++ {
@@ -60,8 +60,8 @@ func TestCmdScroll_PageDownResumesFollow(t *testing.T) {
 	if !m.viewport.AtBottom() {
 		t.Fatal("PageDown should reach the bottom")
 	}
-	if m.cmdScrolled {
-		t.Fatal("reaching the bottom with PageDown should clear cmdScrolled (resume follow)")
+	if m.scrolled {
+		t.Fatal("reaching the bottom with PageDown should clear scrolled (resume follow)")
 	}
 }
 
@@ -69,13 +69,13 @@ func TestCmdScroll_PageDownResumesFollow(t *testing.T) {
 func TestCmdScroll_EscReturnsToBottom(t *testing.T) {
 	m := scrollableCommandModel()
 	m.updateCommand(tea.KeyMsg{Type: tea.KeyPgUp})
-	if !m.cmdScrolled || m.viewport.AtBottom() {
+	if !m.scrolled || m.viewport.AtBottom() {
 		t.Fatal("should be scrolled up after PageUp")
 	}
 
 	m.updateCommand(tea.KeyMsg{Type: tea.KeyEsc})
-	if m.cmdScrolled {
-		t.Fatal("Esc should clear cmdScrolled")
+	if m.scrolled {
+		t.Fatal("Esc should clear scrolled")
 	}
 	if !m.viewport.AtBottom() {
 		t.Fatal("Esc should return the viewport to the bottom (latest)")
@@ -89,27 +89,103 @@ func TestCmdScroll_EscReturnsToBottom(t *testing.T) {
 func TestCmdScroll_ExecResets(t *testing.T) {
 	m := scrollableCommandModel()
 	m.updateCommand(tea.KeyMsg{Type: tea.KeyPgUp})
-	if !m.cmdScrolled {
+	if !m.scrolled {
 		t.Fatal("armed after PageUp")
 	}
 	m.cmdInput.SetValue("") // 空コマンド → command モードを抜ける
 	m.updateCommand(tea.KeyMsg{Type: tea.KeyEnter})
-	if m.cmdScrolled {
-		t.Fatal("executing a command should clear cmdScrolled")
+	if m.scrolled {
+		t.Fatal("executing a command should clear scrolled")
 	}
 	if !m.viewport.AtBottom() {
 		t.Fatal("after a command the viewport should be back at the bottom")
 	}
 }
 
-// insert モードでは cmdScrolled が立たず、常に最下部追従 (非破壊)。
-func TestCmdScroll_InsertModeAlwaysFollows(t *testing.T) {
-	m := scrollableCommandModel()
-	m.mode = modeInsert
-	m.cmdScrolled = false
-	m.msgs = append(m.msgs, chatLine{kind: kindOut, text: "more"})
+// overflow する履歴を積んだ insert モードの model (要件 040 のスクロール検証用)。
+func scrollableInsertModel() *chatModel {
+	m := initialChatModel(ChatHeader{}, nil)
+	m.width, m.height, m.ready = 40, 8, true
+	m.viewport = viewport.New(40, 3)
+	for i := 0; i < 30; i++ {
+		m.msgs = append(m.msgs, chatLine{kind: kindOut, text: "line"})
+	}
 	m.refreshViewport()
-	if !m.viewport.AtBottom() {
-		t.Fatal("insert mode (no scroll keys) should always follow the bottom")
+	return m
+}
+
+// 要件 040: insert モードの PageUp (と Ctrl+B) で上にスクロールし、出力到着でも
+// 最下部に引き戻さない。PageDown/Ctrl+F で最下部に戻ると追従を再開する。
+func TestInsertScroll_PageUpHoldsThenResumes(t *testing.T) {
+	for _, up := range []tea.KeyType{tea.KeyPgUp, tea.KeyCtrlB} {
+		m := scrollableInsertModel()
+		if !m.viewport.AtBottom() {
+			t.Fatal("freshly refreshed insert viewport should follow the bottom")
+		}
+		m.Update(tea.KeyMsg{Type: up})
+		if !m.scrolled {
+			t.Fatalf("%v should set scrolled in insert mode", up)
+		}
+		if m.viewport.AtBottom() {
+			t.Fatalf("%v should scroll up (no longer at bottom)", up)
+		}
+		off := m.viewport.YOffset
+
+		// 出力が届いて refresh されても最下部に引き戻さない。
+		m.msgs = append(m.msgs, chatLine{kind: kindOut, text: "new output"})
+		m.refreshViewport()
+		if m.viewport.AtBottom() || m.viewport.YOffset != off {
+			t.Fatalf("output must not yank back to bottom while scrolled (off=%d got=%d)", off, m.viewport.YOffset)
+		}
+
+		// PageDown/Ctrl+F で最下部に戻ると追従再開。
+		down := tea.KeyPgDown
+		if up == tea.KeyCtrlB {
+			down = tea.KeyCtrlF
+		}
+		for i := 0; i < 20 && !m.viewport.AtBottom(); i++ {
+			m.Update(tea.KeyMsg{Type: down})
+		}
+		if !m.viewport.AtBottom() {
+			t.Fatalf("%v should reach the bottom", down)
+		}
+		if m.scrolled {
+			t.Fatalf("reaching bottom with %v should clear scrolled (resume follow)", down)
+		}
+	}
+}
+
+// 送信 (Enter) は上スクロールを解除し最下部 (live view) に戻す。
+func TestInsertScroll_EnterReturnsToBottom(t *testing.T) {
+	// 起動済み (running) モデルにして submitLines が restart せず実送信する経路にする。
+	m, _ := runningModel()
+	m.viewport = viewport.New(40, 3)
+	for i := 0; i < 30; i++ {
+		m.msgs = append(m.msgs, chatLine{kind: kindOut, text: "line"})
+	}
+	m.refreshViewport()
+
+	m.Update(tea.KeyMsg{Type: tea.KeyPgUp})
+	if !m.scrolled || m.viewport.AtBottom() {
+		t.Fatal("should be scrolled up after PageUp")
+	}
+	var cmds []tea.Cmd
+	m.submitLines([]string{"x"}, &cmds, false)
+	if m.scrolled {
+		t.Fatal("submitting should clear scrolled (return to live view)")
+	}
+}
+
+// 入力履歴 (↑/↓) は従来どおりで、スクロールには使わない (非破壊)。
+func TestInsertScroll_ArrowsStillNavigateHistory(t *testing.T) {
+	m := scrollableInsertModel()
+	m.history = []string{"first", "second"}
+	m.historyPos = len(m.history)
+	m.Update(tea.KeyMsg{Type: tea.KeyUp})
+	if m.scrolled {
+		t.Fatal("Up must not trigger scroll (it navigates history)")
+	}
+	if got := m.input.Value(); got != "second" {
+		t.Fatalf("Up should recall last history entry, got %q", got)
 	}
 }

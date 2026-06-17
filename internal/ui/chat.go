@@ -163,7 +163,7 @@ type chatModel struct {
 	endedErr      bool
 	running       bool           // 子プロセスが生きているか。遅延起動 / 入力での再実行を制御する
 	ctrlDArmed    bool           // 直前のキーが Ctrl+D (= 次の Ctrl+D で chat 終了)。KeyMsg ごとに先頭でクリアし Ctrl+D 1 回目だけ立て直す (要件 030)
-	cmdScrolled   bool           // command モードで scrollback を上にスクロール中 (= 出力到着で最下部に引き戻さない)。command モードを抜けると false (要件 032)
+	scrolled      bool           // scrollback を上にスクロール中 (= 出力到着で最下部に引き戻さない)。command/insert 双方で使う。最下部復帰で false (要件 033/040)
 	autoRestart   bool           // sticky モード。起動フラグ (--auto-restart) で初期化。子終了後は「入力で再実行」になる
 	autoHintShown bool           // auto-restart ヒント表示済みフラグ
 	watcher       *watch.Watcher // 非 nil なら解答ファイルを監視 (保存検知で reload)。nil なら watch-reload 無効
@@ -279,6 +279,7 @@ func (m *chatModel) stopAwaiting() {
 // 遅延起動の初回も再実行 (watch-reload / 子終了後の入力) も同じ経路を通る。
 // scrollback は保持し、2 回目以降は区切り行 (── session #N ──) を入れる。
 func (m *chatModel) restart() tea.Cmd {
+	m.scrolled = false // 中断・リセット・再起動時は最下部に戻して追従再開 (要件 040)
 	// 既存の子が居れば片付ける。watch-reload では実行中の子を差し替えるため Kill →
 	// Wait で reap する (終了済み・初回 nil なら Kill はスキップ/無害)。
 	if m.handle != nil {
@@ -377,6 +378,7 @@ func (m *chatModel) submitLines(lines []string, cmds *[]tea.Cmd, record bool) {
 	if len(lines) == 0 {
 		return
 	}
+	m.scrolled = false // 送信したら最下部 (live view) に戻して追従再開 (要件 040)
 	if !m.running {
 		// 子が居なければ入力を機に (再) 起動する (遅延起動 / 子終了後の再実行)。
 		*cmds = append(*cmds, m.restart())
@@ -559,6 +561,13 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.historyPos++
 				m.input.SetValue("")
 			}
+		case tea.KeyPgUp, tea.KeyCtrlB:
+			// scrollback を 1 ページ上へ (要件 040)。以降の出力で最下部に引き戻さない。
+			// Ctrl+B は textinput の既定カーソル移動を横取りする (← で代替可)。
+			m.scrollUp()
+		case tea.KeyPgDown, tea.KeyCtrlF:
+			// 1 ページ下へ。最下部に達したら追従を再開する (要件 040)。
+			m.scrollDown()
 		default:
 			var cmd tea.Cmd
 			m.input, cmd = m.input.Update(msg)
@@ -760,10 +769,25 @@ func (m *chatModel) refreshViewport() {
 		lines = max
 	}
 	m.viewport.Height = lines
-	if m.cmdScrolled {
+	if m.scrolled {
 		m.viewport.SetYOffset(savedOffset) // 上スクロール位置を維持 (SetYOffset は範囲内にクランプ)
 	} else {
 		m.viewport.GotoBottom()
+	}
+}
+
+// scrollUp は scrollback を 1 ページ上へ送り、追従を止める (出力到着で最下部に
+// 引き戻さない)。command / insert モードで共有する (要件 033/040)。
+func (m *chatModel) scrollUp() {
+	m.viewport.ViewUp()
+	m.scrolled = true
+}
+
+// scrollDown は scrollback を 1 ページ下へ送る。最下部に達したら追従を再開する。
+func (m *chatModel) scrollDown() {
+	m.viewport.ViewDown()
+	if m.viewport.AtBottom() {
+		m.scrolled = false
 	}
 }
 
