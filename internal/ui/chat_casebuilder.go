@@ -383,10 +383,9 @@ func (m *chatModel) execReplay() (tea.Model, tea.Cmd) {
 		m.refreshViewport()
 		return m, nil
 	}
-	// submitLines が再生行を runInputs に積み直すので、二重化しないよう一旦スナップショット
-	// してから runInputs をクリアする (再生後は runInputs == この再生分に揃う)。
+	// lines は m.runInputs / m.header.PrevInputs を指しうるので、送信前にスナップショット
+	// する (submitLines は record=false でこれらを変更しないが、参照の安全のため)。
 	snap := append([]string(nil), lines...)
-	m.runInputs = nil
 
 	var cmds []tea.Cmd
 	// クリーンな状態から再現するため、動作中でも子を作り直す (restart は同期 spawn し
@@ -397,9 +396,9 @@ func (m *chatModel) execReplay() (tea.Model, tea.Cmd) {
 		m.refreshViewport()
 		return m, tea.Batch(cmds...)
 	}
-	// 子は起動済みなので submitLines は再 restart せず、そのまま対象入力を順送する。
-	// 再生行は history/sessionInputs/runInputs に積まれ RecordInput でも永続化される。
-	m.submitLines(snap, &cmds)
+	// record=false: 再生行は runInputs / chatlog に積まない。積むと次の :replay が再生行を
+	// 巻き込んで膨らみ「手入力したセッション」ではなく過去の再生値を流してしまう (要件 039)。
+	m.submitLines(snap, &cmds, false)
 	m.refreshViewport()
 	return m, tea.Batch(cmds...)
 }

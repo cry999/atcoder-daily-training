@@ -69,7 +69,7 @@ func countKind(m *chatModel, kind string) int {
 func TestSubmitLinesSendsEach(t *testing.T) {
 	m, buf := runningModel()
 	var cmds []tea.Cmd
-	m.submitLines([]string{"a", "b", ""}, &cmds)
+	m.submitLines([]string{"a", "b", ""}, &cmds, true)
 
 	if buf.String() != "a\nb\n\n" {
 		t.Errorf("stdin = %q, want \"a\\nb\\n\\n\"", buf.String())

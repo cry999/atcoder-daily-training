@@ -10,10 +10,10 @@ import (
 func TestHistorySkipsConsecutiveDuplicate(t *testing.T) {
 	m, _ := runningModel()
 	var cmds []tea.Cmd
-	m.submitLines([]string{"a"}, &cmds)
-	m.submitLines([]string{"a"}, &cmds) // 直前と同じ → 積まれない
-	m.submitLines([]string{"b"}, &cmds)
-	m.submitLines([]string{"a"}, &cmds) // 非連続の重複は許容
+	m.submitLines([]string{"a"}, &cmds, true)
+	m.submitLines([]string{"a"}, &cmds, true) // 直前と同じ → 積まれない
+	m.submitLines([]string{"b"}, &cmds, true)
+	m.submitLines([]string{"a"}, &cmds, true) // 非連続の重複は許容
 
 	got := m.history
 	want := []string{"a", "b", "a"}
@@ -31,7 +31,7 @@ func TestHistorySkipsConsecutiveDuplicate(t *testing.T) {
 func TestHistorySkipsConsecutiveDuplicateWithinPaste(t *testing.T) {
 	m, _ := runningModel()
 	var cmds []tea.Cmd
-	m.submitLines([]string{"x", "x", "y"}, &cmds)
+	m.submitLines([]string{"x", "x", "y"}, &cmds, true)
 
 	got := m.history
 	want := []string{"x", "y"}

@@ -368,7 +368,12 @@ func (m *chatModel) editFile() tea.Cmd {
 // 単一行 Enter と複数行ペースト ([034]) で共有する送信ロジック。子が居なければ最初の
 // 送信を機に (再) 起動し (遅延起動)、1 行でも送れたら最後に出力待ちを 1 回起動する。
 // 必要な tea.Cmd (restart / startAwaiting) は cmds に追記する。
-func (m *chatModel) submitLines(lines []string, cmds *[]tea.Cmd) {
+//
+// record は「これを :replay の対象 / 永続化対象として覚えるか」。手入力 (Enter / ペースト)
+// は true。:replay の再送は false — 再生行を runInputs や chatlog に積むと、次の :replay が
+// それらを巻き込んで膨らみ「手入力したセッション」ではなく過去の再生値を流してしまう
+// (要件 039 のバグ修正)。子への送信・echo・履歴 (Up/Down)・出力待ちは record に依らず行う。
+func (m *chatModel) submitLines(lines []string, cmds *[]tea.Cmd, record bool) {
 	if len(lines) == 0 {
 		return
 	}
@@ -387,9 +392,11 @@ func (m *chatModel) submitLines(lines []string, cmds *[]tea.Cmd) {
 		}
 		m.msgs = append(m.msgs, chatLine{kind: kindIn, text: txt})
 		m.sessionInputs = append(m.sessionInputs, txt) // :case の .in 前埋め用 (現セッション分)
-		m.runInputs = append(m.runInputs, txt)         // :replay 用 (今回起動分。子リスタートをまたいで保持)
-		if m.header.RecordInput != nil {
-			m.header.RecordInput(txt) // セッション横断の永続化 (:replay 用。要件 039)。best-effort
+		if record {
+			m.runInputs = append(m.runInputs, txt) // :replay 用 (手入力分のみ。今回起動を通して保持)
+			if m.header.RecordInput != nil {
+				m.header.RecordInput(txt) // セッション横断の永続化 (:replay 用。要件 039)。best-effort
+			}
 		}
 		if txt != "" && (len(m.history) == 0 || m.history[len(m.history)-1] != txt) {
 			// 直前と同じ内容は履歴に積まない (連続重複の抑制)
@@ -476,7 +483,7 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// 打鍵は従来どおり下の switch (default で textinput) に流す。
 		if msg.Paste && strings.ContainsAny(string(msg.Runes), "\r\n") {
 			send, remainder := splitPasteLines(m.input.Value(), string(msg.Runes))
-			m.submitLines(send, &cmds)
+			m.submitLines(send, &cmds, true) // 手入力 (ペースト) → :replay/永続化の対象
 			m.input.SetValue(remainder)
 			m.input.CursorEnd()
 			m.refreshViewport()
@@ -534,7 +541,7 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case tea.KeyEnter:
 			// 現在行を 1 行送信する (複数行ペーストと送信ロジックを共有)。
-			m.submitLines([]string{m.input.Value()}, &cmds)
+			m.submitLines([]string{m.input.Value()}, &cmds, true) // 手入力 (Enter) → :replay/永続化の対象
 			m.input.SetValue("")
 			m.refreshViewport()
 		case tea.KeyUp:

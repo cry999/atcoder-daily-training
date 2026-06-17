@@ -59,9 +59,9 @@ func TestExecReplayPrefersCurrentRunInputs(t *testing.T) {
 	if got, want := stdin.String(), "now 1\nnow 2\n"; got != want {
 		t.Errorf("replay should re-send current-run inputs: stdin = %q, want %q", got, want)
 	}
-	// 二重化防止: 再生後 runInputs は再生分そのものに揃う (倍にならない)。
+	// 再生は runInputs を変更しない (record=false) ので、再生後も手入力分のまま。
 	if want := []string{"now 1", "now 2"}; !equalStrings(m.runInputs, want) {
-		t.Errorf("runInputs after replay = %v, want %v (must not double)", m.runInputs, want)
+		t.Errorf("runInputs after replay = %v, want %v (replay must leave it unchanged)", m.runInputs, want)
 	}
 }
 
@@ -117,10 +117,66 @@ func TestSubmitLinesCallsRecordInput(t *testing.T) {
 	}}
 
 	var cmds []tea.Cmd
-	m.submitLines([]string{"a", "b"}, &cmds)
+	m.submitLines([]string{"a", "b"}, &cmds, true)
 
 	if want := []string{"a", "b"}; !equalStrings(recorded, want) {
 		t.Errorf("RecordInput got %v, want %v", recorded, want)
+	}
+}
+
+// :replay の再送は RecordInput を呼ばない (record=false) — 再生行を永続化すると
+// 次回起動の前回入力 (PrevInputs) が再生値で膨らむため (要件 039)。
+func TestReplayDoesNotRecord(t *testing.T) {
+	var recorded []string
+	var stdin bytes.Buffer
+	spawn := func() (*runner.ChatHandle, error) {
+		return &runner.ChatHandle{
+			Stdin:  nopWriteCloser{&stdin},
+			Stdout: io.NopCloser(strings.NewReader("")),
+			Stderr: io.NopCloser(strings.NewReader("")),
+		}, nil
+	}
+	m := &chatModel{spawn: spawn, header: ChatHeader{
+		PrevInputs:  []string{"4", "1 1"},
+		RecordInput: func(line string) { recorded = append(recorded, line) },
+	}}
+
+	m.execReplay() // 前回フォールバックを再送
+
+	if len(recorded) != 0 {
+		t.Errorf("replay must not persist replayed lines, recorded %v", recorded)
+	}
+	if len(m.runInputs) != 0 {
+		t.Errorf("replay must not add to runInputs, got %v", m.runInputs)
+	}
+}
+
+// バグ再現: 起動直後に :replay (前回フォールバック) してから手入力すると、次の :replay の
+// 対象 (runInputs) は手入力した行だけになるべき。フォールバック/再生で流れた過去のテスト
+// ケース値が runInputs に積もって次回の再生に巻き込まれてはいけない (要件 039)。
+func TestReplayDoesNotAccumulatePreviousValues(t *testing.T) {
+	var stdin bytes.Buffer
+	spawn := func() (*runner.ChatHandle, error) {
+		return &runner.ChatHandle{
+			Stdin:  nopWriteCloser{&stdin},
+			Stdout: io.NopCloser(strings.NewReader("")),
+			Stderr: io.NopCloser(strings.NewReader("")),
+		}, nil
+	}
+	// 今セッションは未入力。前回セッションにサンプル/テストケース値がある状態 (遅延起動)。
+	m := &chatModel{spawn: spawn, header: ChatHeader{PrevInputs: []string{"4", "1 1", "2 2"}}}
+
+	// 1) 起動直後の :replay → 前回フォールバックでサンプル値を流す (が runInputs には残さない)
+	m.execReplay()
+	if len(m.runInputs) != 0 {
+		t.Fatalf("fallback replay must not enter runInputs, got %v", m.runInputs)
+	}
+
+	// 2) 今セッションで手入力 → runInputs は手入力分だけ。前回フォールバックの 3 行は混ざらない。
+	var cmds []tea.Cmd
+	m.submitLines([]string{"6"}, &cmds, true)
+	if want := []string{"6"}; !equalStrings(m.runInputs, want) {
+		t.Errorf("runInputs = %v, want %v — previous-session/test-case values must not leak into the next replay", m.runInputs, want)
 	}
 }
 

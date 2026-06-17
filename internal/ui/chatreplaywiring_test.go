@@ -39,7 +39,7 @@ func TestReplayAcrossRuns(t *testing.T) {
 		RecordInput: func(line string) { _ = chatlog.Record(contest, task, sid1, line) },
 	}}
 	var cmds []tea.Cmd
-	m1.submitLines([]string{"3 3", "1 2"}, &cmds)
+	m1.submitLines([]string{"3 3", "1 2"}, &cmds, true)
 
 	// --- 2 回目の起動: 別 session。前回入力を先読みできるはず ---
 	_ = chatlog.NewSessionID()
