@@ -39,6 +39,7 @@ atcoder start <contest> --task <task> [--until-pass] [--refresh] [-d] [-s] [-j <
 |---|---|
 | 文字入力 + `Enter` | 下ペインの chat に送信 (子の stdin へ)。**複数行ペースト**は各行を順に送信 |
 | `↑` / `↓` | chat の入力履歴 |
+| `PageUp` / `PageDown` (または `Ctrl+B` / `Ctrl+F`) | 下ペイン chat の scrollback を 1 ページ上下にスクロール (要件 [040](./requirements/040-insert-mode-scrollback-paging.md))。上にスクロール中は出力が来ても引き戻されない。`PageDown` で最下部に戻る or `Enter` 送信で追従再開 |
 | `Ctrl+S` | **提出準備** (`test --submit` 相当: 解答をクリップボードへコピー + 提出ページをブラウザで起動)。子は止めず chat に留まり、結果を 1 行表示。**実提出 (POST) はしない** |
 | `Ctrl+G` | **詳細表示**: 上ペイン (watch) を下方向に拡張し、サンプル判定の**失敗ケース (WA/TLE/RE) の diff** (期待 vs 実際、RE は stderr) を表示 (chat ペインは縮んで下に残る)。もう一度 `Ctrl+G` か `Esc` で戻る。`PageUp`/`PageDown`/`↑`/`↓` でスクロール。AC は省略 ([要件 036](./requirements/036-start-watch-detail-view.md)) |
 | `Ctrl+E` | **解答ファイルをエディタで開く** ([要件 038](./requirements/038-start-edit-in-editor.md))。nvim の `:terminal` 内 (`$NVIM` 在り) なら**親 nvim の新規タブに送る** (`--remote-tab`、新しい nvim を起動せずネスト回避)。nvim 外なら `editor` (config) / `$EDITOR` / `nvim` を一時的に前面起動し、終了で分割画面に戻る。ファイルは開くだけ |
@@ -96,7 +97,7 @@ atcoder start <contest> --task <task> [--until-pass] [--refresh] [-d] [-s] [-j <
 └───────────────────────────────────────────────────────┘
 ```
 
-> ナビゲーションは**分割画面 (start) の chat 限定**。`test --interactive` 単体の chat では `:task`/`:contest` 等は未知コマンド (`E492`) として無視される。既存の `:case`/`:w`/`:set`/`:q` と `Ctrl+C`/`Ctrl+D`/`Ctrl+S` は不変。command モード中は `PageUp`/`PageDown` で下ペインのチャット履歴を遡れる (要件 [032](./requirements/033-command-mode-scrollback-paging.md))。
+> ナビゲーションは**分割画面 (start) の chat 限定**。`test --interactive` 単体の chat では `:task`/`:contest` 等は未知コマンド (`E492`) として無視される。既存の `:case`/`:w`/`:set`/`:q` と `Ctrl+C`/`Ctrl+D`/`Ctrl+S` は不変。scrollback のページスクロールは command モード ([033](./requirements/033-command-mode-scrollback-paging.md)) だけでなく insert モードでも `PageUp`/`PageDown`/`Ctrl+B`/`Ctrl+F` で行える (要件 [040](./requirements/040-insert-mode-scrollback-paging.md))。
 
 ### コマンドモード — `:debug` は watch ペインにも反映
 
