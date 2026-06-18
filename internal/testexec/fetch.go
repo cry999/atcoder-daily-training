@@ -113,8 +113,13 @@ func extractSamples(doc *html.Node) ([]sample, error) {
 		}
 		body := htmlquery.InnerText(pre)
 		body = strings.ReplaceAll(body, "\r\n", "\n")
-		body = strings.Trim(body, "\n")
-		body += "\n"
+		// 先頭の改行 (HTML 整形上の余白) だけ落とし、末尾の改行は保持する。
+		// abc185_d 入力例 4 の `1 0\n\n` のように、末尾の空行が有意な
+		// 入力行 (空の配列) を表すことがあるため Trim で潰してはいけない。
+		body = strings.TrimLeft(body, "\n")
+		if !strings.HasSuffix(body, "\n") {
+			body += "\n"
+		}
 
 		isInput := strings.Contains(m[1], "入力") || strings.Contains(m[1], "Input")
 		if isInput {
