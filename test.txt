@@ -1,9 +1,2 @@
-2 4
-aaaaaaa
-bbbbbbb
-aaaaaaa_bbbbbbb
-bbbbbbbb_aaaaaaa
-a__b
-b__a
-
-
+7
+5 3 2 2 2 2 2
