@@ -22,7 +22,7 @@ import (
 // 出力もキャプチャしないため、judge (--out) ともファイル入力 (--in <path>) とも
 // 併用できない (引数エラー = exit 2)。
 func runAdHoc(contest, task string, lay layout.Layout, inFile, outFile string,
-	interactive, autoRestart, debug, verbose bool, timeout time.Duration, tolerance float64, editorOverride string) (int, error) {
+	interactive, autoRestart, debug, verbose bool, timeout time.Duration, tolerance float64, editorOverride, nvimRemote string) (int, error) {
 	if interactive {
 		if outFile != "" {
 			return 2, errors.New("--interactive cannot be combined with --out (judging needs batch-captured output)")
@@ -45,14 +45,14 @@ func runAdHoc(contest, task string, lay layout.Layout, inFile, outFile string,
 		Debug:       debug,
 		ExecutorFor: selectRunExecutor,
 		Reporter:    ui.NewRunReporter(verbose),
-		ChatRunner:  makeChatRunner(contest, task, lay, tolerance, editorOverride),
+		ChatRunner:  makeChatRunner(contest, task, lay, tolerance, editorOverride, nvimRemote),
 	})
 }
 
 // makeChatRunner は ChatRunner クロージャを作る。chat に Ctrl+S の提出準備フックや
 // ケース保存先 (tests-extra) を注入するため、contest/task/lay/tolerance を捕捉する
 // (これらは runexec.ChatHeader には乗らない)。
-func makeChatRunner(contest, task string, lay layout.Layout, tolerance float64, editorOverride string) func(runexec.ChatSpawner, runexec.ChatHeader) (*runner.ProcessResult, error) {
+func makeChatRunner(contest, task string, lay layout.Layout, tolerance float64, editorOverride, nvimRemote string) func(runexec.ChatSpawner, runexec.ChatHeader) (*runner.ProcessResult, error) {
 	return func(spawn runexec.ChatSpawner, header runexec.ChatHeader) (*runner.ProcessResult, error) {
 		// :replay (要件 039): 同じ問題の前回入力を先読みし、今回の入力を session ごとに記録する。
 		sid := chatlog.NewSessionID()
@@ -67,7 +67,7 @@ func makeChatRunner(contest, task string, lay layout.Layout, tolerance float64, 
 			Submit:      chatSubmitFunc(contest, task, lay),
 			TaskDir:     cachepath.Task(contest, task), // :case/:w の保存先 (tests-extra)
 			Tolerance:   tolerance,
-			Edit:        editFunc(editorOverride), // Ctrl+E でエディタ起動 (要件 038)
+			Edit:        editFunc(editorOverride, nvimRemote), // Ctrl+E でエディタ起動 (要件 038/041)
 			PrevInputs:  prev,
 			RecordInput: func(line string) { _ = chatlog.Record(contest, task, sid, line) },
 		})

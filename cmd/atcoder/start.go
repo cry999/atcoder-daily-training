@@ -75,6 +75,7 @@ func cmdStart(args []string) (int, error) {
 		jobs:       jobs,
 		sideBySide: sideBySide,
 		editor:     cfg.Editor,
+		nvimRemote: cfg.EditorNvimRemote,
 	}
 
 	// 初期ターゲットを構築 (resolveLayout / 着手 はここで)。
@@ -124,6 +125,7 @@ type startConfig struct {
 	jobs       int
 	sideBySide bool
 	editor     string // config の editor キー (Ctrl+E の nvim 外フォールバック。要件 038)
+	nvimRemote string // config の editor_nvim_remote キー (Ctrl+E の nvim 内 remote。current/tab。要件 041)
 }
 
 // buildTarget は (contestID, task) に対する分割画面ターゲットを構築する。レイアウト解決
@@ -221,7 +223,7 @@ func (c *startConfig) buildTarget(contestID, task string, refresh bool) (t ui.St
 		TaskDir:     cachepath.Task(contestID, task),
 		Tolerance:   c.tolerance,
 		NavEnabled:  true,
-		Edit:        editFunc(c.editor),
+		Edit:        editFunc(c.editor, c.nvimRemote),
 		PrevInputs:  prevInputs,
 		RecordInput: func(line string) { _ = chatlog.Record(contestID, task, sid, line) },
 	}

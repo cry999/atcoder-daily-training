@@ -175,6 +175,55 @@ func TestLayoutPreservesTestSection(t *testing.T) {
 	}
 }
 
+// editor_nvim_remote は set → get で round-trip する (要件 041)。
+func TestEditorNvimRemoteSetThenGet(t *testing.T) {
+	writeConfig(t, "")
+	if err := Set("editor_nvim_remote", "tab"); err != nil {
+		t.Fatalf("Set editor_nvim_remote failed: %v", err)
+	}
+	v, err := Get("editor_nvim_remote")
+	if err != nil {
+		t.Fatalf("Get editor_nvim_remote failed: %v", err)
+	}
+	if v != "tab" {
+		t.Fatalf("expected editor_nvim_remote = tab, got %q", v)
+	}
+}
+
+// 未設定の editor_nvim_remote は get 上 current に見える (実効既定値)。
+func TestEditorNvimRemoteDefaultsToCurrent(t *testing.T) {
+	writeConfig(t, "")
+	v, err := Get("editor_nvim_remote")
+	if err != nil {
+		t.Fatalf("Get editor_nvim_remote failed: %v", err)
+	}
+	if v != "current" {
+		t.Fatalf("expected unset editor_nvim_remote to read as current, got %q", v)
+	}
+}
+
+// current/tab 以外は ErrInvalidValue (書き込まない)。
+func TestEditorNvimRemoteInvalidValue(t *testing.T) {
+	writeConfig(t, "")
+	if err := Set("editor_nvim_remote", "window"); !errors.Is(err, ErrInvalidValue) {
+		t.Fatalf("expected ErrInvalidValue, got %v", err)
+	}
+}
+
+// editor_nvim_remote は enum キーなので ValueCandidates が current/tab を返す。
+func TestEditorNvimRemoteValueCandidates(t *testing.T) {
+	got := ValueCandidates("editor_nvim_remote")
+	want := []string{"current", "tab"} // ソート済み
+	if len(got) != len(want) {
+		t.Fatalf("ValueCandidates(editor_nvim_remote) = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("ValueCandidates(editor_nvim_remote) = %v, want %v", got, want)
+		}
+	}
+}
+
 // All は全キー × 現在値を返す。
 func TestAll(t *testing.T) {
 	writeConfig(t, "[test]\nside_by_side = true\n")

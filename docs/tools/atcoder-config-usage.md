@@ -30,6 +30,7 @@ exit code: 引数誤り / 未知キー / 型・値の不一致 / 不正な alias
 |---|---|---|---|
 | `layout` | enum (`auto` / `abc` / `exercise`) | `auto` | 解答ファイルの既定レイアウト (下記) |
 | `editor` | string | `(unset)` | `atcoder start` / `test --interactive` の `Ctrl+E` で**nvim 外**のとき使うエディタコマンド (空白区切りで argv 展開、例 `nvim -p` / `code -w`)。未設定は `$EDITOR` → `nvim`。nvim の `:terminal` 内 (`$NVIM` 在り) は親 nvim へ送るのでこのキーは効かない ([要件 038](requirements/038-start-edit-in-editor.md)) |
+| `editor_nvim_remote` | enum (`current` / `tab`) | `current` | nvim の `:terminal` 内 (`$NVIM` 在り) で `Ctrl+E` したときの remote ターゲット。`current`=現在のウィンドウで開く (`--remote`、タブを再利用)、`tab`=新規タブ (`--remote-tab`、問題ごとにタブが増える)。nvim 外には効かない ([要件 041](requirements/041-edit-nvim-remote-reuse.md)) |
 | `test.side_by_side` | bool | `false` | `atcoder test` の FAIL 時 diff を左右 2 カラムで表示する既定値 (`-s` 相当) |
 
 ```toml

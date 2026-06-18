@@ -102,6 +102,28 @@ var fields = []field{
 		},
 	},
 	{
+		// editor_nvim_remote は nvim の :terminal 内 ($NVIM 在り) で Ctrl+E したときの
+		// remote ターゲット (要件 041)。current=現在のウィンドウで開く (--remote。タブ再利用)、
+		// tab=新規タブ (--remote-tab。要件 038 の旧既定)。未設定は current。nvim 外には効かない。
+		key:   "editor_nvim_remote",
+		kind:  "enum",
+		cands: []string{"current", "tab"},
+		repr: func(c *Config) string {
+			if c.EditorNvimRemote == "" {
+				return "current"
+			}
+			return c.EditorNvimRemote
+		},
+		set: func(m map[string]any, raw string) error {
+			v := strings.TrimSpace(raw)
+			if v != "current" && v != "tab" {
+				return fmt.Errorf("%w: %q (editor_nvim_remote は current/tab)", ErrInvalidValue, raw)
+			}
+			setNested(m, []string{"editor_nvim_remote"}, v)
+			return nil
+		},
+	},
+	{
 		key:  "test.side_by_side",
 		kind: "bool",
 		repr: func(c *Config) string { return strconv.FormatBool(c.Test.SideBySide) },
