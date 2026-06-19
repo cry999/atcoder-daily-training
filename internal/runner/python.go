@@ -129,6 +129,7 @@ type ChatHandle struct {
 	Stdin  io.WriteCloser
 	Stdout io.ReadCloser
 	Stderr io.ReadCloser
+	out    io.Closer // 統合 pipe の read 端 (Wait で閉じて fd を返す)。nil 可
 }
 
 // Wait は子プロセスの終了を待ち、ProcessResult を返す。タイムアウトの概念は
@@ -140,6 +141,9 @@ func (h *ChatHandle) Wait() *ProcessResult {
 	}
 	err := h.cmd.Wait()
 	elapsed := time.Since(h.start)
+	if h.out != nil {
+		_ = h.out.Close() // 統合 pipe の read 端を返す
+	}
 
 	exitCode := 0
 	if err != nil {
@@ -163,8 +167,15 @@ func (h *ChatHandle) Kill() error {
 	return nil
 }
 
-// StartChat は子プロセスを起動し、stdin/stdout/stderr の pipes を返す。
+// StartChat は子プロセスを起動し、stdin と (統合した) 出力ストリームを返す。
 // 制限時間は使わない (chat UI 側で必要に応じて Kill する)。
+//
+// 出力は stdout と stderr を **同じ 1 本の pipe** に束ねて返す (Stdout に統合ストリーム、
+// Stderr は空)。別々の pipe を 2 本の scanner で並行に読むと、子が stdout と stderr を
+// ほぼ同時に出した瞬間 (例: デバッグ print の直後に traceback) にどちらが先に読み出されるか
+// 非決定的になり、chat 画面で DEBUG 行と Runtime Error が互い違いに並ぶ。1 本に束ねれば
+// カーネルが write 順を保つので子が出した順がそのまま残る (stderr 由来の赤色付けは chat 側で
+// traceback を行内容から検出して復元する)。
 func (p *Python) StartChat(source string, extraEnv []string) (*ChatHandle, error) {
 	cmd := exec.Command(p.binPath, source)
 	cmd.Env = append(os.Environ(), "PYTHONUNBUFFERED=1")
@@ -176,24 +187,28 @@ func (p *Python) StartChat(source string, extraEnv []string) (*ChatHandle, error
 	if err != nil {
 		return nil, err
 	}
-	stdout, err := cmd.StdoutPipe()
+	// stdout/stderr を同一 pipe に向ける。子の fd1/fd2 が同じ write 端を指すので write 順が保たれる。
+	pr, pw, err := os.Pipe()
 	if err != nil {
 		return nil, err
 	}
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return nil, err
-	}
+	cmd.Stdout = pw
+	cmd.Stderr = pw
 
 	if err := cmd.Start(); err != nil {
+		_ = pr.Close()
+		_ = pw.Close()
 		return nil, err
 	}
+	// 親側の write 端は閉じる。子が終了して fd を閉じたとき pr が EOF を返すように。
+	_ = pw.Close()
 	return &ChatHandle{
 		cmd:    cmd,
 		start:  time.Now(),
 		Stdin:  stdin,
-		Stdout: stdout,
-		Stderr: stderr,
+		Stdout: pr,                                // stdout/stderr を統合した単一ストリーム (順序保持)
+		Stderr: io.NopCloser(bytes.NewReader(nil)), // 統合済みなので別 stderr は無い (即 EOF)
+		out:    pr,
 	}, nil
 }
 

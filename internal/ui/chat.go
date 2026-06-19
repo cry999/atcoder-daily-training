@@ -110,6 +110,34 @@ const (
 // runexec の splitDebug と同じ規約 (test/run の batch モードと整合させる)。
 const debugPrefix = "[DEBUG]"
 
+// tracebackHeader は Python の未捕捉例外 (= Runtime Error) traceback の先頭行。
+const tracebackHeader = "Traceback (most recent call last):"
+
+// classifyTraceback は統合ストリーム (stdout+stderr を 1 本に束ねた出力, StartChat 参照) の
+// 1 行が Python traceback (= stderr 由来の Runtime Error) の一部かを、行内容と直前までの状態
+// から判定する。順序保証のため stream の由来情報が失われるので、traceback ブロックを行内容
+// から復元して kindErr に色付けし直すために使う。isErr が真ならその行は err 扱い、next は
+// 次行へ引き継ぐ traceback 状態。
+func classifyTraceback(inTraceback bool, line string) (isErr, next bool) {
+	// 連鎖例外 (__cause__ / __context__) のブリッジ行。traceback ブロックを跨いで続く。
+	bridge := line == "During handling of the above exception, another exception occurred:" ||
+		line == "The above exception was the direct cause of the following exception:"
+	switch {
+	case strings.HasPrefix(line, tracebackHeader) || bridge:
+		// traceback の開始 (または連鎖の継続)。
+		return true, true
+	case inTraceback:
+		// ブロック中。非空・非インデントの行 = 例外メッセージ行でブロックは終わる
+		// (それ自体は err 表示)。インデント行 (フレーム) や空行は継続。
+		if line != "" && line[0] != ' ' && line[0] != '\t' {
+			return true, false
+		}
+		return true, true
+	default:
+		return false, false
+	}
+}
+
 type chatLineMsg struct {
 	kind  string
 	text  string
@@ -162,6 +190,7 @@ type chatModel struct {
 	errScanner    *bufio.Scanner
 	endedOut      bool
 	endedErr      bool
+	inTraceback   bool           // 統合ストリーム上で Python traceback (= stderr 由来) ブロックの途中か。kindErr 色を復元するための状態 (セッションごとに restart でリセット)
 	running       bool           // 子プロセスが生きているか。遅延起動 / 入力での再実行を制御する
 	ctrlDArmed    bool           // 直前のキーが Ctrl+D (= 次の Ctrl+D で chat 終了)。KeyMsg ごとに先頭でクリアし Ctrl+D 1 回目だけ立て直す (要件 030)
 	scrolled      bool           // scrollback を上にスクロール中 (= 出力到着で最下部に引き戻さない)。command/insert 双方で使う。最下部復帰で false (要件 033/040)
@@ -301,6 +330,7 @@ func (m *chatModel) restart() tea.Cmd {
 	m.errScanner.Buffer(make([]byte, 64*1024), 1024*1024)
 	m.endedOut = false
 	m.endedErr = false
+	m.inTraceback = false // 新セッションは traceback 検出状態を頭からやり直す
 	m.stopAwaiting()           // 新セッションでは出力待ちをリセット (旧 tick は世代不一致で止まる)
 	m.lastEventAt = time.Now() // 新セッション開始を経過時間の基準にリセット
 	m.beginNewSession()        // 直前セッションの入力を prevSessionInputs に退避し sessionInputs をリセット
@@ -615,6 +645,16 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			kind = kindDebug
 			text = strings.TrimPrefix(text, debugPrefix)
 			text = strings.TrimPrefix(text, " ")
+		}
+		// stdout/stderr は 1 本に統合して読む (順序保証, StartChat 参照) ため stream の由来が
+		// 失われる。Python traceback (= Runtime Error) を行内容から検出して kindErr に戻し、
+		// 赤い色付けを復元する。DEBUG 行 (kindDebug) は stdout 由来なので対象外。
+		if kind == kindOut {
+			isErr, next := classifyTraceback(m.inTraceback, text)
+			m.inTraceback = next
+			if isErr {
+				kind = kindErr
+			}
 		}
 		line := chatLine{kind: kind, text: text}
 		// 出力行 (stdout / debug / stderr) には直前イベントからの経過時間を添える。
