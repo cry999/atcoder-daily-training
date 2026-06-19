@@ -242,6 +242,14 @@ func selectExecutor(sourcePath string) (testexec.Executor, error) {
 - main パッケージは **「どの言語をサポートするか」「どう表示するか」を唯一知っているレイヤー**。
 - `testexec` も `runner` も `ui` も、特定の言語選択や具体的な描画ライブラリには関与しない。
 
+### Reporter 差し替えによる機械出力 (`--json`)
+
+`Reporter` を注入で差し替えられる設計 (Layer 2-3) のおかげで、**判定ロジックを一切変えずに出力形態だけを足せる**。`test --json` (要件 042) はこれを使う:
+
+- `internal/testexec` の `SummaryReporter` は表示系をすべて no-op にし、`Header` のメタ (制限時間・適用 timeout・許容誤差) と `End` の per-case 結果・`Summary` の passed/total を**捕捉するだけ**の Reporter。`start` の分割画面 watch ペイン (要件 023/028) と共用する。
+- `cmd/atcoder/testjson.go` が `SummaryReporter` を Reporter にして `testexec.Run` を回し、捕捉した結果を `encoding/json` でトップレベルオブジェクト 1 個として stdout に出す。`CaseStatus` → `AC`/`WA`/`TLE`/`RE` の文字列化は cmd 側の純粋関数 (`caseStatusString`) で、`internal/testexec` の表示語彙に JSON コントラクトを依存させない。
+- 判定・fetch・normalize は `internal/testexec` のまま。外部ツール (nvim フロント等) が `atcoder` を**判定エンジン**として消費する経路を、UI レイヤーを置き換えるだけで提供している (Layer 3 の「JSON 出力など ui の置き換えで完結」が具体化したもの)。
+
 ## 拡張: 新しい言語を追加するには
 
 例: Go (`.go`) を対応する場合。
