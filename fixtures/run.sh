@@ -87,6 +87,28 @@ run_piped() {
     fi
 }
 
+# check_output は exit code に加えて stdout/stderr の grep 一致も検査する。
+# (側 (side_by_side) や --json 本文のように、exit code を変えない出力を検証する用途。)
+# check_output <label> <expected_exit> <has|hasnot> <pattern> -- <args...>
+check_output() {
+    local label="$1" expected_exit="$2" mode="$3" pattern="$4"
+    shift 5 # label exit mode pattern "--"
+    echo
+    echo "=== ${label} (expecting exit ${expected_exit}, ${mode} '${pattern}') ==="
+    set +e
+    local out; out="$("$BIN" "$@" 2>&1)"; local got=$?
+    set -e
+    echo "$out"
+    local ok=1
+    [[ "$got" -eq "$expected_exit" ]] || { echo "  ✗ exit ${got} (expected ${expected_exit})"; ok=0; }
+    if [[ "$mode" == "has" ]]; then
+        echo "$out" | grep -q "$pattern" || { echo "  ✗ output missing '${pattern}'"; ok=0; }
+    else
+        echo "$out" | grep -q "$pattern" && { echo "  ✗ output unexpectedly has '${pattern}'"; ok=0; }
+    fi
+    if [[ "$ok" -eq 1 ]]; then echo "  ✓ ok"; else failures=$((failures + 1)); fi
+}
+
 run_case "fixture_pass"               0 test fixture --task pass
 # 引数順序の非依存 (internal/cliargs): 位置引数 (contest) とフラグを任意順で打てる。
 # いずれも `test fixture --task pass` と等価で exit 0。
@@ -111,6 +133,21 @@ run_case "fixture_extra (extra x02 fails)" 1 test fixture --task extra
 run_case "fixture_extra -c x01 (extra pass)" 0 test fixture --task extra -c x01
 run_case "fixture_extra -c 01 (official only)" 0 test fixture --task extra -c 01
 
+# --json (要件 042): サンプル判定結果を JSON で stdout に出す。exit code は通常の
+# test と同じ (全通過=0 / 不通過=1)。JSON は非 TTY でも出せる (機械向け出力)。
+run_case "test --json (pass → exit 0)" 0 test fixture --task pass --json
+run_case "test --json (fail → exit 1)" 1 test fixture --task fail --json
+# JSON 本文の最低限の妥当性: 全通過なら all_passed=true と status AC を含む。
+check_output "test --json body (pass)" 0 has '"all_passed": true' -- test fixture --task pass --json
+check_output "test --json body (status AC)" 0 has '"status": "AC"' -- test fixture --task pass --json
+# 不通過でも JSON は正常に出る (FAIL は実行エラーではない): all_passed=false。
+check_output "test --json body (fail still emits JSON)" 1 has '"all_passed": false' -- test fixture --task fail --json
+# --json はサンプル判定モード専用。ad-hoc/対話・watch・submit との併用はフラグ誤り (exit 2)。
+run_case "test --json + --interactive (reject)" 2 test fixture --task pass --json --interactive
+run_case "test --json + --watch (reject)"       2 test fixture --task pass --json --watch
+run_case "test --json + --submit (reject)"      2 test fixture --task pass --json --submit
+run_case "test --json + --in (reject)"          2 test fixture --task pass --json --in -
+
 # watch モードは TTY 必須。run.sh の出力は非 TTY なので --watch は exit 2 で拒否される。
 # (watch ループ本体は常駐してブロックするため、ここでは回さない。)
 run_case "fixture_pass --watch (non-TTY reject)" 2 test fixture --task pass --watch
@@ -126,26 +163,7 @@ run_case "start without --task (reject)" 2 start fixture
 
 # ----- ユーザ設定ファイル (config.toml) -----
 # config の側 (side_by_side) は終了コードを変えないので、出力に diff の
-# side-by-side ラベルが出るか/出ないかで検証する。
-# check_output <label> <expected_exit> <has|hasnot> <pattern> -- <args...>
-check_output() {
-    local label="$1" expected_exit="$2" mode="$3" pattern="$4"
-    shift 5 # label exit mode pattern "--"
-    echo
-    echo "=== ${label} (expecting exit ${expected_exit}, ${mode} '${pattern}') ==="
-    set +e
-    local out; out="$("$BIN" "$@" 2>&1)"; local got=$?
-    set -e
-    echo "$out"
-    local ok=1
-    [[ "$got" -eq "$expected_exit" ]] || { echo "  ✗ exit ${got} (expected ${expected_exit})"; ok=0; }
-    if [[ "$mode" == "has" ]]; then
-        echo "$out" | grep -q "$pattern" || { echo "  ✗ output missing '${pattern}'"; ok=0; }
-    else
-        echo "$out" | grep -q "$pattern" && { echo "  ✗ output unexpectedly has '${pattern}'"; ok=0; }
-    fi
-    if [[ "$ok" -eq 1 ]]; then echo "  ✓ ok"; else failures=$((failures + 1)); fi
-}
+# side-by-side ラベルが出るか/出ないかで検証する (check_output は冒頭で定義済み)。
 
 # config を置く専用の XDG_CONFIG_HOME を用意する。
 CFG_DIR="$(mktemp -d)"

@@ -86,6 +86,8 @@ func cmdTest(args []string) (int, error) {
 	var submit bool
 	flags.BoolVar(&submit, "submit", false, "After all samples pass, copy the solution to the clipboard and open the submit page.")
 	noOpen := flags.Bool("no-open", false, "With --submit, do not open the browser (just print the submit URL).")
+	var asJSON bool
+	flags.BoolVar(&asJSON, "json", false, "Print the sample-judging result as a single JSON object to stdout (sample mode only).")
 	flags.SetOutput(os.Stderr)
 
 	if err := flags.Parse(flagArgs); err != nil {
@@ -121,6 +123,11 @@ func cmdTest(args []string) (int, error) {
 	// --auto-restart は対話モード (chat TUI) 専用。--interactive 無しでの指定はフラグ誤り。
 	if autoRestart && !interactive {
 		return 2, errors.New("--auto-restart requires --interactive")
+	}
+	// --json はサンプル判定モード専用 (要件 042)。単発の機械出力なので、ad-hoc/対話・
+	// ライブ再描画 (--watch)・副作用を伴う --submit とは併用できない。
+	if asJSON && (interactive || inFile != "" || outFile != "" || watchMode || submit) {
+		return 2, errors.New("--json is a sample-mode flag and cannot be combined with --in/--out/--interactive/--watch/--submit")
 	}
 	if interactive || inFile != "" || outFile != "" {
 		if setAny("refresh", "case", "c", "jobs", "j", "watch", "w", "s", "side-by-side", "submit", "no-open") {
@@ -163,6 +170,11 @@ func cmdTest(args []string) (int, error) {
 
 	if watchMode {
 		return runTestWatch(contest, task, lay, *refresh, buildOpts, false)
+	}
+
+	// --json: 判定を SummaryReporter で回し、結果を JSON で stdout に出す (要件 042)。
+	if asJSON {
+		return runTestJSON(contest, task, buildOpts(*refresh))
 	}
 
 	code, err := testexec.Run(buildOpts(*refresh))

@@ -132,6 +132,7 @@ var subFlags = map[string][]Candidate{
 		{"-R", "with --interactive: re-run each time the child exits"},
 		{"--submit", "after all samples pass, copy + open the submit page"},
 		{"--no-open", "with --submit, print the URL instead of opening a browser"},
+		{"--json", "print the sample-judging result as JSON (sample mode only)"},
 	},
 	"stats": {
 		{"--week", "limit to this week"},
