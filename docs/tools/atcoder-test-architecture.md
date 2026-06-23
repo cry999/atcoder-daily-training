@@ -14,6 +14,8 @@ cmd/atcoder/
   main.go        # サブコマンドの dispatch + usage
   new.go         # cmdNew: 当日の演習ディレクトリを作成
   test.go        # cmdTest: 引数パース + selectExecutor (composition root) + watch ループ
+  submitprep.go  # 提出準備 (--submit / chat Ctrl+S): 解答コピー + 提出ページ起動。
+                 # コピー時に debugstrip で [DEBUG] print 行をコメントアウト (--keep-debug で無効)
 
 internal/runner/
   runner.go      # ProcessResult + ProcessStatus (実行結果の低レベル型)
@@ -56,6 +58,10 @@ internal/cachepath/
 internal/extracase/
   extracase.go   # ユーザ追加ケース (tests-extra/) の場所解決・保存 (Save)・列挙 (List)。
                  # ui (chat の :w で保存) と testexec (判定で列挙) の両方から使う (要件 024)
+
+internal/debugstrip/
+  debugstrip.go  # 提出準備時に Python 解答から [DEBUG] 出力 print 行をコメントアウトする
+                 # 純粋関数 CommentOut。判定/実行に非関与、文字列変換のみ (要件 043)
 ```
 
 > 補足: `internal/runexec` は `atcoder test` の **ad-hoc / 対話モード** の実装 (旧 `atcoder run` サブコマンド。[ADR 0005](./decisions/0005-unify-test-run-into-test.md) で `test` に統合・廃止)。`testexec` (サンプル判定) と並列の位置付けで、判定 suite を行わず単発実行に特化する。`cmd/atcoder/test.go` がフラグ (`--in`/`--out`/`--interactive`) を見て `testexec.Run` / `runexec.Run` のどちらに振り分けるかを決め、ad-hoc 結線は `cmd/atcoder/adhoc.go` が持つ。詳細は [atcoder-test-usage.md](./atcoder-test-usage.md) の「モード」節。
