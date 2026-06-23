@@ -86,6 +86,7 @@ func cmdTest(args []string) (int, error) {
 	var submit bool
 	flags.BoolVar(&submit, "submit", false, "After all samples pass, copy the solution to the clipboard and open the submit page.")
 	noOpen := flags.Bool("no-open", false, "With --submit, do not open the browser (just print the submit URL).")
+	keepDebug := flags.Bool("keep-debug", false, "With --submit, copy the solution as-is without commenting out [DEBUG] print lines.")
 	var asJSON bool
 	flags.BoolVar(&asJSON, "json", false, "Print the sample-judging result as a single JSON object to stdout (sample mode only).")
 	flags.SetOutput(os.Stderr)
@@ -130,7 +131,7 @@ func cmdTest(args []string) (int, error) {
 		return 2, errors.New("--json is a sample-mode flag and cannot be combined with --in/--out/--interactive/--watch/--submit")
 	}
 	if interactive || inFile != "" || outFile != "" {
-		if setAny("refresh", "case", "c", "jobs", "j", "watch", "w", "s", "side-by-side", "submit", "no-open") {
+		if setAny("refresh", "case", "c", "jobs", "j", "watch", "w", "s", "side-by-side", "submit", "no-open", "keep-debug") {
 			return 2, errors.New("--refresh/--case/--jobs/--watch/--side-by-side/--submit are sample-mode flags and cannot be combined with --in/--out/--interactive")
 		}
 		return runAdHoc(contest, task, lay, inFile, outFile, interactive, autoRestart, debug, verbose, *timeoutFlag, *tolFlag, cfg.Editor, cfg.EditorNvimRemote)
@@ -183,7 +184,7 @@ func cmdTest(args []string) (int, error) {
 	}
 	// --submit: サンプル全通過 (code==0) のときだけ提出準備を行う。
 	if submit && code == 0 {
-		return prepareSubmission(contest, task, lay, *noOpen)
+		return prepareSubmission(contest, task, lay, *noOpen, *keepDebug)
 	}
 	if submit {
 		fmt.Fprintln(os.Stderr, "テストが全通過していないため提出準備を中止しました。")

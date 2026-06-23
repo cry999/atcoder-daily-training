@@ -299,6 +299,9 @@ run_piped "test no ad-hoc flags ignores stdin -> samples" 0 "5
 # サンプル専用フラグ (-c 等) と ad-hoc フラグの併用は exit 2 (モード混在)。
 run_case "test --in + -c (mode mix reject)" 2 test fixture --task pass --in "$INPUT_FILE" -c 01
 
+# --keep-debug は --submit (サンプルモード) 専用。ad-hoc フラグとの併用は exit 2。
+run_case "test --in + --keep-debug (mode mix reject)" 2 test fixture --task pass --in "$INPUT_FILE" --keep-debug
+
 # Interactive mode: --interactive で親 stdin に直結。piped 入力でも query/response の
 # 交互が成立することを確認 (非TTY では passthrough + tee)。
 run_piped "test --interactive (non-TTY passthrough)"  0 "3

@@ -78,11 +78,15 @@ func makeChatRunner(contest, task string, lay layout.Layout, tolerance float64, 
 // 呼んで結果文を組む。chat は常にブラウザを開く (noOpen=false)。
 func chatSubmitFunc(contest, task string, lay layout.Layout) ui.SubmitFunc {
 	return func() ui.SubmitResult {
-		out, err := submitPrepCore(contest, task, lay, false)
+		// chat は常に [DEBUG] 出力行をコメントアウトしてコピーする (keepDebug=false)。
+		out, err := submitPrepCore(contest, task, lay, false, false)
 		if err != nil {
 			return ui.SubmitResult{Message: "失敗: " + err.Error(), IsError: true}
 		}
 		msg := "クリップボードにコピー " + out.CopiedPath
+		if out.DebugCommented > 0 {
+			msg += fmt.Sprintf(" (DEBUG %d 行コメントアウト)", out.DebugCommented)
+		}
 		if out.Opened {
 			msg += " / 提出ページを開きました"
 		} else {
