@@ -53,6 +53,8 @@
 
 > フラグ/サブコマンド単位の経路 (引数順序非依存・`config`・補完・`usage` テレメトリ等) も同じ `run.sh` で smoke する。とくに利用テレメトリ (要件 037) は `XDG_DATA_HOME` を一時 dir に固定し、各ケースの実行が `events.jsonl` に記録されること・`atcoder usage` が `exit 0`・`ATCODER_NO_USAGE=1` で記録しないことを確認する (専用 `.py` fixture は不要)。
 
+> `atcoder meta` (要件 046) の `show`/`set` と引数誤り (exit 2)・未キャッシュ (exit 1) も `run.sh` で smoke する。プリポピュレートされた `fixture_pass` のキャッシュ (書き込み可能な一時 `XDG_CACHE_HOME` にコピー済み) を再利用するので専用 fixture は不要。`fetch` はネットワークに触れるため回さない。
+
 ## 実行すべきタイミング
 
 リファクタリングや機能追加で以下を触ったときに走らせる:

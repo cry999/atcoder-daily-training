@@ -465,6 +465,7 @@ true
 - 要件定義: [001-exercise-test.md](./requirements/001-exercise-test.md)
 - アーキテクチャ: [atcoder-test-architecture.md](./atcoder-test-architecture.md)
 - テスト戦略: [atcoder-test-testing.md](./atcoder-test-testing.md)
+- キャッシュの DL / 表示 / 編集 (task URL 直指定): [atcoder-meta-usage.md](./atcoder-meta-usage.md)
 - test/run 統一の経緯: [013-unify-test-run.md](./requirements/013-unify-test-run.md) / [ADR 0005](./decisions/0005-unify-test-run-into-test.md)
 - コミットコマンド: [atcoder-commit-usage.md](./atcoder-commit-usage.md)
 - ツール本体: [`cmd/atcoder/main.go`](../../cmd/atcoder/main.go)
