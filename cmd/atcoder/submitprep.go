@@ -1,12 +1,17 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"strings"
+	"sync"
 
 	"github.com/atotto/clipboard"
 	"github.com/cry999/atcoder-daily-training/internal/debugstrip"
 	"github.com/cry999/atcoder-daily-training/internal/layout"
+	"github.com/cry999/atcoder-daily-training/internal/testexec"
+	"golang.org/x/term"
 )
 
 // submitURLFor は提出ページの URL を組む。
@@ -91,4 +96,92 @@ func prepareSubmission(contest, task string, lay layout.Layout, noOpen, keepDebu
 		fmt.Fprintf(os.Stderr, "ブラウザを開けませんでした (%v)。手動で開いてください: %s\n", out.OpenErr, out.URL)
 	}
 	return 0, nil
+}
+
+// submitGateReporter は testexec.Reporter をラップし、各ケースの DebugSeen を OR で
+// 集約する (要件 044)。表示は元の Reporter (ライブ表示 or SummaryReporter) に委譲し、
+// 提出前ゲートが「実行中に [DEBUG] 出力が漏れていたか」を後から参照できるようにする。
+type submitGateReporter struct {
+	testexec.Reporter
+	mu        sync.Mutex
+	debugSeen bool
+}
+
+func (r *submitGateReporter) CaseFinished(cr testexec.CaseResult) {
+	if cr.DebugSeen {
+		r.mu.Lock()
+		r.debugSeen = true
+		r.mu.Unlock()
+	}
+	r.Reporter.CaseFinished(cr)
+}
+
+func (r *submitGateReporter) DebugSeen() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.debugSeen
+}
+
+// submitGateReasons はサンプル実行の結果から、提出前に確認を促す理由を組み立てる
+// 純粋関数 (要件 044)。返りが空ならクリーン (確認不要)。CLI (runSubmitPrep) と
+// chat (chatSubmitCheckFunc) で共有する。
+//
+// 優先順位: 実行できなかった (runErr) > 全通過でない (code≠0)。実行可否とは独立に、
+// DEBUG 出力が検出されていれば理由を追加する。
+func submitGateReasons(code int, runErr error, debugSeen bool) []string {
+	var reasons []string
+	switch {
+	case runErr != nil:
+		reasons = append(reasons, "テストを実行できませんでした: "+runErr.Error())
+	case code != 0:
+		reasons = append(reasons, "サンプルが全通過していません")
+	}
+	if debugSeen {
+		reasons = append(reasons, "実行中に [DEBUG] 出力が検出されました")
+	}
+	return reasons
+}
+
+// confirmSubmit は標準入力から提出続行の y/N を読む (要件 044)。stdin が端末でなければ
+// (パイプ・CI・fixtures 等) 確認を出さず false (= いいえ) を返す。対話できない環境で
+// ブロックせず、安全側 (提出しない) に倒すため。
+func confirmSubmit() bool {
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		fmt.Fprintln(os.Stderr, "(非対話環境のため提出準備を中止しました)")
+		return false
+	}
+	fmt.Fprint(os.Stderr, "このまま提出準備を続けますか? [y/N]: ")
+	line, _ := bufio.NewReader(os.Stdin).ReadString('\n')
+	ans := strings.ToLower(strings.TrimSpace(line))
+	return ans == "y" || ans == "yes"
+}
+
+// runSubmitPrep は `test --submit` 本体 (要件 044)。サンプルを実行してゲートを評価し、
+// クリーンなら従来どおり提出準備、リスクがあれば理由を示して確認を取ってから進む。
+//
+// opts.Reporter にはライブ表示用の Reporter が入っている前提で、それを
+// submitGateReporter でラップして DebugSeen を集約する。
+//
+// exit code は「提出準備に進めたか」を表す: 0=提出準備した / 1=しなかった・失敗。
+func runSubmitPrep(contest, task string, lay layout.Layout, opts testexec.Options, noOpen, keepDebug bool) (int, error) {
+	gate := &submitGateReporter{Reporter: opts.Reporter}
+	opts.Reporter = gate
+	code, runErr := testexec.Run(opts)
+
+	reasons := submitGateReasons(code, runErr, gate.DebugSeen())
+	if len(reasons) == 0 {
+		// クリーン: 従来どおり確認なしで提出準備する。
+		return prepareSubmission(contest, task, lay, noOpen, keepDebug)
+	}
+
+	fmt.Fprintln(os.Stderr, "提出前チェックで問題が見つかりました:")
+	for _, r := range reasons {
+		fmt.Fprintln(os.Stderr, "  - "+r)
+	}
+	if !confirmSubmit() {
+		fmt.Fprintln(os.Stderr, "提出準備を中止しました。")
+		// 「提出準備に進めなかった」を 1 で表す (実行エラーの詳細は err で返す)。
+		return 1, runErr
+	}
+	return prepareSubmission(contest, task, lay, noOpen, keepDebug)
 }

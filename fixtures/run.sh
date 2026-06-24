@@ -148,6 +148,18 @@ run_case "test --json + --watch (reject)"       2 test fixture --task pass --jso
 run_case "test --json + --submit (reject)"      2 test fixture --task pass --json --submit
 run_case "test --json + --in (reject)"          2 test fixture --task pass --json --in -
 
+# --submit の提出前チェック + 確認 (要件 044): リスク (不通過・実行不可・DEBUG 検出) が
+# あれば確認プロンプトを出すが、run.sh は非 TTY なので stdin の確認は自動で「いいえ」と
+# なり提出準備せず exit 1 になる (クリップボード/ブラウザには触れない)。クリーンな
+# --submit はコピー + ブラウザ起動の副作用があるため run.sh では回さない (手動確認)。
+run_case "submit on fail (not clean → non-TTY abort)"    1 test fixture --task fail --submit
+run_case "submit on debug (fail + debug seen → abort)"   1 test fixture --task debug --submit
+# fixture_okdebug: stdout は通過するが stderr に [DEBUG]。通常実行は PASS、--submit は
+# DEBUG 検出で確認 → 非 TTY 中止。
+run_case "fixture_okdebug (stderr debug, stdout ok)"     0 test fixture --task okdebug
+run_case "submit on okdebug (passes but debug seen → abort)" 1 test fixture --task okdebug --submit
+check_output "submit abort prints precheck reasons" 1 has '提出前チェック' -- test fixture --task okdebug --submit
+
 # watch モードは TTY 必須。run.sh の出力は非 TTY なので --watch は exit 2 で拒否される。
 # (watch ループ本体は常駐してブロックするため、ここでは回さない。)
 run_case "fixture_pass --watch (non-TTY reject)" 2 test fixture --task pass --watch

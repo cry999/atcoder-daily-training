@@ -34,6 +34,7 @@ type CaseResult struct {
 	Actual          string // 常にセット (normalize 済みの実際の stdout, debug 時は [DEBUG] 行を除外したもの)
 	Debug           string // --debug 時にのみセット。[DEBUG] で始まる行の集合
 	Stderr          string // RE のみ
+	DebugSeen       bool   // 生の stdout / stderr のいずれかに [DEBUG] 始まりの行があったか (提出前ゲート用。要件 044)
 	OriginalLimitMs int    // problem の本来の制限時間 (ms)。Status==Pass で Elapsed が超えていたら本来 TLE。
 }
 
@@ -64,18 +65,21 @@ func judge(name, input, expected string, pr *runner.ProcessResult, debug bool, t
 	if tolerance <= 0 {
 		tolerance = DefaultTolerance
 	}
+	// DEBUG 検出は -d の有無に関係なく、加工前の生 stdout / stderr で見る (要件 044)。
+	debugSeen := containsDebugLine(pr.Stdout) || containsDebugLine(pr.Stderr)
 	stdout := pr.Stdout
 	var debugOut string
 	if debug {
 		stdout, debugOut = splitDebug(stdout)
 	}
 	cr := CaseResult{
-		Name:     name,
-		Elapsed:  pr.Elapsed,
-		Input:    strings.TrimRight(input, "\n"),
-		Expected: normalizeOutput(expected),
-		Actual:   normalizeOutput(stdout),
-		Debug:    debugOut,
+		Name:      name,
+		Elapsed:   pr.Elapsed,
+		Input:     strings.TrimRight(input, "\n"),
+		Expected:  normalizeOutput(expected),
+		Actual:    normalizeOutput(stdout),
+		Debug:     debugOut,
+		DebugSeen: debugSeen,
 	}
 	switch pr.Status {
 	case runner.TimedOut:
@@ -141,6 +145,17 @@ func tokenMatch(exp, act string, tol float64) bool {
 	}
 	diff := math.Abs(e - a)
 	return diff <= tol || diff <= tol*math.Abs(e)
+}
+
+// containsDebugLine は s のいずれかの行が DebugPrefix ([DEBUG]) で始まるかを返す。
+// 提出前ゲート (要件 044) で「実行中に DEBUG 出力が漏れていたか」を判定するのに使う。
+func containsDebugLine(s string) bool {
+	for _, line := range strings.Split(s, "\n") {
+		if strings.HasPrefix(line, DebugPrefix) {
+			return true
+		}
+	}
+	return false
 }
 
 // splitDebug は stdout を「[DEBUG] で始まらない行」と「[DEBUG] で始まる行」に分割する。

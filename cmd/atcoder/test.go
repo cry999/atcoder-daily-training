@@ -178,16 +178,15 @@ func cmdTest(args []string) (int, error) {
 		return runTestJSON(contest, task, buildOpts(*refresh))
 	}
 
+	// --submit: サンプルを実行し提出前チェック (全通過・実行可否・DEBUG 検出) を経て、
+	// クリーンなら提出準備、リスクがあれば確認を取る (要件 044)。
+	if submit {
+		return runSubmitPrep(contest, task, lay, buildOpts(*refresh), *noOpen, *keepDebug)
+	}
+
 	code, err := testexec.Run(buildOpts(*refresh))
 	if err != nil {
 		return code, err
-	}
-	// --submit: サンプル全通過 (code==0) のときだけ提出準備を行う。
-	if submit && code == 0 {
-		return prepareSubmission(contest, task, lay, *noOpen, *keepDebug)
-	}
-	if submit {
-		fmt.Fprintln(os.Stderr, "テストが全通過していないため提出準備を中止しました。")
 	}
 	return code, err
 }

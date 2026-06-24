@@ -11,6 +11,7 @@ import (
 	"github.com/cry999/atcoder-daily-training/internal/layout"
 	"github.com/cry999/atcoder-daily-training/internal/runexec"
 	"github.com/cry999/atcoder-daily-training/internal/runner"
+	"github.com/cry999/atcoder-daily-training/internal/testexec"
 	"github.com/cry999/atcoder-daily-training/internal/ui"
 )
 
@@ -65,7 +66,8 @@ func makeChatRunner(contest, task string, lay layout.Layout, tolerance float64, 
 			AutoRestart: header.AutoRestart,
 			WatchPath:   header.WatchPath,
 			Submit:      chatSubmitFunc(contest, task, lay),
-			TaskDir:     cachepath.Task(contest, task), // :case/:w の保存先 (tests-extra)
+			SubmitCheck: chatSubmitCheckFunc(contest, task, lay, tolerance), // Ctrl+S の提出前チェック (要件 044)
+			TaskDir:     cachepath.Task(contest, task),                      // :case/:w の保存先 (tests-extra)
 			Tolerance:   tolerance,
 			Edit:        editFunc(editorOverride, nvimRemote), // Ctrl+E でエディタ起動 (要件 038/041)
 			PrevInputs:  prev,
@@ -93,6 +95,26 @@ func chatSubmitFunc(contest, task string, lay layout.Layout) ui.SubmitFunc {
 			msg += " / 提出ページ: " + out.URL + " (ブラウザを開けませんでした、手動で開いてください)"
 		}
 		return ui.SubmitResult{Message: msg}
+	}
+}
+
+// chatSubmitCheckFunc は chat の Ctrl+S 提出前チェック (要件 044)。サンプルを
+// SummaryReporter (stdout 非汚染) で 1 度実行し、提出ゲート (全通過・実行可否・
+// DEBUG 検出) を評価して SubmitCheck を返す。TUI を汚さないよう表示はせず、結果だけ
+// 返す (chat 側が行に整形する)。
+func chatSubmitCheckFunc(contest, task string, lay layout.Layout, tolerance float64) ui.SubmitCheckFunc {
+	return func() ui.SubmitCheck {
+		gate := &submitGateReporter{Reporter: testexec.NewSummaryReporter()}
+		code, runErr := testexec.Run(testexec.Options{
+			Contest:     contest,
+			Task:        task,
+			Layout:      lay,
+			Tolerance:   tolerance,
+			ExecutorFor: selectExecutor,
+			Reporter:    gate,
+		})
+		reasons := submitGateReasons(code, runErr, gate.DebugSeen())
+		return ui.SubmitCheck{Clean: len(reasons) == 0, Reasons: reasons}
 	}
 }
 

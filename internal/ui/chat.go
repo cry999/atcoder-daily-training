@@ -27,10 +27,14 @@ type ChatHeader struct {
 	AutoRestart bool       // true なら起動時から sticky auto-restart (子終了のたびに再起動する)
 	WatchPath   string     // 非空なら解答ファイルを監視し、保存検知で子を最新ファイルで再 spawn する
 	Submit      SubmitFunc // 非 nil なら Ctrl+S で提出準備を呼べる。composition root が注入する
-	TaskDir     string     // cache の <contest>/<task> dir。非空なら :w でケースを tests-extra に保存できる (要件 024)
-	Tolerance   float64    // ライブ検証の許容誤差 (0 なら既定 1e-6)
-	NavEnabled  bool       // true なら :task next|prev / :contest next|prev / :e で問題ナビ可 (start 分割画面限定。要件 027)
-	Edit        EditFunc   // 非 nil なら Ctrl+E で解答ファイルをエディタで開ける。composition root が注入する (要件 038)
+	// SubmitCheck は Ctrl+S の提出前チェック (要件 044)。非 nil なら提出準備の前に
+	// サンプルを実行し、クリーンでなければ理由を出して y/N 確認を挟む。composition
+	// root が注入する (internal/ui は testexec/layout を知らないため)。
+	SubmitCheck SubmitCheckFunc
+	TaskDir     string   // cache の <contest>/<task> dir。非空なら :w でケースを tests-extra に保存できる (要件 024)
+	Tolerance   float64  // ライブ検証の許容誤差 (0 なら既定 1e-6)
+	NavEnabled  bool     // true なら :task next|prev / :contest next|prev / :e で問題ナビ可 (start 分割画面限定。要件 027)
+	Edit        EditFunc // 非 nil なら Ctrl+E で解答ファイルをエディタで開ける。composition root が注入する (要件 038)
 
 	// PrevInputs は同じ問題の前回 chat 起動で子へ送った入力行。:replay の cross-run
 	// フォールバック (今回まだ何も打っていない初回起動でのみ使う)。composition root が
@@ -67,6 +71,17 @@ type SubmitResult struct {
 // internal/ui は cmd/atcoder を import できないため、composition root が注入する。
 // 提出準備の中身 (解答コピー + 提出ページ起動) はこの先で行い、結果文を返す。
 type SubmitFunc func() SubmitResult
+
+// SubmitCheck は提出前チェックの結果 (要件 044)。Clean ならそのまま提出してよく、
+// そうでなければ Reasons を確認プロンプトに添えて y/N を問う。
+type SubmitCheck struct {
+	Clean   bool     // true なら確認不要でそのまま提出してよい
+	Reasons []string // Clean=false のとき、確認を促す理由 (各 1 行)
+}
+
+// SubmitCheckFunc は chat の Ctrl+S で提出準備の前に呼ばれるチェックフック。
+// サンプルを実行して提出可否を判定する。composition root が注入する (testexec を回す)。
+type SubmitCheckFunc func() SubmitCheck
 
 // chat の watch (解答ファイル保存検知でリロード) のポーリング間隔と debounce。
 // test --watch / start と同値。
@@ -194,6 +209,7 @@ type chatModel struct {
 	running       bool           // 子プロセスが生きているか。遅延起動 / 入力での再実行を制御する
 	ctrlDArmed    bool           // 直前のキーが Ctrl+D (= 次の Ctrl+D で chat 終了)。KeyMsg ごとに先頭でクリアし Ctrl+D 1 回目だけ立て直す (要件 030)
 	scrolled      bool           // scrollback を上にスクロール中 (= 出力到着で最下部に引き戻さない)。command/insert 双方で使う。最下部復帰で false (要件 033/040)
+	submitConfirm bool           // 提出前チェックでリスクが見つかり y/N 確認待ち (要件 044)。次の打鍵を回答として消費する
 	autoRestart   bool           // sticky モード。起動フラグ (--auto-restart) で初期化。子終了後は「入力で再実行」になる
 	autoHintShown bool           // auto-restart ヒント表示済みフラグ
 	watcher       *watch.Watcher // 非 nil なら解答ファイルを監視 (保存検知で reload)。nil なら watch-reload 無効
@@ -330,7 +346,7 @@ func (m *chatModel) restart() tea.Cmd {
 	m.errScanner.Buffer(make([]byte, 64*1024), 1024*1024)
 	m.endedOut = false
 	m.endedErr = false
-	m.inTraceback = false // 新セッションは traceback 検出状態を頭からやり直す
+	m.inTraceback = false      // 新セッションは traceback 検出状態を頭からやり直す
 	m.stopAwaiting()           // 新セッションでは出力待ちをリセット (旧 tick は世代不一致で止まる)
 	m.lastEventAt = time.Now() // 新セッション開始を経過時間の基準にリセット
 	m.beginNewSession()        // 直前セッションの入力を prevSessionInputs に退避し sessionInputs をリセット
@@ -354,14 +370,31 @@ func (m *chatModel) restart() tea.Cmd {
 	)
 }
 
-// submitPrep は Ctrl+S の提出準備。注入された Submit フックを呼び、結果を chat の
-// 1 行 (成功=info / 失敗=err) に積む。フック未注入なら利用不可を伝える。stdout には
-// 書かない (TUI を壊さないため)。
+// submitPrep は Ctrl+S の提出準備。SubmitCheck が注入されていれば先にサンプルを
+// 実行してチェックし (要件 044)、リスクがあれば理由を出して確認モード (submitConfirm)
+// に入る。クリーン or チェック未注入なら doSubmit で即提出する。フック未注入なら利用
+// 不可を伝える。stdout には書かない (TUI を壊さないため)。
 func (m *chatModel) submitPrep() {
 	if m.header.Submit == nil {
 		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(提出準備は利用できません)"})
 		return
 	}
+	if m.header.SubmitCheck != nil {
+		check := m.header.SubmitCheck()
+		if !check.Clean {
+			for _, r := range check.Reasons {
+				m.msgs = append(m.msgs, chatLine{kind: kindErr, text: "提出前チェック: " + r})
+			}
+			m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "このまま提出準備しますか? [y/N]"})
+			m.submitConfirm = true
+			return
+		}
+	}
+	m.doSubmit()
+}
+
+// doSubmit は注入された Submit フックを呼んで提出準備を実行し、結果を 1 行に積む。
+func (m *chatModel) doSubmit() {
 	res := m.header.Submit()
 	kind := kindInfo
 	if res.IsError {
@@ -531,6 +564,20 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// 1 回目だけ立て直す。出力到着等の非キー msg では解かない (この case に来ない)。
 		wasArmedD := m.ctrlDArmed
 		m.ctrlDArmed = false
+
+		// 提出前チェックの確認待ち (要件 044): 次の打鍵を y/N の回答として消費する。
+		// y/Y なら提出準備、それ以外 (n/Esc/その他) は中止して chat を続ける。
+		if m.submitConfirm {
+			m.submitConfirm = false
+			switch msg.String() {
+			case "y", "Y":
+				m.doSubmit()
+			default:
+				m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(提出準備を中止しました)"})
+			}
+			m.refreshViewport()
+			return m, nil
+		}
 
 		// command / builder モードはキーを横取りする (要件 024)。insert モードは従来どおり。
 		switch m.mode {
