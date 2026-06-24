@@ -232,6 +232,7 @@ type chatModel struct {
 	lastExpected      []string        // 直近のビルダーで入力した expected (`:set verify` の対象)
 	sessionInputs     []string        // 現 (子) セッションで送信した入力行 (`:case` の .in 前埋め / :replay の第一候補。子リスタートで nil)
 	prevSessionInputs []string        // 直前に完了した (空でない) 子セッションの入力行 (:replay のフォールバック。要件 039)
+	lastTest          *testReplay     // 直近に :test で流したサンプルケース。:replay が「直近の操作」として再送 + 再検証する (今回の起動内でのみ保持。要件 048)
 }
 
 // initialChatModel は遅延起動の chat モデルを作る。子プロセスは開いた時点では

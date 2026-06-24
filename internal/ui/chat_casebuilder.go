@@ -41,6 +41,16 @@ type verifier struct {
 	tol      float64
 }
 
+// testReplay は直近に :test で流したサンプルケースのスナップショット (要件 048)。
+// :replay が「直近の操作」を再生する際、現セッションに手入力が無ければ input を
+// 再送し expected で再検証する。input/expected は実行時にコピーして持つので、
+// sessionInputs の退避・リセットには影響されない。
+type testReplay struct {
+	id       string   // 表示用ケース ID ("01" / "x01")
+	input    []string // 流した .in の行
+	expected []string // .out の行 (空なら検証なし)
+}
+
 // newCommandInput は command モードの `:` 行用 textinput を作る。
 func newCommandInput() textinput.Model {
 	ti := textinput.New()
@@ -130,7 +140,8 @@ func parseCommand(s string) command {
 		// :cheat / :help / :? — 利用可能なコマンド一覧を表示。
 		return command{name: "cheat", arg: arg}
 	case "replay":
-		// :replay — 同じ問題の前回セッション入力を、子をリスタートして順送 (要件 039)。
+		// :replay — 直近の操作 (手入力セッション or 直近の :test ケース) を、子をリスタート
+		// して順送する (要件 039 / 048)。
 		return command{name: "replay", arg: arg}
 	case "t", "test":
 		// :test [case] — キャッシュ済みサンプルケースを子リスタート後に順送 + ライブ検証 (要件 045)。
@@ -353,7 +364,7 @@ func (m *chatModel) showCheat() {
 		"  :w [name]             追加ケースを tests-extra に保存",
 		"  :set verify|noverify  ライブ検証 on/off",
 		"  :debug                Debug 表示 (-d) を切替 (:set debug|nodebug)",
-		"  :replay               前回セッションの入力をリスタートして再送",
+		"  :replay               直近に流した入力 (手入力 / :test ケース) を再送 + 再検証",
 		"  :cheat (:help :?)     このコマンド一覧",
 		"  :q                    chat 終了 (作成画面中は破棄)",
 	}
@@ -369,24 +380,50 @@ func (m *chatModel) showCheat() {
 	}
 }
 
-// execReplay は **直前の 1 (child) セッション分** の入力を再生する (:replay。要件 039)。
-// 対象は replayLines() が選ぶ: 現セッションの入力 → 直前に完了したセッション → 前回 chat 起動。
-// 起動を通した手入力すべての累積ではなく、あくまで直前のセッション 1 つ分。子をリスタート
-// してクリーンな状態を作り、対象を submitLines で順送する。空なら info 行のみで子は起動しない。
+// execReplay は **直近の操作** を再生する (:replay。要件 039 / 048)。優先順位は:
+//  1. 現セッションの手入力 (sessionInputs) — :test の後に手入力していれば最優先
+//  2. 直近の :test ケース (lastTest)        — input を再送し expected で再検証する
+//  3. 直前に完了したセッション (prevSessionInputs)
+//  4. 前回 chat 起動の手入力 (PrevInputs)
+//
+// sessionInputs の空・非空が「:test より後に手入力したか」と一致する (:test は子リスタート
+// で sessionInputs を退避・リセットし、順送は record=false なので積まれない)。これを使って
+// 明示タイムラインなしに「直近の操作が手入力か :test ケースか」を判定する。子をリスタート
+// してクリーンな状態を作り、対象を順送する。何も無ければ info 行のみで子は起動しない。
 func (m *chatModel) execReplay() (tea.Model, tea.Cmd) {
 	m.returnFromCommand()
+	// 現セッションに手入力が残っていなければ、直近の :test ケースを最優先で再送 + 再検証する。
+	if len(m.sessionInputs) == 0 && m.lastTest != nil {
+		t := m.lastTest
+		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: fmt.Sprintf("(case %s を再生 — input %d行 / expected %d行)", t.id, len(t.input), len(t.expected))})
+		return m.flowInput(t.input, t.expected)
+	}
 	lines := m.replayLines()
 	if len(lines) == 0 {
 		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(再生できる入力がありません — まだ何も送っていない初回起動です)"})
 		m.refreshViewport()
 		return m, nil
 	}
-	// lines は sessionInputs / prevSessionInputs / PrevInputs を指しうる。直後の restart() は
-	// sessionInputs を beginNewSession で退避・リセットするため、送信前にスナップショットを取る。
+	// lines は sessionInputs / prevSessionInputs / PrevInputs を指しうる。flowInput 内の
+	// restart() が sessionInputs を退避・リセットするため、送信前にスナップショットを取る。
 	snap := append([]string(nil), lines...)
+	// 手入力の再生は検証状態を変えない (expected を渡さない)。
+	return m.flowInput(snap, nil)
+}
 
+// flowInput は snap の入力をクリーンな子で順送する共通処理 (:test / :replay 共有)。
+// expected が非空ならライブ検証を (再) 有効化し :set verify の対象 (lastExpected) も更新する。
+// 順送は record=false なので sessionInputs / chatlog ([039]) を汚さない。snap は呼び出し側で
+// スナップショットを取っておくこと (restart が sessionInputs を退避・リセットするため)。
+func (m *chatModel) flowInput(snap, expected []string) (tea.Model, tea.Cmd) {
+	// expected があればライブ検証を (再) 開始し、:set verify の対象も更新する。
+	// 空 expected のケースは検証を付けず出力だけ見る (既存 verify は据え置き)。
+	if len(expected) > 0 {
+		m.lastExpected = expected
+		m.enableVerify(expected)
+	}
 	var cmds []tea.Cmd
-	// クリーンな状態から再現するため、動作中でも子を作り直す (restart は同期 spawn し
+	// クリーンな状態から流すため、動作中でも子を作り直す (restart は同期 spawn し
 	// running=true にして読み取り Cmd を返す)。
 	cmds = append(cmds, m.restart())
 	if !m.running {
@@ -394,7 +431,6 @@ func (m *chatModel) execReplay() (tea.Model, tea.Cmd) {
 		m.refreshViewport()
 		return m, tea.Batch(cmds...)
 	}
-	// record=false: 再生行は chatlog に積まない (次回起動の前回入力が再生値で膨らむのを防ぐ)。
 	m.submitLines(snap, &cmds, false)
 	m.refreshViewport()
 	return m, tea.Batch(cmds...)
@@ -404,8 +440,9 @@ func (m *chatModel) execReplay() (tea.Model, tea.Cmd) {
 // 引数があれば公式 (tests/ = "01") / 追加 (tests-extra/ = "x01") のケースを解決し、子を
 // リスタートしてその .in をクリーンな状態から順送しつつ、.out でライブ検証 ([024]) する。
 // 引数が無ければ利用可能なケース ID の一覧を表示するだけ (実行しない)。順送は :replay と
-// 同じ record=false なので sessionInputs / chatlog ([039]) を汚さず、:test 後の :replay は
-// 手入力だけを再生する。:test 自身は fetch しない (キャッシュ済みファイルを読むだけ)。
+// 同じ record=false なので sessionInputs / chatlog ([039]) を汚さない。流したケースは
+// lastTest に覚え、直後の :replay が「直近の操作」としてこのケースを再送 + 再検証できる
+// ([048])。:test 自身は fetch しない (キャッシュ済みファイルを読むだけ)。
 func (m *chatModel) execTest(arg string) (tea.Model, tea.Cmd) {
 	m.returnFromCommand()
 	if m.header.TaskDir == "" {
@@ -433,24 +470,11 @@ func (m *chatModel) execTest(arg string) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: fmt.Sprintf("(case %s を実行 — input %d行 / expected %d行)", id, len(in), len(out))})
-	// expected があればライブ検証を (再) 開始し、:set verify の対象 (lastExpected) も更新する。
-	// 空 .out のケースは検証を付けず出力だけ見る。
-	if len(out) > 0 {
-		m.lastExpected = out
-		m.enableVerify(out)
-	}
-	var cmds []tea.Cmd
-	// クリーンな状態から流すため、動作中でも子を作り直す (:replay と同じ restart)。
-	cmds = append(cmds, m.restart())
-	if !m.running {
-		// spawn 失敗 (restart が tea.Quit を返した)。送らない。
-		m.refreshViewport()
-		return m, tea.Batch(cmds...)
-	}
-	// record=false: 順送行は手入力ではないので sessionInputs / chatlog に積まない ([039])。
-	m.submitLines(in, &cmds, false)
-	m.refreshViewport()
-	return m, tea.Batch(cmds...)
+	// 直近の :test として覚える: :replay が「直近の操作」としてこのケースを再送 + 再検証する ([048])。
+	// in/out は resolveSampleCase が返した fresh なスライスなのでそのまま保持してよい。
+	m.lastTest = &testReplay{id: id, input: in, expected: out}
+	// 検証有効化 → 子リスタート → 順送 (record=false) は :replay と共通 (flowInput)。
+	return m.flowInput(in, out)
 }
 
 // enableVerify はライブ検証を (再) 開始する。pos は現在の出力位置から始める

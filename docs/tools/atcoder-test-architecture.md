@@ -45,7 +45,9 @@ internal/ui/
                  # モードで y/N を 1 打鍵確認してから提出する (要件 044)
   chat_casebuilder.go # vim 風 command モード (`Esc`→`:`)・ケースビルダー (textarea 2 ペイン)・
                  # ライブ検証 (tokensMatch)。`:w` で extracase.Save、保存先は tests-extra (要件 024)。
-                 # `:test [case]` でキャッシュ済みサンプルを子リスタート後に順送 + ライブ検証 (execTest, 要件 045)
+                 # `:test [case]` でキャッシュ済みサンプルを子リスタート後に順送 + ライブ検証 (execTest, 要件 045)。
+                 # `:test`/`:replay` の順送は flowInput に共通化。`:replay` は直近の操作 (現セッション手入力
+                 # → 直近 :test ケース (lastTest) → 直前セッション → 前回起動) を再生する (execReplay, 要件 048)
   chat_sample.go # :test のサンプル読込 (listSampleCases/resolveSampleCase/normalizeSampleRef)。
                  # 公式 tests/ + 追加 tests-extra/ を os/extracase だけで読む (testexec 非依存・fetch しない)
   style.go       # lipgloss スタイル定義

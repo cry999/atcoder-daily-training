@@ -3,6 +3,7 @@ package ui
 import (
 	"bytes"
 	"io"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -241,4 +242,135 @@ func equalStrings(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+// :test でケースを流したあと現セッションに手入力が無ければ、:replay は「直近の操作」=
+// そのケースの .in を再入力し、.out でライブ検証も再有効化する (要件 048)。
+func TestReplayReplaysLastTestCase(t *testing.T) {
+	taskDir := t.TempDir()
+	writeCase(t, filepath.Join(taskDir, "tests"), "01", "5 3\n1 2 3\n", "6\n")
+
+	var stdin bytes.Buffer
+	calls := 0
+	m := &chatModel{spawn: spawnToBuf(&stdin, &calls), header: ChatHeader{TaskDir: taskDir}}
+
+	m.execTest("01") // case 01 を流す (sessionInputs には積まれない)
+	stdin.Reset()    // test の送信分をクリアし、replay 分だけを観測する
+	m.verify = nil   // 再検証が :replay 側で復活することを示すため一旦落とす
+	m.execReplay()   // 直近操作 = テストなので case 01 を再入力
+
+	if got, want := stdin.String(), "5 3\n1 2 3\n"; got != want {
+		t.Errorf("replay after :test should re-send the case input: stdin = %q, want %q", got, want)
+	}
+	if m.verify == nil {
+		t.Error("replay of a test case should re-enable live verify")
+	}
+	if !equalStrings(m.lastExpected, []string{"6"}) {
+		t.Errorf("lastExpected = %v, want [6]", m.lastExpected)
+	}
+}
+
+// :test の後に手入力すれば、それが直近の操作なので :replay は手入力を再生する (ケースは流さない)。
+func TestReplayPrefersManualInputOverLastTest(t *testing.T) {
+	taskDir := t.TempDir()
+	writeCase(t, filepath.Join(taskDir, "tests"), "01", "5 3\n", "6\n")
+
+	var stdin bytes.Buffer
+	calls := 0
+	m := &chatModel{spawn: spawnToBuf(&stdin, &calls), header: ChatHeader{TaskDir: taskDir}}
+
+	m.execTest("01") // 直近 = テスト
+	var cmds []tea.Cmd
+	m.submitLines([]string{"manual"}, &cmds, true) // その後に手入力 → 直近 = 手入力
+	stdin.Reset()
+	m.execReplay()
+
+	if got, want := stdin.String(), "manual\n"; got != want {
+		t.Errorf("replay after manual input should re-send manual, not the test case: stdin = %q, want %q", got, want)
+	}
+}
+
+// 手入力 → :test → :replay は、直近操作 = テストなので先の手入力ではなくケースを再生する。
+func TestReplayManualThenTestReplaysTest(t *testing.T) {
+	taskDir := t.TempDir()
+	writeCase(t, filepath.Join(taskDir, "tests"), "01", "case in\n", "out\n")
+
+	var stdin bytes.Buffer
+	calls := 0
+	m := &chatModel{spawn: spawnToBuf(&stdin, &calls), header: ChatHeader{TaskDir: taskDir}}
+
+	var cmds []tea.Cmd
+	m.submitLines([]string{"3"}, &cmds, true) // 先に手入力
+	m.execTest("01")                          // その後に :test (子リスタートで手入力は prev へ退避)
+	stdin.Reset()
+	m.execReplay()
+
+	if got, want := stdin.String(), "case in\n"; got != want {
+		t.Errorf("replay after manual-then-test should re-send the test case: stdin = %q, want %q", got, want)
+	}
+}
+
+// 直近 :test ケースの再生は対象を消費しない — 続けて :replay すれば同じケースを再生できる。
+func TestReplayTestCaseRepeatable(t *testing.T) {
+	taskDir := t.TempDir()
+	writeCase(t, filepath.Join(taskDir, "tests"), "01", "x\n", "y\n")
+
+	var stdin bytes.Buffer
+	calls := 0
+	m := &chatModel{spawn: spawnToBuf(&stdin, &calls), header: ChatHeader{TaskDir: taskDir}}
+
+	m.execTest("01")
+	m.execReplay() // 1 回目
+	stdin.Reset()
+	m.execReplay() // 2 回目も同じケースを再生できる
+
+	if got, want := stdin.String(), "x\n"; got != want {
+		t.Errorf("repeated replay should keep re-sending the case input: stdin = %q, want %q", got, want)
+	}
+}
+
+// :test ケースの再生も record=false: sessionInputs / chatlog を汚さない (反復再生を膨らませない)。
+func TestReplayTestCaseDoesNotRecord(t *testing.T) {
+	taskDir := t.TempDir()
+	writeCase(t, filepath.Join(taskDir, "tests"), "01", "a\nb\n", "c\n")
+
+	var stdin bytes.Buffer
+	calls := 0
+	var recorded []string
+	m := &chatModel{spawn: spawnToBuf(&stdin, &calls), header: ChatHeader{
+		TaskDir:     taskDir,
+		RecordInput: func(line string) { recorded = append(recorded, line) },
+	}}
+
+	m.execTest("01")
+	recorded = nil // execTest 分は別テストで確認済み。replay 分だけ観測する
+	m.execReplay()
+
+	if len(recorded) != 0 {
+		t.Errorf("replay of a test case must not persist input, recorded %v", recorded)
+	}
+	if len(m.sessionInputs) != 0 {
+		t.Errorf("replay of a test case must not add to sessionInputs, got %v", m.sessionInputs)
+	}
+}
+
+// 空 .out のケースを :replay すると、入力は再送するが検証は付けない (:test 実行時と同じ)。
+func TestReplayTestCaseEmptyExpected(t *testing.T) {
+	taskDir := t.TempDir()
+	writeCase(t, filepath.Join(taskDir, "tests"), "01", "5\n", "") // 空 expected
+
+	var stdin bytes.Buffer
+	calls := 0
+	m := &chatModel{spawn: spawnToBuf(&stdin, &calls), header: ChatHeader{TaskDir: taskDir}}
+
+	m.execTest("01") // 空 expected なので verify は付かない
+	stdin.Reset()
+	m.execReplay()
+
+	if got, want := stdin.String(), "5\n"; got != want {
+		t.Errorf("replay of an empty-expected case should re-send the input: stdin = %q, want %q", got, want)
+	}
+	if m.verify != nil {
+		t.Error("replay of an empty-expected case should not enable live verify")
+	}
 }
