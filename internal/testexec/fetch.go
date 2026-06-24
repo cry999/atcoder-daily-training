@@ -22,8 +22,24 @@ type problem struct {
 	Samples     []sample
 }
 
-func fetchProblem(contest, task string) (*problem, error) {
-	url := fmt.Sprintf("https://atcoder.jp/contests/%s/tasks/%s", contest, task)
+// DefaultTaskURL は contest/task から標準の問題ページ URL を組み立てる。
+// 通常は `/contests/<contest>/tasks/<contest>_<letter>` だが、task_id が
+// contest と食い違う問題 (例: abc111 の D = arc103_b) では URL を導出できないので、
+// その場合は meta.toml の url override (`atcoder meta set --url`) を使う。
+func DefaultTaskURL(contest, task string) string {
+	return fmt.Sprintf("https://atcoder.jp/contests/%s/tasks/%s", contest, task)
+}
+
+// resolveFetchURL は取得元 URL を決める。override (meta.toml の url) が空でなければ
+// それを優先し、空なら contest/task から導出する。
+func resolveFetchURL(contest, task, override string) string {
+	if override != "" {
+		return override
+	}
+	return DefaultTaskURL(contest, task)
+}
+
+func fetchProblem(url string) (*problem, error) {
 	req, err := http.NewRequest("GET", url+"?lang=ja", nil)
 	if err != nil {
 		return nil, err

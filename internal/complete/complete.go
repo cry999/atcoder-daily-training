@@ -138,6 +138,7 @@ var subFlags = map[string][]Candidate{
 	},
 	"meta": {
 		{"--task", "task ID or short letter (e.g. d); unneeded when a task URL is given"},
+		{"--url", "with set: override the fetch URL for this slot (e.g. abc111 D = arc103_b)"},
 		{"--time-limit", "with set: override the cached time limit (e.g. 5s)"},
 	},
 	"stats": {

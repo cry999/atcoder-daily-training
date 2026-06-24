@@ -183,6 +183,11 @@ run_case "meta set --time-limit"             0 meta set fixture --task pass --ti
 run_case "meta set via task URL"             0 meta set https://atcoder.jp/contests/fixture/tasks/fixture_pass --time-limit 3s
 run_case "meta show (uncached → exit 1)"     1 meta show fixture --task nope
 run_case "meta set (uncached → exit 1)"      1 meta set fixture --task nope --time-limit 5s
+# url override: 未キャッシュのスロットにも記録できる (空 meta を作る)。実際の取得は
+# ネットワークに触れるため回さず、set の成功と show が記録した url を読めることを固定する。
+run_case "meta set --url on uncached slot"   0 meta set fixture --task urltest --url https://atcoder.jp/contests/fixture/tasks/other_x
+run_case "meta show (url-only slot, not fetched)" 0 meta show fixture --task urltest
+run_case "meta set --url (bad url → exit 2)" 2 meta set fixture --task pass --url not-a-url
 run_case "meta (no subcommand → exit 2)"     2 meta
 run_case "meta bogus (unknown sub → exit 2)" 2 meta bogus
 run_case "meta fetch (no target → exit 2)"   2 meta fetch

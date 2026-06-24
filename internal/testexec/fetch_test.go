@@ -7,6 +7,24 @@ import (
 	"golang.org/x/net/html"
 )
 
+// resolveFetchURL は url override があればそれを優先し、無ければ contest/task から
+// 導出する。task_id が contest と食い違う問題 (abc111 D = arc103_b) で、override が
+// 効くことを固定する。
+func TestResolveFetchURL(t *testing.T) {
+	cases := []struct {
+		contest, task, override, want string
+	}{
+		{"abc457", "abc457_d", "", "https://atcoder.jp/contests/abc457/tasks/abc457_d"},
+		// override 優先: スロットは abc111/abc111_d のまま arc103_b のページを引く。
+		{"abc111", "abc111_d", "https://atcoder.jp/contests/abc111/tasks/arc103_b", "https://atcoder.jp/contests/abc111/tasks/arc103_b"},
+	}
+	for _, c := range cases {
+		if got := resolveFetchURL(c.contest, c.task, c.override); got != c.want {
+			t.Errorf("resolveFetchURL(%q, %q, %q) = %q, want %q", c.contest, c.task, c.override, got, c.want)
+		}
+	}
+}
+
 // extractSamples が末尾の空行 (有意な空入力行) を保持することを確認する。
 // abc185_d の入力例 4 (`1 0` の後に空の A 行) のように、空行を落とすと
 // 解答側の input() が EOF エラーになるため、pre の内容をそのまま残す必要がある。

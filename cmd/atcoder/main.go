@@ -137,7 +137,7 @@ func usage() {
                  [ad-hoc: --in <path>|- | --out <path> | --interactive [-R|--auto-restart]]
                  [-v] [-d] [--timeout <dur>] [--tolerance <eps>] [--layout <auto|abc|exercise>]
   atcoder meta   <fetch | show | set> <url | contest --task <task>>   # キャッシュ (samples + time limit) の DL / 表示 / 編集
-                 [set: --time-limit <dur>]
+                 [set: --url <url> | --time-limit <dur>]
   atcoder stats  [-w|--week | -m|--month | -y|--year | -l|--last <dur>] [-g|--graph]
   atcoder usage  [--flags] [--json]   # ローカルに記録した CLI 利用頻度・所要時間の集計
   atcoder review <category> [-w|--week | -m|--month | -y|--year | -l|--last <dur>]

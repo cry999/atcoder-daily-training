@@ -218,8 +218,18 @@ func ensureTests(reporter Reporter, contest, task, taskDir, testsDir, metaPath s
 		}
 	}
 
+	// 取得元 URL を決める。meta.toml に url override が記録されていれば (例:
+	// `atcoder meta set abc111 --task d --url <arc103_b の URL>`) それを優先する。
+	// task_id が contest と食い違う問題で、解答スロット (contest/task) を保ったまま
+	// 正しいページから取得するための仕掛け。override が無ければ contest/task から導出。
+	override := ""
+	if m, err := loadMeta(metaPath); err == nil {
+		override = m.URL
+	}
+	url := resolveFetchURL(contest, task, override)
+
 	reporter.Fetching(contest, task)
-	prob, err := fetchProblem(contest, task)
+	prob, err := fetchProblem(url)
 	if err != nil {
 		return nil, false, fmt.Errorf("AtCoder から取得できませんでした: %w", err)
 	}
