@@ -199,4 +199,5 @@ func submitPrepCore(contest, task string, lay layout.Layout, noOpen, keepDebug b
 - [015-fold-submit-into-test.md](./015-fold-submit-into-test.md) / [ADR 0006](../decisions/0006-fold-submit-into-test.md) (`--submit` を test に畳んだ前例)
 - [001-exercise-test.md](./001-exercise-test.md) (`-d`/`--debug` と `[DEBUG]` 規約の初出)
 - [026-chat-submit.md](./026-chat-submit.md) (chat `Ctrl+S` の提出準備)
+- [044-submit-precheck-confirm.md](./044-submit-precheck-confirm.md) (提出前チェックと確認。実行時の DEBUG 検出で本件のコメントアウト漏れを補完する)
 - `docs/tools/atcoder-test-usage.md` (test 利用手引) / `docs/tools/atcoder-test-architecture.md` (内部設計)
