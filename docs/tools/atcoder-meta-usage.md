@@ -74,20 +74,23 @@ abc457_d
 ## `atcoder meta set`
 
 ```sh
+# 取得元 URL を手で設定（task_id が contest と食い違う問題用）
+atcoder meta set abc111 --task d --url https://atcoder.jp/contests/abc111/tasks/arc103_b
+
 # Time Limit を手で 5 秒に上書き
 atcoder meta set abc457 --task d --time-limit 5s
 ```
 
-キャッシュ済み `meta.toml` の指定フィールドを上書きして保存します。AtCoder の HTML 変更
-などで Time Limit が取れなかった / ずれたときの補正に使います。
+`meta.toml` の指定フィールドを上書きして保存します。
 
 | フラグ | 説明 |
 |---|---|
-| `--time-limit <dur>` | Time Limit を上書き (`5s` / `1500ms` 等)。`> 0` のみ許容。`time_limit_ms` に変換して保存 |
+| `--url <url>` | **取得元 URL の override**。下記「URL が contest と食い違う問題」を参照。AtCoder の URL のみ。スロット未キャッシュでも記録可 |
+| `--time-limit <dur>` | Time Limit を上書き (`5s` / `1500ms` 等)。`> 0` のみ許容。`time_limit_ms` に変換して保存。キャッシュ済みが前提 |
 
-- フィールド指定が 1 つも無ければフラグ誤り (exit 2)。
-- 未キャッシュなら exit 1 (先に `fetch` してください)。
-- 指定したフィールドだけ上書きし、他のフィールド (`url` / `fetched_at` / サンプル) は保持します。
+- フィールド指定 (`--url` / `--time-limit`) が 1 つも無ければフラグ誤り (exit 2)。
+- `--time-limit` のみの上書きは未キャッシュなら exit 1 (先に `fetch` してください)。
+- 指定したフィールドだけ上書きし、他のフィールドは保持します。
 
 ```console
 $ atcoder meta set abc457 --task d --time-limit 5s
@@ -95,18 +98,47 @@ updated abc457_d
   time limit:  2000 ms -> 5000 ms
 ```
 
+### URL が contest と食い違う問題（例: abc111 の D = arc103_b）
+
+ABC のいくつかの問題は、コンテストページの URL とタスク ID の接頭辞が一致しません。
+たとえば **abc111 の D 問題**のページは
+`https://atcoder.jp/contests/abc111/tasks/arc103_b` で、タスク ID は `arc103_b` です。
+この場合、既定の取得は `.../tasks/abc111_d` を組み立てて **404** になります。
+
+`set --url` でスロット `abc111/d`（= キャッシュキー `abc111_d`、解答ファイル `abc111_d.py` /
+`abc/111/d.py`）に正しい URL を記録すれば、**スロットはそのまま**で取得元だけ差し替えられます。
+記録した URL は `meta fetch` だけでなく `test` / `start` の取得経路でも尊重されます。
+
+```console
+$ atcoder meta set abc111 --task d --url https://atcoder.jp/contests/abc111/tasks/arc103_b
+updated abc111_d
+  url:         (none) -> https://atcoder.jp/contests/abc111/tasks/arc103_b
+
+# 以降はこのスロットの取得がすべて arc103_b のページを引く
+$ atcoder meta fetch abc111 --task d      # または atcoder test abc111 --task d
+fetched abc111_d
+  url:         https://atcoder.jp/contests/abc111/tasks/arc103_b
+  time limit:  2000 ms
+  samples:     4
+  cached at:   /Users/you/.cache/atcoder-tools/abc111/abc111_d
+```
+
+`set --url` はスロット未キャッシュでも記録できます（空の `meta.toml` を作って URL だけ書き、
+取得は後続の `fetch` / `test` に任せる）。記録後・取得前の `show` では `fetched at` が
+`(not fetched yet)` と表示されます。
+
 ## exit code
 
 | code | 意味 |
 |---|---|
 | 0 | 成功 |
 | 1 | 実行時失敗 (fetch 失敗 / 未キャッシュ) |
-| 2 | 引数・フラグ誤り (サブコマンド無し・未知サブコマンド・ターゲット未指定・URL 解釈不可・`--task` 欠落・`set` のフィールド無し / duration 不正) |
+| 2 | 引数・フラグ誤り (サブコマンド無し・未知サブコマンド・ターゲット未指定・URL 解釈不可・`--task` 欠落・`set` のフィールド無し・`--time-limit` の duration 不正・`--url` が AtCoder の URL でない) |
 
 ## 制約事項 (現時点)
 
-- `set` で上書きできるのは Time Limit (`--time-limit`) のみ。`url` 等の他フィールドは未対応 (要件 046 の将来拡張)。
-- `fetch` はネットワークに触れるため、fixture スモークテスト (`fixtures/run.sh`) では `show`/`set` と
+- `set` で上書きできるのは取得元 URL (`--url`) と Time Limit (`--time-limit`)。その他のフィールドは未対応 (要件 046 の将来拡張)。
+- `fetch` はネットワークに触れるため、fixture スモークテスト (`fixtures/run.sh`) では `show`/`set` (url override の記録を含む) と
   引数誤りのみを固定し、`fetch` 本体は回しません。
 
 ## 関連
