@@ -15,7 +15,9 @@ cmd/atcoder/
   new.go         # cmdNew: 当日の演習ディレクトリを作成
   test.go        # cmdTest: 引数パース + selectExecutor (composition root) + watch ループ
   submitprep.go  # 提出準備 (--submit / chat Ctrl+S): 解答コピー + 提出ページ起動。
-                 # コピー時に debugstrip で [DEBUG] print 行をコメントアウト (--keep-debug で無効)
+                 # コピー時に debugstrip で [DEBUG] print 行をコメントアウト (--keep-debug で無効)。
+                 # runSubmitPrep が提出前ゲート (submitGateReporter で DebugSeen を集約 +
+                 # submitGateReasons で判定 + confirmSubmit で y/N) を回す (要件 044)
 
 internal/runner/
   runner.go      # ProcessResult + ProcessStatus (実行結果の低レベル型)
@@ -23,7 +25,8 @@ internal/runner/
 
 internal/testexec/
   test.go        # Run(Options) + Executor interface + orchestration (ケースを並列実行)
-  judge.go       # CaseResult + CaseStatus + judge() + normalizeOutput()
+  judge.go       # CaseResult + CaseStatus + judge() + normalizeOutput()。
+                 # CaseResult.DebugSeen は生 stdout/stderr の [DEBUG] 検出 (提出前ゲート用。要件 044)
   reporter.go    # Reporter interface (UI 抽象。Begin/CaseStarted/CaseFinished/End のライフサイクル)
   meta.go        # meta 型 + load/save (meta.toml の I/O)
   fetch.go       # AtCoder fetch + HTML パース (xpath via htmlquery)
@@ -37,7 +40,9 @@ internal/ui/
                  # 出力行ごとに直前イベント (入力送信 or 直前出力) からの経過時間を表示
                  # (lastEventAt を基準に、行を読み出した時刻との差分。要件 019)。
                  # WatchPath が渡るとファイルを mtime ポーリングし、保存検知で子を最新
-                 # ファイルで再 spawn する (epoch=sessionN で旧 stream の残響を破棄。要件 022)
+                 # ファイルで再 spawn する (epoch=sessionN で旧 stream の残響を破棄。要件 022)。
+                 # Ctrl+S は SubmitCheck で提出前チェックし、リスクありなら submitConfirm
+                 # モードで y/N を 1 打鍵確認してから提出する (要件 044)
   chat_casebuilder.go # vim 風 command モード (`Esc`→`:`)・ケースビルダー (textarea 2 ペイン)・
                  # ライブ検証 (tokensMatch)。`:w` で extracase.Save、保存先は tests-extra (要件 024)
   style.go       # lipgloss スタイル定義
