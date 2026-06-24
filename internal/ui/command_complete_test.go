@@ -22,9 +22,12 @@ func TestCompleteCommandLine(t *testing.T) {
 		{"cheat unique (no arg)", "ch", true, "cheat", nil},
 		{"replay unique (no arg)", "re", true, "replay", nil},
 		{"r prefix unique to replay", "r", true, "replay", nil},
+		{"test unique appends space for arg cmd", "te", true, "test ", nil},
+		{"t ambiguous with nav (task/test)", "t", true, "t", []string{"task", "test"}},
+		{"t unique to test without nav", "t", false, "test ", nil}, // task は nav 限定なので消える
 		{"ambiguous keeps LCP and lists", "c", true, "c", []string{"case", "cheat", "contest"}},
-		{"empty lists all (nav)", "", true, "", []string{"case", "cheat", "contest", "debug", "e", "q", "replay", "set", "task", "w"}},
-		{"empty lists base only (no nav)", "", false, "", []string{"case", "cheat", "debug", "q", "replay", "set", "w"}},
+		{"empty lists all (nav)", "", true, "", []string{"case", "cheat", "contest", "debug", "e", "q", "replay", "set", "task", "test", "w"}},
+		{"empty lists base only (no nav)", "", false, "", []string{"case", "cheat", "debug", "q", "replay", "set", "test", "w"}},
 		{"no match no change", "zzz", true, "zzz", nil},
 		// nav コマンドは navEnabled=false では候補に出ない。
 		{"task hidden without nav", "ta", false, "ta", nil},

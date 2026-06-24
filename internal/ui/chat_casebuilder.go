@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -44,7 +45,7 @@ type verifier struct {
 func newCommandInput() textinput.Model {
 	ti := textinput.New()
 	ti.Prompt = ":"
-	ti.Placeholder = "case | w [name] | set verify | debug | replay | cheat | q"
+	ti.Placeholder = "case | test [case] | w [name] | set verify | debug | replay | cheat | q"
 	return ti
 }
 
@@ -131,6 +132,9 @@ func parseCommand(s string) command {
 	case "replay":
 		// :replay — 同じ問題の前回セッション入力を、子をリスタートして順送 (要件 039)。
 		return command{name: "replay", arg: arg}
+	case "t", "test":
+		// :test [case] — キャッシュ済みサンプルケースを子リスタート後に順送 + ライブ検証 (要件 045)。
+		return command{name: "test", arg: arg}
 	default:
 		return command{name: "unknown", arg: name}
 	}
@@ -250,6 +254,8 @@ func (m *chatModel) execCommand(cmd command) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "replay":
 		return m.execReplay()
+	case "test":
+		return m.execTest(cmd.arg)
 	case "task", "contest", "e":
 		return m.execNav(cmd)
 	default: // unknown
@@ -343,6 +349,7 @@ func (m *chatModel) showCheat() {
 	lines := []string{
 		"利用可能なコマンド (Esc で command モード):",
 		"  :case (:c)            入出力ケース作成画面を開く",
+		"  :test [case] (:t)     サンプルケースを実行 + ライブ検証 (:test で一覧)",
 		"  :w [name]             追加ケースを tests-extra に保存",
 		"  :set verify|noverify  ライブ検証 on/off",
 		"  :debug                Debug 表示 (-d) を切替 (:set debug|nodebug)",
@@ -389,6 +396,59 @@ func (m *chatModel) execReplay() (tea.Model, tea.Cmd) {
 	}
 	// record=false: 再生行は chatlog に積まない (次回起動の前回入力が再生値で膨らむのを防ぐ)。
 	m.submitLines(snap, &cmds, false)
+	m.refreshViewport()
+	return m, tea.Batch(cmds...)
+}
+
+// execTest は **キャッシュ済みサンプルケースを 1 つ実行**する (:test [case]。要件 045)。
+// 引数があれば公式 (tests/ = "01") / 追加 (tests-extra/ = "x01") のケースを解決し、子を
+// リスタートしてその .in をクリーンな状態から順送しつつ、.out でライブ検証 ([024]) する。
+// 引数が無ければ利用可能なケース ID の一覧を表示するだけ (実行しない)。順送は :replay と
+// 同じ record=false なので sessionInputs / chatlog ([039]) を汚さず、:test 後の :replay は
+// 手入力だけを再生する。:test 自身は fetch しない (キャッシュ済みファイルを読むだけ)。
+func (m *chatModel) execTest(arg string) (tea.Model, tea.Cmd) {
+	m.returnFromCommand()
+	if m.header.TaskDir == "" {
+		// 保存先 (:w と同じ TaskDir) が未注入だとケースの場所が分からない。
+		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(ケースの場所が不明なため :test は使えません)"})
+		m.refreshViewport()
+		return m, nil
+	}
+	ref := strings.TrimSpace(arg)
+	if ref == "" {
+		// 引数省略: 利用可能なケース ID を一覧表示 (実行はしない)。
+		ids := listSampleCases(m.header.TaskDir)
+		if len(ids) == 0 {
+			m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(利用可能なサンプルがありません — atcoder test で取得、または :w で追加)"})
+		} else {
+			m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(利用可能なケース: " + strings.Join(ids, " ") + ")"})
+		}
+		m.refreshViewport()
+		return m, nil
+	}
+	in, out, id, ok := resolveSampleCase(m.header.TaskDir, ref)
+	if !ok {
+		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(ケース " + ref + " が見つかりません — :test で一覧)"})
+		m.refreshViewport()
+		return m, nil
+	}
+	m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: fmt.Sprintf("(case %s を実行 — input %d行 / expected %d行)", id, len(in), len(out))})
+	// expected があればライブ検証を (再) 開始し、:set verify の対象 (lastExpected) も更新する。
+	// 空 .out のケースは検証を付けず出力だけ見る。
+	if len(out) > 0 {
+		m.lastExpected = out
+		m.enableVerify(out)
+	}
+	var cmds []tea.Cmd
+	// クリーンな状態から流すため、動作中でも子を作り直す (:replay と同じ restart)。
+	cmds = append(cmds, m.restart())
+	if !m.running {
+		// spawn 失敗 (restart が tea.Quit を返した)。送らない。
+		m.refreshViewport()
+		return m, tea.Batch(cmds...)
+	}
+	// record=false: 順送行は手入力ではないので sessionInputs / chatlog に積まない ([039])。
+	m.submitLines(in, &cmds, false)
 	m.refreshViewport()
 	return m, tea.Batch(cmds...)
 }
