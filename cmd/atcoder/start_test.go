@@ -1,11 +1,37 @@
 package main
 
 import (
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/cry999/atcoder-daily-training/internal/ui"
 )
+
+// buildTarget が組む ChatHeader には、Ctrl+S の提出準備フック (Submit) だけでなく
+// 提出前チェックフック (SubmitCheck) も必ず注入されること (要件 044)。SubmitCheck が
+// nil だと chat の submitPrep がゲートを丸ごとスキップし、WA でも確認なしで提出して
+// しまう (start 経路でゲートが効かなかった回帰の固定)。
+func TestBuildTargetWiresSubmitCheck(t *testing.T) {
+	// config / 作業ディレクトリを隔離して、実ユーザ環境に触れず空ファイルを作らせる。
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	dir := t.TempDir()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+
+	c := &startConfig{layoutFlag: "abc"}
+	target, _, code, err := c.buildTarget("abc999", "abc999_a", false)
+	if err != nil {
+		t.Fatalf("buildTarget: code=%d err=%v", code, err)
+	}
+	if target.Header.Submit == nil {
+		t.Error("ChatHeader.Submit が未注入: Ctrl+S の提出準備が利用できない")
+	}
+	if target.Header.SubmitCheck == nil {
+		t.Error("ChatHeader.SubmitCheck が未注入: start の Ctrl+S が提出前チェックをスキップする (要件 044)")
+	}
+}
 
 // nextTarget は letter / contest 移動と境界・非対応を要件どおり算出する (純粋部分)。
 // TUI 本体 (再ターゲット駆動) は TTY 必須で手動確認。

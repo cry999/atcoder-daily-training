@@ -220,6 +220,7 @@ func (c *startConfig) buildTarget(contestID, task string, refresh bool) (t ui.St
 		AutoRestart: true,
 		WatchPath:   path,
 		Submit:      chatSubmitFunc(contestID, task, lay),
+		SubmitCheck: chatSubmitCheckFunc(contestID, task, lay, c.tolerance), // Ctrl+S の提出前チェック (要件 044)
 		TaskDir:     cachepath.Task(contestID, task),
 		Tolerance:   c.tolerance,
 		NavEnabled:  true,
