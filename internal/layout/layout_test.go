@@ -21,6 +21,51 @@ func TestTaskID(t *testing.T) {
 	}
 }
 
+func TestParseTaskURL(t *testing.T) {
+	cases := []struct {
+		in          string
+		wantContest string
+		wantTask    string
+		wantOK      bool
+	}{
+		{"https://atcoder.jp/contests/abc457/tasks/abc457_d", "abc457", "abc457_d", true},
+		{"http://atcoder.jp/contests/abc457/tasks/abc457_d", "abc457", "abc457_d", true},
+		{"atcoder.jp/contests/abc457/tasks/abc457_d", "abc457", "abc457_d", true},
+		{"https://atcoder.jp/contests/abc457/tasks/abc457_d?lang=ja", "abc457", "abc457_d", true},
+		{"https://atcoder.jp/contests/abc457/tasks/abc457_d#sample", "abc457", "abc457_d", true},
+		{"https://atcoder.jp/contests/typical90/tasks/typical90_a", "typical90", "typical90_a", true},
+		{"https://atcoder.jp/contests/abc457", "", "", false},
+		{"abc457", "", "", false},
+		{"", "", "", false},
+	}
+	for _, c := range cases {
+		gotC, gotT, gotOK := ParseTaskURL(c.in)
+		if gotOK != c.wantOK || gotC != c.wantContest || gotT != c.wantTask {
+			t.Errorf("ParseTaskURL(%q) = (%q, %q, %v), want (%q, %q, %v)",
+				c.in, gotC, gotT, gotOK, c.wantContest, c.wantTask, c.wantOK)
+		}
+	}
+}
+
+func TestIsTaskURL(t *testing.T) {
+	cases := []struct {
+		in   string
+		want bool
+	}{
+		{"https://atcoder.jp/contests/abc457/tasks/abc457_d", true},
+		{"atcoder.jp/contests/abc457/tasks/abc457_d", true},
+		{"http://example.com", true},
+		{"abc457", false},
+		{"d", false},
+		{"", false},
+	}
+	for _, c := range cases {
+		if got := IsTaskURL(c.in); got != c.want {
+			t.Errorf("IsTaskURL(%q) = %v, want %v", c.in, got, c.want)
+		}
+	}
+}
+
 func TestLetter(t *testing.T) {
 	cases := []struct {
 		in, want string

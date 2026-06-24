@@ -69,6 +69,7 @@ var subcommandCands = []Candidate{
 	{"new", "scaffold today's exercise dir (or an abc contest)"},
 	{"start", "create the solution file and launch test --watch"},
 	{"test", "run a solution (samples by default; --in/--out/--interactive for ad-hoc; --submit to submit)"},
+	{"meta", "download / show / edit cached samples + time limit (accepts a task URL)"},
 	{"stats", "show daily practice statistics"},
 	{"review", "list practiced contests of a category"},
 	{"config", "show or change tool settings"},
@@ -134,6 +135,10 @@ var subFlags = map[string][]Candidate{
 		{"--no-open", "with --submit, print the URL instead of opening a browser"},
 		{"--keep-debug", "with --submit, copy as-is without commenting out [DEBUG] print lines"},
 		{"--json", "print the sample-judging result as JSON (sample mode only)"},
+	},
+	"meta": {
+		{"--task", "task ID or short letter (e.g. d); unneeded when a task URL is given"},
+		{"--time-limit", "with set: override the cached time limit (e.g. 5s)"},
 	},
 	"stats": {
 		{"--week", "limit to this week"},

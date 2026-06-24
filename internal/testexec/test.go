@@ -208,7 +208,7 @@ func EnsureTests(reporter Reporter, contest, task string, refresh bool) (EnsureR
 
 // ensureTests は contest/task のサンプル + meta をキャッシュに揃え、その meta と
 // 「実際にネットワークから取得したか (fetched)」を返す。
-func ensureTests(reporter Reporter, contest, task, taskDir, testsDir, metaPath string, refresh bool) (*meta, bool, error) {
+func ensureTests(reporter Reporter, contest, task, taskDir, testsDir, metaPath string, refresh bool) (*Meta, bool, error) {
 	if !refresh {
 		_, errTests := os.Stat(testsDir)
 		if errTests == nil {
@@ -244,7 +244,7 @@ func ensureTests(reporter Reporter, contest, task, taskDir, testsDir, metaPath s
 		}
 	}
 
-	mta := &meta{
+	mta := &Meta{
 		Contest:     contest,
 		Task:        task,
 		URL:         prob.URL,

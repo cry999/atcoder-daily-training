@@ -147,6 +147,31 @@ func Letter(task string) (string, error) {
 	return strings.ToLower(task), nil
 }
 
+// taskURLRe は AtCoder の task ページ URL から contest_id / task_id を捕捉する。
+// スキーム (https?://) の有無を問わず、クエリ (?lang=ja) やフラグメントが続いても
+// `/contests/<contest>/tasks/<task>` の部分だけを取り出す。
+var taskURLRe = regexp.MustCompile(`atcoder\.jp/contests/([^/]+)/tasks/([^/?#]+)`)
+
+// ParseTaskURL は AtCoder の task ページ URL から contest_id / task_id を抽出する。
+//   - "https://atcoder.jp/contests/abc457/tasks/abc457_d" → ("abc457", "abc457_d", true)
+//   - "atcoder.jp/contests/abc457/tasks/abc457_d?lang=ja"  → ("abc457", "abc457_d", true)
+//
+// `/contests/.../tasks/...` を取り出せなければ ok=false。layout に依存しない
+// (cache key / AtCoder URL 共通の ID 抽出ヘルパー)。
+func ParseTaskURL(s string) (contestID, taskID string, ok bool) {
+	m := taskURLRe.FindStringSubmatch(s)
+	if m == nil {
+		return "", "", false
+	}
+	return m[1], m[2], true
+}
+
+// IsTaskURL は s を task URL とみなすか判定する (`://` を含む or `atcoder.jp/` を含む)。
+// 位置引数が contest_id か URL かを切り分けるための緩いヒューリスティック。
+func IsTaskURL(s string) bool {
+	return strings.Contains(s, "://") || strings.Contains(s, "atcoder.jp/")
+}
+
 // ABC は `abc/<contest_num>/<letter>.py` 配置のレイアウト。
 type ABC struct{}
 

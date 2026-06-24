@@ -173,6 +173,25 @@ test -f "$STAGE/$DATE_DIR/fixture_brandnew.py" \
     || { echo "  ✗ start did not create the skeleton file"; failures=$((failures + 1)); }
 run_case "start without --task (reject)" 2 start fixture
 
+# ----- meta コマンド (要件 046) -----
+# fetch はネットワークに触れるため run.sh では回さない。プリポピュレートされた
+# fixture キャッシュ (書き込み可能な temp XDG_CACHE_HOME にコピー済み) に対して
+# show / set と、引数誤り (exit 2) / 未キャッシュ (exit 1) を固定する。
+run_case "meta show (contest+task)"          0 meta show fixture --task pass
+run_case "meta show (task URL)"              0 meta show https://atcoder.jp/contests/fixture/tasks/fixture_pass
+run_case "meta set --time-limit"             0 meta set fixture --task pass --time-limit 5s
+run_case "meta set via task URL"             0 meta set https://atcoder.jp/contests/fixture/tasks/fixture_pass --time-limit 3s
+run_case "meta show (uncached → exit 1)"     1 meta show fixture --task nope
+run_case "meta set (uncached → exit 1)"      1 meta set fixture --task nope --time-limit 5s
+run_case "meta (no subcommand → exit 2)"     2 meta
+run_case "meta bogus (unknown sub → exit 2)" 2 meta bogus
+run_case "meta fetch (no target → exit 2)"   2 meta fetch
+run_case "meta show (no --task/URL → exit 2)" 2 meta show fixture
+run_case "meta set (no fields → exit 2)"     2 meta set fixture --task pass
+run_case "meta set (bad duration → exit 2)"  2 meta set fixture --task pass --time-limit nope
+run_case "meta set (zero duration → exit 2)" 2 meta set fixture --task pass --time-limit 0s
+run_case "meta show (bad URL → exit 2)"      2 meta show https://atcoder.jp/contests/fixture
+
 # ----- ユーザ設定ファイル (config.toml) -----
 # config の側 (side_by_side) は終了コードを変えないので、出力に diff の
 # side-by-side ラベルが出るか/出ないかで検証する (check_output は冒頭で定義済み)。

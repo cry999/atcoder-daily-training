@@ -20,6 +20,7 @@ var valueFlags = map[string]bool{
 	"--case": true, "-c": true, "--in": true, "-i": true,
 	"--out": true, "-o": true, "--jobs": true, "-j": true,
 	"--tolerance": true, "--last": true, "-l": true,
+	"--time-limit": true,
 }
 
 // TakesValue は name (先頭の "-"/"--" 込み) が値を取るフラグかを返す。
