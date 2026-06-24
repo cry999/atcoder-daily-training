@@ -44,7 +44,10 @@ internal/ui/
                  # Ctrl+S は SubmitCheck で提出前チェックし、リスクありなら submitConfirm
                  # モードで y/N を 1 打鍵確認してから提出する (要件 044)
   chat_casebuilder.go # vim 風 command モード (`Esc`→`:`)・ケースビルダー (textarea 2 ペイン)・
-                 # ライブ検証 (tokensMatch)。`:w` で extracase.Save、保存先は tests-extra (要件 024)
+                 # ライブ検証 (tokensMatch)。`:w` で extracase.Save、保存先は tests-extra (要件 024)。
+                 # `:test [case]` でキャッシュ済みサンプルを子リスタート後に順送 + ライブ検証 (execTest, 要件 045)
+  chat_sample.go # :test のサンプル読込 (listSampleCases/resolveSampleCase/normalizeSampleRef)。
+                 # 公式 tests/ + 追加 tests-extra/ を os/extracase だけで読む (testexec 非依存・fetch しない)
   style.go       # lipgloss スタイル定義
 
 internal/runexec/
