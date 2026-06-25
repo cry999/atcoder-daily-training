@@ -81,7 +81,11 @@ func makeChatRunner(contest, task string, lay layout.Layout, tolerance float64, 
 func chatSubmitFunc(contest, task string, lay layout.Layout) ui.SubmitFunc {
 	return func() ui.SubmitResult {
 		// chat は常に [DEBUG] 出力行をコメントアウトしてコピーする (keepDebug=false)。
-		out, err := submitPrepCore(contest, task, lay, false, false)
+		src, err := buildSubmitSource(contest, task, lay, false)
+		if err != nil {
+			return ui.SubmitResult{Message: "失敗: " + err.Error(), IsError: true}
+		}
+		out, err := submitPrepCore(src, contest, task, false)
 		if err != nil {
 			return ui.SubmitResult{Message: "失敗: " + err.Error(), IsError: true}
 		}
@@ -98,20 +102,33 @@ func chatSubmitFunc(contest, task string, lay layout.Layout) ui.SubmitFunc {
 	}
 }
 
-// chatSubmitCheckFunc は chat の Ctrl+S 提出前チェック (要件 044)。サンプルを
-// SummaryReporter (stdout 非汚染) で 1 度実行し、提出ゲート (全通過・実行可否・
-// DEBUG 検出) を評価して SubmitCheck を返す。TUI を汚さないよう表示はせず、結果だけ
-// 返す (chat 側が行に整形する)。
+// chatSubmitCheckFunc は chat の Ctrl+S 提出前チェック (要件 044 / 049)。提出される中身
+// (= [DEBUG] print をコメントアウトしたソース。chat は常にコメントアウト) を一時ファイルに
+// 書き出し、それをサンプル判定の実行対象にして SummaryReporter (stdout 非汚染) で 1 度実行し、
+// 提出ゲート (全通過・実行可否・DEBUG 検出) を評価して SubmitCheck を返す。TUI を汚さないよう
+// 表示はせず、結果だけ返す (chat 側が行に整形する)。
 func chatSubmitCheckFunc(contest, task string, lay layout.Layout, tolerance float64) ui.SubmitCheckFunc {
 	return func() ui.SubmitCheck {
+		// 提出される中身 (コメントアウト後ソース) を構築し、それを実行対象にして判定する。
+		src, err := buildSubmitSource(contest, task, lay, false)
+		if err != nil {
+			return ui.SubmitCheck{Clean: false, Reasons: []string{"提出前チェックを実行できませんでした: " + err.Error()}}
+		}
+		tmp, cleanup, err := writeTempSource(src.Path, src.Body)
+		if err != nil {
+			return ui.SubmitCheck{Clean: false, Reasons: []string{"提出前チェックを実行できませんでした: " + err.Error()}}
+		}
+		defer cleanup()
+
 		gate := &submitGateReporter{Reporter: testexec.NewSummaryReporter()}
 		code, runErr := testexec.Run(testexec.Options{
-			Contest:     contest,
-			Task:        task,
-			Layout:      lay,
-			Tolerance:   tolerance,
-			ExecutorFor: selectExecutor,
-			Reporter:    gate,
+			Contest:              contest,
+			Task:                 task,
+			Layout:               lay,
+			Tolerance:            tolerance,
+			ExecutorFor:          selectExecutor,
+			Reporter:             gate,
+			SolutionPathOverride: tmp, // コメントアウト後ソースを実行する (要件 049)。
 		})
 		reasons := submitGateReasons(code, runErr, gate.DebugSeen())
 		return ui.SubmitCheck{Clean: len(reasons) == 0, Reasons: reasons}

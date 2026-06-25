@@ -37,6 +37,12 @@ type Options struct {
 	Concurrency int           // 同時に実行するケース数。0 以下なら runtime.NumCPU() (ケース数で頭打ち)
 	ExecutorFor ExecutorFor
 	Reporter    Reporter
+
+	// SolutionPathOverride は実行対象の解答パスを上書きする (要件 049)。非空なら
+	// Layout.SolutionPath の解決結果ではなくこのパスを実行する。提出ゲートが
+	// 「コメントアウト後ソースを書き出した一時ファイル」を走らせるために使う。
+	// 拡張子は ExecutorFor の言語選択に効くので、原本と同じ拡張子で渡すこと。
+	SolutionPathOverride string
 }
 
 func Run(opts Options) (int, error) {
@@ -47,6 +53,10 @@ func Run(opts Options) (int, error) {
 	solutionPath, err := lay.SolutionPath(opts.Contest, opts.Task)
 	if err != nil {
 		return 1, err
+	}
+	// 提出ゲートはコメントアウト後ソースを書き出した一時ファイルを実行対象にする (要件 049)。
+	if opts.SolutionPathOverride != "" {
+		solutionPath = opts.SolutionPathOverride
 	}
 	if _, err := os.Stat(solutionPath); err != nil {
 		return 1, fmt.Errorf("解答ファイルが見つかりません: %s", solutionPath)

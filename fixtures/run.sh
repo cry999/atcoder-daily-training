@@ -151,13 +151,16 @@ run_case "test --json + --in (reject)"          2 test fixture --task pass --jso
 # --submit の提出前チェック + 確認 (要件 044): リスク (不通過・実行不可・DEBUG 検出) が
 # あれば確認プロンプトを出すが、run.sh は非 TTY なので stdin の確認は自動で「いいえ」と
 # なり提出準備せず exit 1 になる (クリップボード/ブラウザには触れない)。クリーンな
-# --submit はコピー + ブラウザ起動の副作用があるため run.sh では回さない (手動確認)。
+# --submit はコピーの副作用があるため --no-open でブラウザ起動だけ抑止して回す。
 run_case "submit on fail (not clean → non-TTY abort)"    1 test fixture --task fail --submit
-run_case "submit on debug (fail + debug seen → abort)"   1 test fixture --task debug --submit
-# fixture_okdebug: stdout は通過するが stderr に [DEBUG]。通常実行は PASS、--submit は
-# DEBUG 検出で確認 → 非 TTY 中止。
+# fixture_debug: 無条件 [DEBUG] print で生実行は FAIL するが、--submit はコメントアウト後
+# ソースを実行する (要件 049) ので [DEBUG] print が消えて PASS → クリーン → 提出準備へ進む。
+run_case "submit on debug (commented out → clean → prep)" 0 test fixture --task debug --submit --no-open
+# fixture_okdebug: stdout は通過するが sys.stderr.write で [DEBUG] を吐く (= debugstrip の
+# regex に拾われずコメントアウトをすり抜ける)。通常実行は PASS、--submit はコメントアウト
+# 後ソースを実行しても [DEBUG] が残るので検出 → 確認 → 非 TTY 中止 (要件 049 の安全網)。
 run_case "fixture_okdebug (stderr debug, stdout ok)"     0 test fixture --task okdebug
-run_case "submit on okdebug (passes but debug seen → abort)" 1 test fixture --task okdebug --submit
+run_case "submit on okdebug (debug survives comment-out → abort)" 1 test fixture --task okdebug --submit
 check_output "submit abort prints precheck reasons" 1 has '提出前チェック' -- test fixture --task okdebug --submit
 
 # watch モードは TTY 必須。run.sh の出力は非 TTY なので --watch は exit 2 で拒否される。
