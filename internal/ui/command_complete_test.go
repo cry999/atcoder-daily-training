@@ -25,9 +25,11 @@ func TestCompleteCommandLine(t *testing.T) {
 		{"test unique appends space for arg cmd", "te", true, "test ", nil},
 		{"t ambiguous with nav (task/test)", "t", true, "t", []string{"task", "test"}},
 		{"t unique to test without nav", "t", false, "test ", nil}, // task は nav 限定なので消える
+		{"meta unique appends space for arg cmd", "me", true, "meta ", nil},
+		{"m prefix unique to meta", "m", true, "meta ", nil},
 		{"ambiguous keeps LCP and lists", "c", true, "c", []string{"case", "cheat", "contest"}},
-		{"empty lists all (nav)", "", true, "", []string{"case", "cheat", "contest", "debug", "e", "q", "replay", "set", "task", "test", "w"}},
-		{"empty lists base only (no nav)", "", false, "", []string{"case", "cheat", "debug", "q", "replay", "set", "test", "w"}},
+		{"empty lists all (nav)", "", true, "", []string{"case", "cheat", "contest", "debug", "e", "meta", "q", "replay", "set", "task", "test", "w"}},
+		{"empty lists base only (no nav)", "", false, "", []string{"case", "cheat", "debug", "meta", "q", "replay", "set", "test", "w"}},
 		{"no match no change", "zzz", true, "zzz", nil},
 		// nav コマンドは navEnabled=false では候補に出ない。
 		{"task hidden without nav", "ta", false, "ta", nil},
@@ -44,6 +46,9 @@ func TestCompleteCommandLine(t *testing.T) {
 		{"task next unique", "task n", true, "task next", nil},
 		{"task prev unique", "task p", true, "task prev", nil},
 		{"contest next unique", "contest n", true, "contest next", nil},
+		{"meta space lists fields", "meta ", true, "meta ", []string{"time_limit", "url"}},
+		{"meta url unique", "meta u", true, "meta url", nil},
+		{"meta time_limit unique", "meta t", true, "meta time_limit", nil},
 		{"cmd without subtokens no change", "case ", true, "case ", nil},
 		{"q has no subtokens", "q ", true, "q ", nil},
 

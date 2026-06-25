@@ -43,6 +43,18 @@ type ChatHeader struct {
 	// RecordInput は子へ送った各行を永続化するフック。非 nil なら submitLines が各行で呼ぶ。
 	// internal/ui は filesystem/XDG を知らないため composition root が注入する (Submit/Edit と同じ層境界)。
 	RecordInput func(line string)
+
+	// MetaShow / MetaSet は :meta コマンド (要件 050) で meta.toml を表示・編集するフック。
+	// 両方とも非 nil なら chat 内から url / time_limit を確認・上書きできる。internal/ui は
+	// testexec/layout を知らないため、読み書き・検証・整形は composition root に逃がす
+	// (Submit/Edit と同じ層境界)。
+	//
+	// MetaShow は表示行を返す。field="" なら全体 (url/time limit/samples)、field="url"/"time_limit"
+	// なら当該フィールドのみ。未キャッシュ等は error。
+	MetaShow func(field string) (lines []string, err error)
+	// MetaSet は field ("url"/"time_limit") を value で上書きし、結果行と (time_limit を更新した
+	// ときの) 新しい time_limit_ms を返す。検証失敗・未キャッシュは error。
+	MetaSet func(field, value string) (lines []string, newTimeLimitMs int, err error)
 }
 
 // EditPlan は Ctrl+E のエディタ起動計画。composition root の EditFunc が返す (要件 038)。

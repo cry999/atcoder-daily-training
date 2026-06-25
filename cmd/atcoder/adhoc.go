@@ -72,6 +72,8 @@ func makeChatRunner(contest, task string, lay layout.Layout, tolerance float64, 
 			Edit:        editFunc(editorOverride, nvimRemote), // Ctrl+E でエディタ起動 (要件 038/041)
 			PrevInputs:  prev,
 			RecordInput: func(line string) { _ = chatlog.Record(contest, task, sid, line) },
+			MetaShow:    chatMetaShowFunc(contest, task), // :meta の表示 (要件 050)
+			MetaSet:     chatMetaSetFunc(contest, task),  // :meta の編集 (要件 050)
 		})
 	}
 }

@@ -55,7 +55,7 @@ type testReplay struct {
 func newCommandInput() textinput.Model {
 	ti := textinput.New()
 	ti.Prompt = ":"
-	ti.Placeholder = "case | test [case] | w [name] | set verify | debug | replay | cheat | q"
+	ti.Placeholder = "case | test [case] | w [name] | set verify | meta | debug | replay | cheat | q"
 	return ti
 }
 
@@ -146,6 +146,9 @@ func parseCommand(s string) command {
 	case "t", "test":
 		// :test [case] — キャッシュ済みサンプルケースを子リスタート後に順送 + ライブ検証 (要件 045)。
 		return command{name: "test", arg: arg}
+	case "meta":
+		// :meta [url|time_limit [value]] — meta.toml の url / time_limit を表示・編集 (要件 050)。
+		return command{name: "meta", arg: arg}
 	default:
 		return command{name: "unknown", arg: name}
 	}
@@ -267,6 +270,8 @@ func (m *chatModel) execCommand(cmd command) (tea.Model, tea.Cmd) {
 		return m.execReplay()
 	case "test":
 		return m.execTest(cmd.arg)
+	case "meta":
+		return m, m.execMeta(cmd.arg)
 	case "task", "contest", "e":
 		return m.execNav(cmd)
 	default: // unknown
@@ -296,6 +301,62 @@ func (m *chatModel) execNav(cmd command) (tea.Model, tea.Cmd) {
 	m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "E492: :" + cmd.name + " next|prev (n|p) または直指定"})
 	m.refreshViewport()
 	return m, nil
+}
+
+// execMeta は `:meta` (要件 050) を処理する。引数なしで meta.toml の全体 (url/time limit/
+// samples) を、`:meta url` / `:meta time_limit` で当該フィールドの現在値を表示し、
+// `:meta url <url>` / `:meta time_limit <dur>` で上書きする。meta の読み書き・検証・整形は
+// composition root が注入する MetaShow / MetaSet フックに委譲する (internal/ui は testexec/
+// layout を知らない層境界。Submit/Edit と同じ)。time_limit を更新したらヘッダ表示にも反映する。
+func (m *chatModel) execMeta(arg string) tea.Cmd {
+	m.returnFromCommand()
+	if m.header.MetaShow == nil || m.header.MetaSet == nil {
+		m.addInfoLine("(メタ編集はこの画面では使えません)")
+		m.refreshViewport()
+		return nil
+	}
+	f := strings.Fields(arg)
+	switch {
+	case len(f) == 0: // :meta → 全体表示
+		m.metaShow("")
+	case f[0] != "url" && f[0] != "time_limit":
+		m.addInfoLine("E518: unknown meta field :meta " + f[0])
+	case len(f) == 1: // :meta url / :meta time_limit → 当該フィールド表示
+		m.metaShow(f[0])
+	default: // :meta <field> <value> → 編集
+		m.metaSet(f[0], strings.Join(f[1:], " "))
+	}
+	m.refreshViewport()
+	return nil
+}
+
+// metaShow は MetaShow フックを呼び、返ってきた行を info 行で積む。失敗は err 行で 1 本。
+func (m *chatModel) metaShow(field string) {
+	lines, err := m.header.MetaShow(field)
+	if err != nil {
+		m.addErrLine("(" + err.Error() + ")")
+		return
+	}
+	for _, l := range lines {
+		m.addInfoLine(l)
+	}
+}
+
+// metaSet は MetaSet フックを呼んで meta.toml を上書きし、結果行を info 行で積む。
+// time_limit を更新したときはヘッダの Time Limit 表示も新値に揃える (続く :test の TLE 判定に効く)。
+// 検証失敗・未キャッシュ・I/O 失敗は err 行で 1 本積み、chat は継続する。
+func (m *chatModel) metaSet(field, value string) {
+	lines, newTimeLimitMs, err := m.header.MetaSet(field, value)
+	if err != nil {
+		m.addErrLine("(" + err.Error() + ")")
+		return
+	}
+	for _, l := range lines {
+		m.addInfoLine(l)
+	}
+	if field == "time_limit" {
+		m.header.TimeLimitMs = newTimeLimitMs
+	}
 }
 
 // applySet は `:set verify` / `:set noverify` / `:set debug|nodebug` を処理する。
@@ -365,6 +426,7 @@ func (m *chatModel) showCheat() {
 		"  :set verify|noverify  ライブ検証 on/off",
 		"  :debug                Debug 表示 (-d) を切替 (:set debug|nodebug)",
 		"  :replay               直近に流した入力 (手入力 / :test ケース) を再送 + 再検証",
+		"  :meta [url|time_limit [値]]  meta の url / time_limit を表示・編集",
 		"  :cheat (:help :?)     このコマンド一覧",
 		"  :q                    chat 終了 (作成画面中は破棄)",
 	}
