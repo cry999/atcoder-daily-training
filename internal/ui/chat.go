@@ -245,6 +245,7 @@ type chatModel struct {
 	sessionInputs     []string        // 現 (子) セッションで送信した入力行 (`:case` の .in 前埋め / :replay の第一候補。子リスタートで nil)
 	prevSessionInputs []string        // 直前に完了した (空でない) 子セッションの入力行 (:replay のフォールバック。要件 039)
 	lastTest          *testReplay     // 直近に :test で流したサンプルケース。:replay が「直近の操作」として再送 + 再検証する (今回の起動内でのみ保持。要件 048)
+	lastOpWasTest     bool            // 直近の「再生対象となる操作」が :test ケースなら true、手入力なら false。:replay が手入力/テストを判定する手がかり。:replay 自身はこれを変えない (連続 :replay で対象が遡らないように。要件 048 / バグ報告)
 }
 
 // initialChatModel は遅延起動の chat モデルを作る。子プロセスは開いた時点では
@@ -501,6 +502,7 @@ func (m *chatModel) submitLines(lines []string, cmds *[]tea.Cmd, record bool) {
 		if record {
 			// 手入力のみ現セッションの入力として覚える (:case 前埋め / :replay 対象)。
 			m.sessionInputs = append(m.sessionInputs, txt)
+			m.lastOpWasTest = false // 直近の操作は手入力 → :replay は手入力を再生 (要件 048)
 			if m.header.RecordInput != nil {
 				m.header.RecordInput(txt) // セッション横断の永続化 (:replay の cross-run フォールバック用。要件 039)。best-effort
 			}

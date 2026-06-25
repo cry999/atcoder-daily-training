@@ -310,6 +310,30 @@ func TestReplayManualThenTestReplaysTest(t *testing.T) {
 	}
 }
 
+// バグ再現 (要件 048 / バグ報告): :test の後に手入力してから :replay を連続実行すると、
+// 直近の操作は「手入力」のままなので毎回その手入力を再生すべき。:replay 自身が
+// sessionInputs を退避・リセットするため、2 回目以降に lastTest 分岐へ落ちて
+// テストケースへ遡ってしまってはいけない。
+func TestReplayManualAfterTestRepeatable(t *testing.T) {
+	taskDir := t.TempDir()
+	writeCase(t, filepath.Join(taskDir, "tests"), "01", "case in\n", "out\n")
+
+	var stdin bytes.Buffer
+	calls := 0
+	m := &chatModel{spawn: spawnToBuf(&stdin, &calls), header: ChatHeader{TaskDir: taskDir}}
+
+	m.execTest("01") // 直近 = テスト
+	var cmds []tea.Cmd
+	m.submitLines([]string{"manual"}, &cmds, true) // その後に手入力 → 直近 = 手入力
+	m.execReplay()                                 // 1 回目: 手入力を再生
+	stdin.Reset()
+	m.execReplay() // 2 回目も同じ手入力を再生すべき (テストケースへ遡らない)
+
+	if got, want := stdin.String(), "manual\n"; got != want {
+		t.Errorf("repeated replay after manual-following-test should keep re-sending manual, not walk back to the test case: stdin = %q, want %q", got, want)
+	}
+}
+
 // 直近 :test ケースの再生は対象を消費しない — 続けて :replay すれば同じケースを再生できる。
 func TestReplayTestCaseRepeatable(t *testing.T) {
 	taskDir := t.TempDir()

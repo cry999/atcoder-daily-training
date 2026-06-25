@@ -443,19 +443,20 @@ func (m *chatModel) showCheat() {
 }
 
 // execReplay は **直近の操作** を再生する (:replay。要件 039 / 048)。優先順位は:
-//  1. 現セッションの手入力 (sessionInputs) — :test の後に手入力していれば最優先
-//  2. 直近の :test ケース (lastTest)        — input を再送し expected で再検証する
+//  1. 直近の操作が :test ケース (lastOpWasTest) → lastTest を再送し expected で再検証する
+//  2. それ以外 (直近の操作が手入力) → 現セッションの手入力 (sessionInputs)
 //  3. 直前に完了したセッション (prevSessionInputs)
 //  4. 前回 chat 起動の手入力 (PrevInputs)
 //
-// sessionInputs の空・非空が「:test より後に手入力したか」と一致する (:test は子リスタート
-// で sessionInputs を退避・リセットし、順送は record=false なので積まれない)。これを使って
-// 明示タイムラインなしに「直近の操作が手入力か :test ケースか」を判定する。子をリスタート
+// 「直近の操作が手入力か :test ケースか」は lastOpWasTest で判定する (手入力時に false、
+// :test 実行時に true を立て、:replay 自身は変えない)。sessionInputs の空・非空で判定すると、
+// :replay 自身が flowInput→restart で sessionInputs を退避・リセットして空にするため、連続
+// :replay の 2 回目以降に手入力からテストケースへ遡ってしまう (バグ報告)。子をリスタート
 // してクリーンな状態を作り、対象を順送する。何も無ければ info 行のみで子は起動しない。
 func (m *chatModel) execReplay() (tea.Model, tea.Cmd) {
 	m.returnFromCommand()
-	// 現セッションに手入力が残っていなければ、直近の :test ケースを最優先で再送 + 再検証する。
-	if len(m.sessionInputs) == 0 && m.lastTest != nil {
+	// 直近の操作が :test ケースなら、それを最優先で再送 + 再検証する。
+	if m.lastOpWasTest && m.lastTest != nil {
 		t := m.lastTest
 		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: fmt.Sprintf("(case %s を再生 — input %d行 / expected %d行)", t.id, len(t.input), len(t.expected))})
 		return m.flowInput(t.input, t.expected)
@@ -535,6 +536,7 @@ func (m *chatModel) execTest(arg string) (tea.Model, tea.Cmd) {
 	// 直近の :test として覚える: :replay が「直近の操作」としてこのケースを再送 + 再検証する ([048])。
 	// in/out は resolveSampleCase が返した fresh なスライスなのでそのまま保持してよい。
 	m.lastTest = &testReplay{id: id, input: in, expected: out}
+	m.lastOpWasTest = true // 直近の操作は :test ケース → :replay はこのケースを再生 (要件 048)
 	// 検証有効化 → 子リスタート → 順送 (record=false) は :replay と共通 (flowInput)。
 	return m.flowInput(in, out)
 }
