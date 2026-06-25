@@ -95,5 +95,5 @@ chat の **insert モード (通常のチャット入力時)** でも、`PageUp`
 ## 関連ドキュメント
 
 - `docs/tools/requirements/033-command-mode-scrollback-paging.md` (command モードのスクロール。本件はその insert 版・機構を共有)
-- `docs/tools/requirements/030-ctrl-d-reset-then-quit.md` (insert モードのキー割当の前例)
+- `docs/tools/requirements/051-interactive-ctrl-d-reset-then-quit.md` (insert モードのキー割当の前例)
 - `docs/tools/atcoder-start-usage.md` (チャットキーの説明の更新先)

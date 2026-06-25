@@ -166,7 +166,7 @@ func RunStartSplit(cfg StartSplitConfig) (int, error)
 
 ## 関連ドキュメント
 
-- `docs/tools/requirements/019-start-key-actions.md` (start の watch + `i` キー: 本要件で分割画面に発展)
+- `docs/tools/requirements/054-start-key-actions.md` (start の watch + `i` キー: 本要件で分割画面に発展)
 - `docs/tools/requirements/020-interactive-auto-restart-flag.md` (chat の auto-restart)
 - `docs/tools/atcoder-start-usage.md` (利用手引)
 - `docs/tools/atcoder-test-architecture.md` (chat TUI 内部設計)

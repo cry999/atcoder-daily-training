@@ -2,7 +2,7 @@
 
 `atcoder` 自身を最新版に入れ替える・現在の版を確認する。このツールのソースはこの GitHub リポジトリ自身なので、最新版の取得・インストールは Go ツールチェインに委譲する (`go install …/cmd/atcoder@latest`)。バージョンは Go が実行ファイルに自動で埋め込む VCS 情報 (コミット sha・日時) で識別し、**git タグは使わない**。
 
-> 要件詳細: `docs/tools/requirements/013-atcoder-self-update.md`
+> 要件詳細: `docs/tools/requirements/050-atcoder-self-update.md`
 
 ## コマンド
 
@@ -100,6 +100,6 @@ $ atcoder update            # 既に最新
 
 ## 関連
 
-- [requirements/013-atcoder-self-update.md](./requirements/013-atcoder-self-update.md) — 要件定義
+- [requirements/050-atcoder-self-update.md](./requirements/050-atcoder-self-update.md) — 要件定義
 - [requirements/006-rename-cli-to-atcoder.md](./requirements/006-rename-cli-to-atcoder.md) — `go install ./cmd/atcoder` 前提
 - [atcoder-completion-usage.md](./atcoder-completion-usage.md) — `version`/`update` も補完対象

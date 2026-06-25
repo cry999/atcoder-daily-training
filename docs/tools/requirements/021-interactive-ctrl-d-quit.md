@@ -107,7 +107,7 @@ func ctrlDActionFor(autoRestart bool) ctrlDAction
 ## 将来の拡張ポイント
 
 - どうしても chat から EOF を送りたい需要が出たら、別キー (例 `Ctrl+E`) に「子へ EOF」を割り当てる。
-- `start` のキー層 (019) と chat のキーを統一的に説明するヘルプ (`?`)。
+- `start` のキー層 (054) と chat のキーを統一的に説明するヘルプ (`?`)。
 
 ## 用語
 

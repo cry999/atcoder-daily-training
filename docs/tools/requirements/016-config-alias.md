@@ -218,6 +218,6 @@ func Unset(key string) error
 
 - `docs/tools/requirements/007-atcoder-config.md` / `docs/tools/decisions/0003-user-config-xdg-toml.md` (config の基盤・XDG/TOML)
 - `docs/tools/requirements/008-atcoder-completion.md` / `012-completion-descriptions.md` (alias を補完候補に足す)
-- `docs/tools/requirements/013-atcoder-self-update.md` (alias の主目的の 1 つ `update --local`)
+- `docs/tools/requirements/050-atcoder-self-update.md` (alias の主目的の 1 つ `update --local`)
 - `docs/tools/atcoder-config-usage.md` (利用手引。本機能で新設)
 - `docs/tools/todo.md` (上位ロードマップ。項目 N)

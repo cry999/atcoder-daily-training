@@ -159,7 +159,7 @@ func submitPrepCore(contest, task string, lay layout.Layout, noOpen bool) (submi
 ## 関連ドキュメント
 
 - `docs/tools/requirements/015-fold-submit-into-test.md` / `decisions/0006-fold-submit-into-test.md` (提出準備の本体 `prepareSubmission`)
-- `docs/tools/requirements/019-start-key-actions.md` (start の watch キー。将来欄に `s`=提出準備があるが、本要件は chat 内の `Ctrl+S`)
+- `docs/tools/requirements/054-start-key-actions.md` (start の watch キー。将来欄に `s`=提出準備があるが、本要件は chat 内の `Ctrl+S`)
 - `docs/tools/requirements/024-interactive-case-builder.md` (chat のコマンドモード。`:submit` を将来エイリアスにする接続先)
 - `docs/tools/abc-todo.md`「C. 提出」(submit ロードマップ)
 - `docs/tools/todo.md` (本機能の項目)

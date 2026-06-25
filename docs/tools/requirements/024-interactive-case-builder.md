@@ -190,5 +190,5 @@ func List(taskDir string) ([]string, error)
 - ロードマップ: [`abc-todo.md`](../abc-todo.md) の **F. WA / penalty 後のワークフロー** (この要件が実装に落とす) / `todo.md`
 - 決定記録: [ADR 0007 — インタラクティブ command モードのトリガー](../decisions/0007-interactive-command-mode-trigger.md)
 - インタラクティブ chat の既存仕様: [019](019-interactive-output-timing.md) / [020](020-interactive-auto-restart-flag.md) / [021](021-interactive-ctrl-d-quit.md) / [022](022-interactive-unify-quit-keys.md)
-- start コマンド: [018](018-start-command.md) / [019-start-key-actions](019-start-key-actions.md) / [023-start-split-screen](023-start-split-screen.md)
+- start コマンド: [018](018-start-command.md) / [054-start-key-actions](054-start-key-actions.md) / [023-start-split-screen](023-start-split-screen.md)
 - 利用手引: `docs/tools/atcoder-test-usage.md` (実装時に command モード / ビルダー / ライブ検証を追記)
