@@ -46,9 +46,10 @@ func TestCompleteCommandLine(t *testing.T) {
 		{"task next unique", "task n", true, "task next", nil},
 		{"task prev unique", "task p", true, "task prev", nil},
 		{"contest next unique", "contest n", true, "contest next", nil},
-		{"meta space lists fields", "meta ", true, "meta ", []string{"time_limit", "url"}},
+		{"meta space lists fields", "meta ", true, "meta ", []string{"fetch", "time_limit", "url"}},
 		{"meta url unique", "meta u", true, "meta url", nil},
 		{"meta time_limit unique", "meta t", true, "meta time_limit", nil},
+		{"meta fetch unique", "meta f", true, "meta fetch", nil},
 		{"cmd without subtokens no change", "case ", true, "case ", nil},
 		{"q has no subtokens", "q ", true, "q ", nil},
 

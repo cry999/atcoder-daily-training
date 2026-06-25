@@ -55,6 +55,13 @@ type ChatHeader struct {
 	// MetaSet は field ("url"/"time_limit") を value で上書きし、結果行と (time_limit を更新した
 	// ときの) 新しい time_limit_ms を返す。検証失敗・未キャッシュは error。
 	MetaSet func(field, value string) (lines []string, newTimeLimitMs int, err error)
+	// MetaFetch は :meta fetch (要件 057) で meta.toml の url (override 優先) から
+	// サンプル + Time Limit を再取得するフック。結果行と (Time Limit が変わったときの)
+	// 新しい time_limit_ms を返す。ネットワーク呼び出しを伴うため chat は tea.Cmd で
+	// 非同期に呼ぶ (Ctrl+E の editDoneMsg と同型)。composition root が
+	// testexec.EnsureTests(refresh=true) をサイレント reporter で実行する
+	// (internal/ui は testexec を知らないため)。
+	MetaFetch func() (lines []string, newTimeLimitMs int, err error)
 }
 
 // EditPlan は Ctrl+E のエディタ起動計画。composition root の EditFunc が返す (要件 038)。
@@ -72,6 +79,15 @@ type EditFunc func(path string) EditPlan
 
 // editDoneMsg は tea.ExecProcess (端末を奪うエディタ起動) の完了通知。
 type editDoneMsg struct{ err error }
+
+// metaFetchDoneMsg は :meta fetch (要件 057) の非同期再取得の完了通知。
+// lines は表示する結果行 (fetched/url/time limit/samples)、newTimeLimitMs は
+// Time Limit が変わったときの新値 (> 0 ならヘッダに反映)、err は取得失敗。
+type metaFetchDoneMsg struct {
+	lines          []string
+	newTimeLimitMs int
+	err            error
+}
 
 // SubmitResult は chat の Ctrl+S 提出準備の結果。chat はこれを 1 行に整形して表示する。
 type SubmitResult struct {
@@ -799,6 +815,12 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(エディタを閉じました)"})
 		}
+		m.refreshViewport()
+		return m, nil
+	case metaFetchDoneMsg:
+		// :meta fetch (要件 057) の非同期再取得の完了。結果行 / err 行を積み、
+		// Time Limit が変わればヘッダに反映する。
+		m.applyMetaFetchDone(msg)
 		m.refreshViewport()
 		return m, nil
 	}

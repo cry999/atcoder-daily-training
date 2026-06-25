@@ -14,12 +14,13 @@ var (
 	// NavEnabled (start 分割画面) のときだけ出すコマンド名 (要件 027)。
 	completeNamesNav = []string{"contest", "e", "task"}
 	// 第 2 トークンの候補 (1 語目 → サブトークン)。:set は verify/noverify に加え
-	// Debug 表示トグルの debug/nodebug も取る (要件 030)。:meta は url/time_limit (要件 055)。
+	// Debug 表示トグルの debug/nodebug も取る (要件 030)。:meta は fetch/url/time_limit
+	// (要件 055 / 057)。
 	completeSubTokens = map[string][]string{
 		"set":     {"debug", "nodebug", "noverify", "verify"},
 		"task":    {"next", "prev"},
 		"contest": {"next", "prev"},
-		"meta":    {"time_limit", "url"},
+		"meta":    {"fetch", "time_limit", "url"},
 	}
 	// 後続トークンを取るコマンド (一意確定時に末尾へ空白を足す)。
 	completeExpectsArg = map[string]bool{"set": true, "task": true, "contest": true, "e": true, "test": true, "meta": true}

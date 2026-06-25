@@ -85,6 +85,33 @@ func chatMetaSetFunc(contest, task string) func(field, value string) ([]string, 
 	}
 }
 
+// chatMetaFetchFunc は chat の :meta fetch 再取得フック (要件 057)。CLI `atcoder meta fetch`
+// と同じく meta.toml の url (override 優先・なければ既定 URL) からサンプル + Time Limit を
+// 強制再取得し (testexec.EnsureTests refresh=true)、tests/ と meta.toml を更新する。
+// chat (TUI) から呼ばれるため、取得進捗は stdout を汚さないサイレント reporter
+// (testexec.NewSummaryReporter) で握りつぶし、結果は行で返す (chat が info 行で表示する)。
+// 戻り値の newTimeLimitMs は再取得後の Time Limit (chat がヘッダ表示を揃えるのに使う)。
+func chatMetaFetchFunc(contest, task string) func() ([]string, int, error) {
+	return func() ([]string, int, error) {
+		reporter := testexec.NewSummaryReporter()
+		res, err := testexec.EnsureTests(reporter, contest, task, true)
+		if err != nil {
+			return nil, 0, fmt.Errorf("再取得に失敗しました: %w", err)
+		}
+		m, err := testexec.LoadMeta(contest, task)
+		if err != nil {
+			return nil, 0, fmt.Errorf("再取得に失敗しました: %w", err)
+		}
+		lines := []string{
+			fmt.Sprintf("fetched %s", task),
+			fmt.Sprintf("url:         %s", metaURLOrNone(m.URL)),
+			fmt.Sprintf("time limit:  %d ms", res.TimeLimitMs),
+			fmt.Sprintf("samples:     %d", res.NumSamples),
+		}
+		return lines, res.TimeLimitMs, nil
+	}
+}
+
 // metaURLOrNone は空 url を "(none)" に整形する (CLI meta set と同じ表記)。
 func metaURLOrNone(u string) string {
 	if u == "" {

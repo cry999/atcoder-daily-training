@@ -147,7 +147,8 @@ func parseCommand(s string) command {
 		// :test [case] — キャッシュ済みサンプルケースを子リスタート後に順送 + ライブ検証 (要件 045)。
 		return command{name: "test", arg: arg}
 	case "meta":
-		// :meta [url|time_limit [value]] — meta.toml の url / time_limit を表示・編集 (要件 055)。
+		// :meta [fetch|url|time_limit [value]] — meta.toml の url / time_limit を表示・編集 (要件 055)、
+		// :meta fetch で url から再取得 (要件 057)。
 		return command{name: "meta", arg: arg}
 	default:
 		return command{name: "unknown", arg: name}
@@ -319,6 +320,10 @@ func (m *chatModel) execMeta(arg string) tea.Cmd {
 	switch {
 	case len(f) == 0: // :meta → 全体表示
 		m.metaShow("")
+	case f[0] == "fetch": // :meta fetch → 再取得 (非同期。要件 057)
+		// fetch はネットワーク呼び出しを伴うため tea.Cmd で非同期に回す。
+		// metaFetch が「(再取得中…)」行を積んで viewport を更新済み。
+		return m.metaFetch()
 	case f[0] != "url" && f[0] != "time_limit":
 		m.addInfoLine("E518: unknown meta field :meta " + f[0])
 	case len(f) == 1: // :meta url / :meta time_limit → 当該フィールド表示
@@ -328,6 +333,42 @@ func (m *chatModel) execMeta(arg string) tea.Cmd {
 	}
 	m.refreshViewport()
 	return nil
+}
+
+// metaFetch は `:meta fetch` (要件 057) を処理する。meta.toml の url (override 優先) から
+// サンプル + Time Limit を再取得するフック (MetaFetch) を tea.Cmd で非同期に呼ぶ。
+// 即「(再取得中…)」を 1 行積んで UI をブロックせず、完了は metaFetchDoneMsg で受ける
+// (applyMetaFetchDone)。Ctrl+E の editDoneMsg と同型。
+func (m *chatModel) metaFetch() tea.Cmd {
+	if m.header.MetaFetch == nil {
+		// 念のため (execMeta 冒頭で MetaShow/MetaSet は確認済み。3 つは一括注入される)。
+		m.addInfoLine("(メタ編集はこの画面では使えません)")
+		m.refreshViewport()
+		return nil
+	}
+	m.addInfoLine("(再取得中…)")
+	m.refreshViewport()
+	fetch := m.header.MetaFetch
+	return func() tea.Msg {
+		lines, ms, err := fetch()
+		return metaFetchDoneMsg{lines: lines, newTimeLimitMs: ms, err: err}
+	}
+}
+
+// applyMetaFetchDone は :meta fetch の非同期完了を反映する。成功なら結果行を info 行で積み、
+// Time Limit が変わっていれば (> 0) ヘッダの TimeLimitMs を更新する (続く :test の TLE 判定に効く)。
+// 失敗は err 行で 1 本積み、chat は継続する (キャッシュ・ヘッダは変えない)。
+func (m *chatModel) applyMetaFetchDone(msg metaFetchDoneMsg) {
+	if msg.err != nil {
+		m.addErrLine("(" + msg.err.Error() + ")")
+		return
+	}
+	for _, l := range msg.lines {
+		m.addInfoLine(l)
+	}
+	if msg.newTimeLimitMs > 0 {
+		m.header.TimeLimitMs = msg.newTimeLimitMs
+	}
 }
 
 // metaShow は MetaShow フックを呼び、返ってきた行を info 行で積む。失敗は err 行で 1 本。
@@ -427,6 +468,7 @@ func (m *chatModel) showCheat() {
 		"  :debug                Debug 表示 (-d) を切替 (:set debug|nodebug)",
 		"  :replay               直近に流した入力 (手入力 / :test ケース) を再送 + 再検証",
 		"  :meta [url|time_limit [値]]  meta の url / time_limit を表示・編集",
+		"  :meta fetch           url からサンプル + Time Limit を再取得",
 		"  :cheat (:help :?)     このコマンド一覧",
 		"  :q                    chat 終了 (作成画面中は破棄)",
 	}
