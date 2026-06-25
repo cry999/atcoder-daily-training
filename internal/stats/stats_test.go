@@ -389,7 +389,7 @@ func TestBuildGraphWeek(t *testing.T) {
 }
 
 func TestBuildGraphMonthPadding(t *testing.T) {
-	now := d(2026, 6, 10) // 6/1 は月曜。range = 6/1〜6/10
+	now := d(2026, 6, 10)                                                          // 6/1 は月曜。range = 6/1〜6/10
 	cols, _ := buildGraph(map[time.Time]int{d(2026, 6, 1): 4}, d(2026, 6, 1), now) // ThisMonth の窓開始 = 月初
 	// 6/1 は月曜なので列頭。6/1 セルは InRange level2。
 	if c, ok := cellByDate(cols, d(2026, 6, 1)); !ok || c.Level != 2 {

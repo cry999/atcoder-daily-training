@@ -70,8 +70,8 @@ var (
 	diffGutterStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaSurface2))
 	diffMinusGutterStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaSurface2)).Background(lipgloss.Color(diffMinusBg))
 	diffPlusGutterStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaSurface2)).Background(lipgloss.Color(diffPlusBg))
-	diffMinusLineStyle = lipgloss.NewStyle().Background(lipgloss.Color(diffMinusBg)).Foreground(lipgloss.Color(mochaText))
-	diffPlusLineStyle  = lipgloss.NewStyle().Background(lipgloss.Color(diffPlusBg)).Foreground(lipgloss.Color(mochaText))
+	diffMinusLineStyle   = lipgloss.NewStyle().Background(lipgloss.Color(diffMinusBg)).Foreground(lipgloss.Color(mochaText))
+	diffPlusLineStyle    = lipgloss.NewStyle().Background(lipgloss.Color(diffPlusBg)).Foreground(lipgloss.Color(mochaText))
 	// intra-line emph: 差分のあった token を「文字色」で強調する (bg は行 bg
 	// と同じ、fg だけ red/green に上書き)。
 	diffMinusEmphStyle = lipgloss.NewStyle().Background(lipgloss.Color(diffMinusBg)).Foreground(lipgloss.Color(mochaRed)).Bold(true)

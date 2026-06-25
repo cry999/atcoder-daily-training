@@ -28,8 +28,9 @@ type reviewModel struct {
 }
 
 // chromeHeight は viewport の上下に固定表示する行数 (高さ計算用)。
-//   title(1) + blank(1) + header(1) ＝ 上 3 行
-//   blank(1) + legend(1) + footer(1) ＝ 下 3 行
+//
+//	title(1) + blank(1) + header(1) ＝ 上 3 行
+//	blank(1) + legend(1) + footer(1) ＝ 下 3 行
 const chromeHeight = 6
 
 func newReviewModel(rep Report) reviewModel {

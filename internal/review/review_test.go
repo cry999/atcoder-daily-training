@@ -97,7 +97,7 @@ func TestBuildSortContestDesc(t *testing.T) {
 func TestBuildPeriodFilter(t *testing.T) {
 	now := d(2026, 6, 9)
 	solves := []stats.Solve{
-		sv(d(2026, 6, 7), "abc457", "d"), // 今月
+		sv(d(2026, 6, 7), "abc457", "d"),  // 今月
 		sv(d(2026, 5, 31), "abc456", "d"), // 先月 → --month で除外
 	}
 	rep := Build(solves, Options{Category: "abc", Period: stats.ThisMonth, Now: now})

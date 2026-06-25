@@ -206,7 +206,7 @@ func (p *Python) StartChat(source string, extraEnv []string) (*ChatHandle, error
 		cmd:    cmd,
 		start:  time.Now(),
 		Stdin:  stdin,
-		Stdout: pr,                                // stdout/stderr を統合した単一ストリーム (順序保持)
+		Stdout: pr,                                 // stdout/stderr を統合した単一ストリーム (順序保持)
 		Stderr: io.NopCloser(bytes.NewReader(nil)), // 統合済みなので別 stderr は無い (即 EOF)
 		out:    pr,
 	}, nil

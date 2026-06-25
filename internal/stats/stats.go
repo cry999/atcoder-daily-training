@@ -462,6 +462,7 @@ func weeklySeries(in []Solve) (buckets []Bucket, omitted int) {
 //   - "?" (レター不明) は 1。
 //   - 先頭が英小文字なら a=1, b=2, … z=26 (大文字は classify で小文字化済み)。
 //   - それ以外 (数字始まり等) は 1。
+//
 // 複数文字レター ("ex" 等、稀) は先頭文字のみ採用する。
 func letterWeight(letter string) int {
 	if letter == "" || letter == "?" {

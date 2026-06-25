@@ -15,13 +15,13 @@ func TestClassifyTraceback(t *testing.T) {
 		wantNext bool
 	}
 	steps := []step{
-		{"hello", false, false},                                  // 通常の stdout
-		{"Traceback (most recent call last):", true, true},       // traceback 開始
-		{`  File "main.py", line 3, in <module>`, true, true},    // フレーム (インデント)
-		{"    x = 1 / 0", true, true},                            // フレーム本体
-		{"", true, true},                                         // 空行はブロック継続
-		{"ZeroDivisionError: division by zero", true, false},     // 例外メッセージ行で終端
-		{"after", false, false},                                  // 終端後は通常 stdout に戻る
+		{"hello", false, false},                               // 通常の stdout
+		{"Traceback (most recent call last):", true, true},    // traceback 開始
+		{`  File "main.py", line 3, in <module>`, true, true}, // フレーム (インデント)
+		{"    x = 1 / 0", true, true},                         // フレーム本体
+		{"", true, true},                                      // 空行はブロック継続
+		{"ZeroDivisionError: division by zero", true, false},  // 例外メッセージ行で終端
+		{"after", false, false},                               // 終端後は通常 stdout に戻る
 		{"During handling of the above exception, another exception occurred:", true, true}, // 連鎖ブリッジ
 		{"Traceback (most recent call last):", true, true},
 		{"ValueError: boom", true, false},
