@@ -561,10 +561,10 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		if !m.ready {
-			m.viewport = viewport.New(m.width, 1)
+			m.viewport = viewport.New(m.contentWidth(), 1)
 			m.ready = true
 		} else {
-			m.viewport.Width = m.width
+			m.viewport.Width = m.contentWidth()
 		}
 		m.input.Width = m.width - 4
 		if m.builder != nil {
@@ -819,7 +819,7 @@ func (m *chatModel) View() string {
 	// 1 件でも出力 / 入力があれば viewport を含めてレンダリングする。
 	parts := []string{m.renderHeader()}
 	if len(m.msgs) > 0 || m.awaiting {
-		parts = append(parts, m.viewport.View())
+		parts = append(parts, m.renderViewport())
 	}
 	// command モード (builder 無し) は入力ボックスの代わりに `:` 行 (+ 補完候補) を出す。
 	if m.mode == modeCommand {
@@ -872,7 +872,7 @@ func (m *chatModel) refreshViewport() {
 		}
 		// 各メッセージは viewport 幅で折り返し、継続行はインデントを揃えて
 		// 折り返しマーカー (↪) を付ける (長い出力がクリップされて途切れるのを防ぐ)。
-		sb.WriteString(renderMsgBlock(msg, m.width))
+		sb.WriteString(renderMsgBlock(msg, m.contentWidth()))
 	}
 	content := sb.String()
 	// 出力待ち中はスピナー + 経過時間を出力の **最後尾** に 1 行足す
@@ -1078,6 +1078,75 @@ func (m *chatModel) maxViewportHeight() int {
 	return h
 }
 
+// chatScrollbarWidth は scrollback 右端に確保するスクロールバー gutter の幅 (列)。
+const chatScrollbarWidth = 1
+
+// contentWidth は本文 (折り返し) に使える幅。右端 1 列をスクロールバー gutter に
+// 常時確保し、overflow の開始/終了で折り返しがリフローしないようにする (要件 056)。
+func (m *chatModel) contentWidth() int {
+	if m.width >= 2 {
+		return m.width - chatScrollbarWidth
+	}
+	if m.width >= 1 {
+		return m.width
+	}
+	return 1
+}
+
+// renderViewport は viewport の表示に右端スクロールバー列を重ねて返す (要件 056)。
+// viewport.View() は各行を contentWidth まで pad するので、その右に gutter 1 列を連結する。
+func (m *chatModel) renderViewport() string {
+	body := m.viewport.View()
+	if m.width < 2 {
+		return body // gutter を確保できない狭い端末ではスクロールバー無し
+	}
+	lines := strings.Split(body, "\n")
+	col := m.scrollbarColumn(len(lines))
+	for i := range lines {
+		lines[i] += col[i]
+	}
+	return strings.Join(lines, "\n")
+}
+
+// scrollbarColumn は h 行分の gutter 文字列 (スタイル適用済み) を返す。scrollback が
+// スクロール可能なら track の上に thumb を重ね、収まっているなら全て空白にする (要件 056)。
+func (m *chatModel) scrollbarColumn(h int) []string {
+	col := make([]string, h)
+	total := m.viewport.TotalLineCount()
+	// total <= h は「1 画面に収まる」= スクロール不要。gutter は空白にする。
+	// (viewport.ScrollPercent は total <= h で 1.0 を返すので、ここで先にゲートする)
+	if h <= 0 || total <= h {
+		for i := range col {
+			col[i] = " "
+		}
+		return col
+	}
+	// thumb の長さ = 表示高 × 表示高 / 総行数 (下限 1・上限 h)。
+	thumb := int(math.Round(float64(h*h) / float64(total)))
+	if thumb < 1 {
+		thumb = 1
+	}
+	if thumb > h {
+		thumb = h
+	}
+	// thumb の開始行 = スクロール率 × (h - thumb)。
+	start := int(math.Round(m.viewport.ScrollPercent() * float64(h-thumb)))
+	if start < 0 {
+		start = 0
+	}
+	if start > h-thumb {
+		start = h - thumb
+	}
+	for i := 0; i < h; i++ {
+		if i >= start && i < start+thumb {
+			col[i] = chatScrollThumbStyle.Render("█")
+		} else {
+			col[i] = chatScrollTrackStyle.Render("│")
+		}
+	}
+	return col
+}
+
 // chat 専用のスタイル (style.go に置いてもよいが chat だけで使うので近くに置く)。
 // インディケーターは行種別の「カテゴリ」を色で示し (Blue / Green / Red)、
 // 本文は luminance のコントラストで「読みやすさの優先度」を表す:
@@ -1109,4 +1178,8 @@ var (
 	chatWrapStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay0))
 	// 出力待ちスピナー + 経過時間。注意を引きつつ主張しすぎない sapphire 系。
 	chatWaitStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaSapphire))
+	// scrollback 右端のスクロールバー (要件 056)。track はレールなので最も dim な
+	// surface1、thumb は現在地なので一段明るい overlay1 にして本文を邪魔しない。
+	chatScrollTrackStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaSurface1))
+	chatScrollThumbStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay1))
 )
