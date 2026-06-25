@@ -45,6 +45,7 @@ atcoder start <contest> --task <task> [--until-pass] [--refresh] [-d] [-s] [-j <
 | `Ctrl+E` | **解答ファイルをエディタで開く** ([要件 038](./requirements/038-start-edit-in-editor.md))。nvim の `:terminal` 内 (`$NVIM` 在り) なら**親 nvim に送る**: 既定は現在のウィンドウで開いてタブを再利用 (`--remote`)、`editor_nvim_remote = tab` なら問題ごとに新規タブ (`--remote-tab`)。いずれも新しい nvim を起動せずネスト回避 ([要件 041](./requirements/041-edit-nvim-remote-reuse.md))。nvim 外なら `editor` (config) / `$EDITOR` / `nvim` を一時的に前面起動し、終了で分割画面に戻る。ファイルは開くだけ |
 | `Ctrl+D` (2 回連続) | 全体を終了 (exit 0)。1 回目はプログラムのリセット (子を再起動)、間に他キーで連続カウントは戻る |
 | `Ctrl+C` | プログラムの中断・再起動 (子を kill して再実行・chat に留まる) |
+| `Ctrl+Z` | **サスペンド** (SIGTSTP): プロセスをシェルのジョブとして一時停止。`fg` で再開・`jobs` で一覧。解答の子も含めプロセスグループごと停止する。通常表示・詳細表示中のどちらでも有効 ([要件 058](./requirements/058-chat-ctrl-z-suspend.md)) |
 | (解答を保存) | 上ペイン (watch) を自動再判定 + 下ペインの chat を最新コードで reload |
 
 > `Ctrl+S` の提出準備は**サンプル全通過を待たない** (`test --submit` のゲートと違い、対話中はバッチ判定が走っていないため)。提出前に確認したいときは上ペインのサンプル結果を見るか、一度抜けて `atcoder test <contest> --task <task> --submit` を使う。
