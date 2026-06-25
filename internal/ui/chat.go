@@ -272,7 +272,7 @@ func initialChatModel(header ChatHeader, spawn Spawner) *chatModel {
 		submitHint = "  /  Ctrl+S で提出準備"
 	}
 	ti := textinput.New()
-	ti.Placeholder = "Enter で送信  /  Ctrl+C で中断・再起動  /  Ctrl+D でリセット・2回で終了" + submitHint
+	ti.Placeholder = "Enter で送信  /  Ctrl+C で中断・再起動  /  Ctrl+D でリセット・2回で終了" + submitHint + "  /  Ctrl+Z でサスペンド"
 	ti.Focus()
 	ti.Prompt = "" // プロンプト記号は View 側で描画する
 
@@ -595,6 +595,14 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// 1 回目だけ立て直す。出力到着等の非キー msg では解かない (この case に来ない)。
 		wasArmedD := m.ctrlDArmed
 		m.ctrlDArmed = false
+
+		// Ctrl+Z = サスペンド (SIGTSTP)。シェルにジョブとして戻し fg で再開できる (要件 058)。
+		// bubbletea は altscreen 破壊回避のため Ctrl+Z を自動処理しないので、明示的に
+		// tea.Suspend を返して配線する。Windows では no-op (suspendSupported=false)。子プロセス
+		// (解答) は kill せずプロセスグループごと停止し、fg で一緒に再開する。全モードで有効。
+		if msg.Type == tea.KeyCtrlZ {
+			return m, tea.Suspend
+		}
 
 		// 提出前チェックの確認待ち (要件 044): 次の打鍵を y/N の回答として消費する。
 		// y/Y なら提出準備、それ以外 (n/Esc/その他) は中止して chat を続ける。

@@ -268,6 +268,11 @@ func (m *startSplitModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 
 	case tea.KeyMsg:
+		// Ctrl+Z = サスペンド (SIGTSTP)。要件 058。詳細表示中でも有効にするため
+		// 詳細横取り・Ctrl+G 処理より前で捕捉し、tea.Suspend を返す。
+		if msg.Type == tea.KeyCtrlZ {
+			return m, tea.Suspend
+		}
 		// 詳細表示中はキーを横取りする (chat には渡さない)。要件 036。
 		if m.detail {
 			switch msg.Type {
@@ -414,13 +419,13 @@ func (m *startSplitModel) View() string {
 			m.detailVP.View(),
 			rule,
 			chatPane,
-			splitHelpStyle.Render("Ctrl+G/Esc 閉じる · ↑/↓ PageUp/PageDown スクロール · 保存で再判定"),
+			splitHelpStyle.Render("Ctrl+G/Esc 閉じる · ↑/↓ PageUp/PageDown スクロール · Ctrl+Z サスペンド · 保存で再判定"),
 		)
 	}
 	return lipgloss.JoinVertical(lipgloss.Left,
 		m.renderWatchPane(),
 		chatPane,
-		splitHelpStyle.Render("Enter 送信 · Ctrl+G 詳細 · Ctrl+D/Ctrl+C 終了 · 保存で上ペイン再判定"),
+		splitHelpStyle.Render("Enter 送信 · Ctrl+G 詳細 · Ctrl+Z サスペンド · Ctrl+D/Ctrl+C 終了 · 保存で上ペイン再判定"),
 	)
 }
 
