@@ -19,6 +19,20 @@ func submitURLFor(contest, task string) string {
 	return fmt.Sprintf("https://atcoder.jp/contests/%s/submit?taskScreenName=%s", contest, task)
 }
 
+// effectiveScreenName は提出 URL の taskScreenName を決める純粋関数。meta.toml の
+// URL override (`atcoder meta set --url`) が task URL として解釈できれば、その task_id
+// を screen name に使う。task_id が contest と食い違う問題 (例: abc107 の D = arc101_b、
+// 提出先は .../contests/abc107/submit?taskScreenName=arc101_b) で正しい提出先になる。
+// override が空 / task URL でなければ task をそのまま使う (contest はここでは変えない)。
+func effectiveScreenName(task, urlOverride string) string {
+	if urlOverride != "" {
+		if _, taskID, ok := layout.ParseTaskURL(urlOverride); ok {
+			return taskID
+		}
+	}
+	return task
+}
+
 // submitOutcome は提出準備の結果。印字しない core (submitPrepCore) が返し、
 // 呼び出し側 (CLI 経路 = 印字 / chat 経路 = 行描画) が好きに表示する。
 type submitOutcome struct {
@@ -54,7 +68,13 @@ func submitPrepCore(contest, task string, lay layout.Layout, noOpen, keepDebug b
 	if err := clipboard.WriteAll(body); err != nil {
 		return submitOutcome{}, fmt.Errorf("クリップボードへのコピーに失敗しました: %w", err)
 	}
-	out := submitOutcome{CopiedPath: solutionPath, URL: submitURLFor(contest, task), DebugCommented: commented}
+	// meta.toml に URL override があれば、提出先 screen name をそこから決める
+	// (best-effort。未取得なら task をそのまま使う)。
+	screen := task
+	if m, err := testexec.LoadMeta(contest, task); err == nil {
+		screen = effectiveScreenName(task, m.URL)
+	}
+	out := submitOutcome{CopiedPath: solutionPath, URL: submitURLFor(contest, screen), DebugCommented: commented}
 	if noOpen {
 		return out, nil
 	}
