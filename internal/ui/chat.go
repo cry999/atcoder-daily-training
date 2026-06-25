@@ -44,7 +44,7 @@ type ChatHeader struct {
 	// internal/ui は filesystem/XDG を知らないため composition root が注入する (Submit/Edit と同じ層境界)。
 	RecordInput func(line string)
 
-	// MetaShow / MetaSet は :meta コマンド (要件 050) で meta.toml を表示・編集するフック。
+	// MetaShow / MetaSet は :meta コマンド (要件 055) で meta.toml を表示・編集するフック。
 	// 両方とも非 nil なら chat 内から url / time_limit を確認・上書きできる。internal/ui は
 	// testexec/layout を知らないため、読み書き・検証・整形は composition root に逃がす
 	// (Submit/Edit と同じ層境界)。

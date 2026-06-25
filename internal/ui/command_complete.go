@@ -9,12 +9,12 @@ import (
 // 候補に出さない (入力中のプレフィックスとしては parseCommand が受理する)。
 var (
 	// 常時出すコマンド名 (`:debug`/`:cheat` は要件 030、`:replay` は要件 039、`:test` は要件 045、
-	// `:meta` は要件 050 で追加)。
+	// `:meta` は要件 055 で追加)。
 	completeNamesBase = []string{"case", "cheat", "debug", "meta", "q", "replay", "set", "test", "w"}
 	// NavEnabled (start 分割画面) のときだけ出すコマンド名 (要件 027)。
 	completeNamesNav = []string{"contest", "e", "task"}
 	// 第 2 トークンの候補 (1 語目 → サブトークン)。:set は verify/noverify に加え
-	// Debug 表示トグルの debug/nodebug も取る (要件 030)。:meta は url/time_limit (要件 050)。
+	// Debug 表示トグルの debug/nodebug も取る (要件 030)。:meta は url/time_limit (要件 055)。
 	completeSubTokens = map[string][]string{
 		"set":     {"debug", "nodebug", "noverify", "verify"},
 		"task":    {"next", "prev"},

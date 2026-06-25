@@ -227,8 +227,8 @@ func (c *startConfig) buildTarget(contestID, task string, refresh bool) (t ui.St
 		Edit:        editFunc(c.editor, c.nvimRemote),
 		PrevInputs:  prevInputs,
 		RecordInput: func(line string) { _ = chatlog.Record(contestID, task, sid, line) },
-		MetaShow:    chatMetaShowFunc(contestID, task), // :meta の表示 (要件 050)
-		MetaSet:     chatMetaSetFunc(contestID, task),  // :meta の編集 (要件 050)
+		MetaShow:    chatMetaShowFunc(contestID, task), // :meta の表示 (要件 055)
+		MetaSet:     chatMetaSetFunc(contestID, task),  // :meta の編集 (要件 055)
 	}
 	return ui.StartTarget{
 		ContestID:    contestID,

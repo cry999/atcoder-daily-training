@@ -133,7 +133,7 @@ fetched abc111_d
 (`Esc` → `:`) の **`:meta`** で `show`/`set` 相当を chat を抜けずに行えます。`:meta` で url /
 time limit / samples を表示、`:meta url <url>` で URL override、`:meta time_limit 5s` で Time Limit
 を上書きします。編集対象・検証規則・未キャッシュ時の扱いは本コマンドの `set` と同一です
-(要件 [050](./requirements/050-chat-meta-edit.md))。詳細は
+(要件 [055](./requirements/055-chat-meta-edit.md))。詳細は
 [atcoder-test-usage.md](./atcoder-test-usage.md) / [atcoder-start-usage.md](./atcoder-start-usage.md)
 の command モードのコマンド表を参照してください。
 
@@ -154,7 +154,7 @@ time limit / samples を表示、`:meta url <url>` で URL override、`:meta tim
 ## 関連
 
 - 要件定義: [046-meta-command.md](./requirements/046-meta-command.md)
-- chat からの編集 (`:meta`): [050-chat-meta-edit.md](./requirements/050-chat-meta-edit.md)
+- chat からの編集 (`:meta`): [055-chat-meta-edit.md](./requirements/055-chat-meta-edit.md)
 - サンプル取得・キャッシュの元仕様: [001-exercise-test.md](./requirements/001-exercise-test.md)
 - テスト実行: [atcoder-test-usage.md](./atcoder-test-usage.md)
 - アーキテクチャ: [atcoder-test-architecture.md](./atcoder-test-architecture.md)

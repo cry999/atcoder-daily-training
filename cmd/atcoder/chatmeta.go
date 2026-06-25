@@ -9,7 +9,7 @@ import (
 	"github.com/cry999/atcoder-daily-training/internal/testexec"
 )
 
-// chatMetaShowFunc は chat の :meta 表示フック (要件 050)。CLI `atcoder meta show` と同じく
+// chatMetaShowFunc は chat の :meta 表示フック (要件 055)。CLI `atcoder meta show` と同じく
 // キャッシュ済み meta.toml を読み、url / time limit / samples を行に整形して返す。
 // field="" なら全体、"url"/"time_limit" なら当該フィールドのみ。未キャッシュは error。
 // 行頭ラベルの体裁は `cmd/atcoder/meta.go` の metaShow と揃える。
@@ -33,7 +33,7 @@ func chatMetaShowFunc(contest, task string) func(field string) ([]string, error)
 	}
 }
 
-// chatMetaSetFunc は chat の :meta 編集フック (要件 050)。CLI `atcoder meta set --url|--time-limit`
+// chatMetaSetFunc は chat の :meta 編集フック (要件 055)。CLI `atcoder meta set --url|--time-limit`
 // と同じ検証規則・整形で meta.toml を上書きする:
 //   - url: AtCoder の URL (layout.IsTaskURL) のみ。スロット未キャッシュでも空 meta に記録できる。
 //   - time_limit: 正の duration (time.ParseDuration) のみ。キャッシュ済みが前提 (未取得なら error)。

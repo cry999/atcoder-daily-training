@@ -147,7 +147,7 @@ func parseCommand(s string) command {
 		// :test [case] — キャッシュ済みサンプルケースを子リスタート後に順送 + ライブ検証 (要件 045)。
 		return command{name: "test", arg: arg}
 	case "meta":
-		// :meta [url|time_limit [value]] — meta.toml の url / time_limit を表示・編集 (要件 050)。
+		// :meta [url|time_limit [value]] — meta.toml の url / time_limit を表示・編集 (要件 055)。
 		return command{name: "meta", arg: arg}
 	default:
 		return command{name: "unknown", arg: name}
@@ -303,7 +303,7 @@ func (m *chatModel) execNav(cmd command) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// execMeta は `:meta` (要件 050) を処理する。引数なしで meta.toml の全体 (url/time limit/
+// execMeta は `:meta` (要件 055) を処理する。引数なしで meta.toml の全体 (url/time limit/
 // samples) を、`:meta url` / `:meta time_limit` で当該フィールドの現在値を表示し、
 // `:meta url <url>` / `:meta time_limit <dur>` で上書きする。meta の読み書き・検証・整形は
 // composition root が注入する MetaShow / MetaSet フックに委譲する (internal/ui は testexec/

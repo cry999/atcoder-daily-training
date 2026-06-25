@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// :meta は parseCommand で name="meta" になり、フィールド/値は arg に載る (要件 050)。
+// :meta は parseCommand で name="meta" になり、フィールド/値は arg に載る (要件 055)。
 func TestParseCommandMeta(t *testing.T) {
 	cases := []struct {
 		in      string
