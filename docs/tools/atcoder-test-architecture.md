@@ -15,16 +15,21 @@ cmd/atcoder/
   new.go         # cmdNew: 当日の演習ディレクトリを作成
   test.go        # cmdTest: 引数パース + selectExecutor (composition root) + watch ループ
   submitprep.go  # 提出準備 (--submit / chat Ctrl+S): 解答コピー + 提出ページ起動。
-                 # コピー時に debugstrip で [DEBUG] print 行をコメントアウト (--keep-debug で無効)。
-                 # runSubmitPrep が提出前ゲート (submitGateReporter で DebugSeen を集約 +
-                 # submitGateReasons で判定 + confirmSubmit で y/N) を回す (要件 044)
+                 # buildSubmitSource が「提出される中身」(debugstrip で [DEBUG] print を
+                 # コメントアウト。--keep-debug で無効) を 1 度構築し、ゲート実行とコピーで共有。
+                 # runSubmitPrep は writeTempSource で中身を一時ファイルに書き、testexec.Run の
+                 # SolutionPathOverride で「コメントアウト後ソース」を実行対象にして提出前ゲート
+                 # (submitGateReporter で DebugSeen 集約 + submitGateReasons + confirmSubmit) を
+                 # 回す (要件 044 / 049)
 
 internal/runner/
   runner.go      # ProcessResult + ProcessStatus (実行結果の低レベル型)
   python.go      # Python 具象実装 (Python 型 + NewPython + Run)
 
 internal/testexec/
-  test.go        # Run(Options) + Executor interface + orchestration (ケースを並列実行)
+  test.go        # Run(Options) + Executor interface + orchestration (ケースを並列実行)。
+                 # Options.SolutionPathOverride で実行対象を上書き (提出ゲートが
+                 # コメントアウト後ソースの一時ファイルを走らせる。要件 049)
   judge.go       # CaseResult + CaseStatus + judge() + normalizeOutput()。
                  # CaseResult.DebugSeen は生 stdout/stderr の [DEBUG] 検出 (提出前ゲート用。要件 044)
   reporter.go    # Reporter interface (UI 抽象。Begin/CaseStarted/CaseFinished/End のライフサイクル)
