@@ -52,7 +52,10 @@ internal/ui/
                  # ライブ検証 (tokensMatch)。`:w` で extracase.Save、保存先は tests-extra (要件 024)。
                  # `:test [case]` でキャッシュ済みサンプルを子リスタート後に順送 + ライブ検証 (execTest, 要件 045)。
                  # `:test`/`:replay` の順送は flowInput に共通化。`:replay` は直近の操作 (現セッション手入力
-                 # → 直近 :test ケース (lastTest) → 直前セッション → 前回起動) を再生する (execReplay, 要件 048)
+                 # → 直近 :test ケース (lastTest) → 直前セッション → 前回起動) を再生する (execReplay, 要件 048)。
+                 # `:meta [url|time_limit [値]]` で meta.toml の url / time_limit を表示・編集 (execMeta, 要件 050)。
+                 # 読み書き・検証・整形は ChatHeader.MetaShow/MetaSet (composition root 注入) に委譲し
+                 # internal/ui は testexec/layout 非依存を保つ (Submit/Edit と同じ層境界)
   chat_sample.go # :test のサンプル読込 (listSampleCases/resolveSampleCase/normalizeSampleRef)。
                  # 公式 tests/ + 追加 tests-extra/ を os/extracase だけで読む (testexec 非依存・fetch しない)
   style.go       # lipgloss スタイル定義
