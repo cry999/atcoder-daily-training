@@ -213,6 +213,7 @@ func runSubmitPrep(contest, task string, lay layout.Layout, opts testexec.Option
 
 - [015-fold-submit-into-test.md](./015-fold-submit-into-test.md) / [ADR 0006](../decisions/0006-fold-submit-into-test.md) (`--submit` を test に畳んだ前例・全通過ゲート)
 - [043-submit-comment-out-debug.md](./043-submit-comment-out-debug.md) (提出時の `[DEBUG]` コメントアウト。本件の安全網が補完する)
+- [049-submit-precheck-run-commented-source.md](./049-submit-precheck-run-commented-source.md) (本件のゲート実行対象を「提出される中身=コメントアウト後ソース」に変える改訂)
 - [026-chat-submit.md](./026-chat-submit.md) (chat `Ctrl+S` の提出準備)
 - [001-exercise-test.md](./001-exercise-test.md) (`-d`/`--debug` と `[DEBUG]` 規約 / `splitDebug` の初出)
 - `docs/tools/atcoder-test-usage.md` (test 利用手引) / `docs/tools/atcoder-test-architecture.md` (内部設計)
