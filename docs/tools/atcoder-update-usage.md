@@ -15,10 +15,37 @@ atcoder update [--check | --local]
 |---|---|
 | `atcoder version` | いま入っている版 (短縮コミット sha・コミット日時・dirty) を表示。**オフライン**で動き副作用なし |
 | `atcoder update` | 最新版を確認し、現在版と違えば `go install …@latest` で入れ替える (GitHub に push 済みの最新) |
-| `atcoder update --check` | 確認だけ行い、**インストールはしない** |
+| `atcoder update --check` | 確認だけ行い、**インストールはしない**。インストール済み版を **リモート (`@latest`) とローカル作業ツリー (git HEAD) の両方** と比べる |
 | `atcoder update --local` | `@latest` ではなく **cwd の `./cmd/atcoder`** を `go install` する (手元の作業ツリーをそのまま入れる) |
 
 `--check` と `--local` は併用不可 (exit 2)。
+
+### `--check` (リモート / ローカル両方の最新確認)
+
+`atcoder update --check` は **3 つの基準点** を並べ、**2 つの判定** を出す:
+
+- `installed` — いま入っているバイナリの版 (埋め込み VCS / pseudo-version)。
+- `local` — cwd の git 作業ツリーの HEAD (sha・日時・dirty)。リポジトリ外なら `n/a`。
+- `remote` — GitHub に push 済みの `@latest` (= origin デフォルトブランチ HEAD)。
+
+判定は 2 軸:
+
+- `remote:` — installed が **リモート** より古いか (`update available`) / 最新か / **installed の方が新しいか** (`up to date (installed is newer than origin)`)。
+- `local:` — installed が **手元の作業ツリー** と一致するか / `update --local` で入れ直すと変わるか (`rebuild available`、理由付き)。
+
+```
+$ atcoder update --check        # 手元で dirty ビルドを入れている / 未 push が手元に進んでいる
+  installed  69d5e73 (2026-06-25T21:59:30Z) dirty
+  local      69d5e73 (2026-06-25T21:59:30Z) dirty
+  remote     ca3f863 (2026-06-25T21:06:48Z)
+
+  remote: up to date (installed is newer than origin)
+  local:  rebuild available — run `atcoder update --local` (working tree has uncommitted changes)
+```
+
+- **ローカル判定はオフライン** (git だけ)。リモート解決に失敗 (network/proxy/`go` 不在) しても `installed` / `local` 行と `local:` 判定までは表示し、リモートのエラーを stderr に出して **exit 1**。
+- `local` の dirty は **tracked ファイルの未コミット変更** のみ (`git status --porcelain --untracked-files=no`)。`exercise/` 等の未追跡な練習解答は dirty に数えない。
+- これにより、`go install ./cmd/atcoder` 直後のように **installed の方が `@latest` より新しい** ときでも「常に update available」と誤表示せず、「installed is newer」「手元と一致 / 入れ直しで変わる」を正しく言い分けられる。
 
 ### `--local` (手元のソースから入れる)
 
@@ -50,9 +77,12 @@ $ atcoder version
 atcoder 44f73cc537c7 (2026-06-09T08:44:44Z)
 
 $ atcoder update --check
-  current  abc1234abc12 (2026-06-05T09:00:00Z)
-  latest   44f73cc537c7 (2026-06-09T08:44:44Z)
-  update available — run `atcoder update`
+  installed  abc1234abc12 (2026-06-05T09:00:00Z)
+  local      44f73cc537c7 (2026-06-09T08:44:44Z)
+  remote     44f73cc537c7 (2026-06-09T08:44:44Z)
+
+  remote: update available — run `atcoder update`
+  local:  rebuild available — run `atcoder update --local` (local source is ahead of the installed binary)
 
 $ atcoder update
   current  abc1234abc12 (2026-06-05T09:00:00Z)
@@ -101,5 +131,6 @@ $ atcoder update            # 既に最新
 ## 関連
 
 - [requirements/050-atcoder-self-update.md](./requirements/050-atcoder-self-update.md) — 要件定義
+- [requirements/059-update-local-check.md](./requirements/059-update-local-check.md) — `--check` のローカル (作業ツリー) 比較拡張
 - [requirements/006-rename-cli-to-atcoder.md](./requirements/006-rename-cli-to-atcoder.md) — `go install ./cmd/atcoder` 前提
 - [atcoder-completion-usage.md](./atcoder-completion-usage.md) — `version`/`update` も補完対象
