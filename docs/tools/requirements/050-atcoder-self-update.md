@@ -232,5 +232,6 @@ func Install(ctx context.Context, module string, w io.Writer) error
 
 - `docs/tools/requirements/006-rename-cli-to-atcoder.md` (CLI 名 `atcoder` 化・`go install ./cmd/atcoder` の前提)
 - `docs/tools/requirements/008-atcoder-completion.md` / `012-completion-descriptions.md` (サブコマンド/フラグ補完にここで `version`/`update` を足す)
+- `docs/tools/requirements/059-update-local-check.md` (`update --check` をローカル作業ツリー比較に拡張する子要件)
 - `docs/tools/atcoder-update-usage.md` (利用手引。本機能で新設)
 - `docs/tools/todo.md` (上位ロードマップ。項目 L として記載)
