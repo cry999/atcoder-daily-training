@@ -157,6 +157,60 @@ func TestStartSplitDebugMsgRejudges(t *testing.T) {
 	}
 }
 
+// :meta fetch (要件 057) の成功は watch ペインを即再判定する。fetch でキャッシュの
+// サンプル / Time Limit が更新されるので、保存検知を待たずに新しい結果へ追従させる。
+// chat にも委譲され、結果行とヘッダ Time Limit が反映される。epoch を進めて in-flight の
+// 旧判定を破棄する (DebugMsg と同型)。
+func TestStartSplitMetaFetchDoneRejudges(t *testing.T) {
+	var calls int
+	m := &startSplitModel{
+		chat:  &chatModel{header: ChatHeader{TimeLimitMs: 2000}},
+		epoch: 0,
+		runSamples: func(debug bool) SampleSummary {
+			calls++
+			return SampleSummary{Passed: 1, Total: 1, AllPassed: true}
+		},
+	}
+
+	_, cmd := m.Update(metaFetchDoneMsg{
+		lines:          []string{"fetched abc111_d", "time limit:  5000 ms", "samples:     2"},
+		newTimeLimitMs: 5000,
+	})
+	if m.epoch != 1 {
+		t.Errorf("成功した :meta fetch は epoch を進めて旧判定を破棄すべき, got epoch=%d", m.epoch)
+	}
+	if !m.sampleInFlight {
+		t.Errorf("成功した :meta fetch は再判定を in-flight にすべき")
+	}
+	if cmd == nil {
+		t.Fatal("成功した :meta fetch は watch 再判定の Cmd を返すべき (nil だった)")
+	}
+	// chat へも委譲され、ヘッダ Time Limit が新値へ追従する。
+	if m.chat.header.TimeLimitMs != 5000 {
+		t.Errorf("chat ヘッダ TimeLimitMs=%d, want 5000 (:meta fetch を chat に委譲)", m.chat.header.TimeLimitMs)
+	}
+	// Cmd を駆動すると runSamples が呼ばれ、現世代 epoch を載せた結果が返る。
+	if msg, ok := cmd().(splitSampleMsg); !ok || msg.epoch != 1 {
+		t.Fatalf("再判定 Cmd は epoch 1 の splitSampleMsg を返すべき, got %#v", cmd())
+	}
+	if calls != 1 {
+		t.Errorf("runSamples は 1 回呼ばれるべき, got %d", calls)
+	}
+
+	// 失敗した :meta fetch は再判定しない (epoch 据え置き・Cmd なし)。chat には err 行が積まれる。
+	prevEpoch := m.epoch
+	_, cmd = m.Update(metaFetchDoneMsg{err: errors.New("再取得に失敗しました: network")})
+	if m.epoch != prevEpoch {
+		t.Errorf("失敗した :meta fetch は epoch を進めないべき, got epoch=%d want %d", m.epoch, prevEpoch)
+	}
+	if cmd != nil {
+		t.Errorf("失敗した :meta fetch は再判定 Cmd を返さないべき, got %v", cmd)
+	}
+	if last := m.chat.msgs[len(m.chat.msgs)-1]; last.kind != kindErr || !strings.Contains(last.text, "失敗") {
+		t.Errorf("失敗した :meta fetch は chat に err 行を積むべき, got {%q %q}", last.kind, last.text)
+	}
+}
+
 // watch ペインのタイトルは live Debug on のときだけ [debug] バッジを出す (要件 034)。
 func TestRenderWatchPaneDebugBadge(t *testing.T) {
 	m := &startSplitModel{width: 60, solutionPath: "exercise/2026/06/11/abc999_a.py", haveSummary: true,

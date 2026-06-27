@@ -336,6 +336,22 @@ func (m *startSplitModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, m.retarget(target)
 
+	case metaFetchDoneMsg:
+		// chat の :meta fetch (要件 057) の非同期再取得が完了。まず chat に委譲して結果行 /
+		// err 行を積み、Time Limit が変わればヘッダに反映する。成功時はキャッシュ
+		// (meta.toml + tests/) が新しいサンプル / Time Limit に更新されているので、保存検知を
+		// 待たず watch ペインを即再判定して反映する (DebugMsg と同型: epoch を進めて in-flight の
+		// 旧判定を破棄)。失敗時 (err != nil) はキャッシュを変えていないので再判定しない。
+		cm, ccmd := m.chat.Update(msg)
+		m.chat = cm.(*chatModel)
+		cmds := []tea.Cmd{ccmd}
+		if msg.err == nil {
+			m.epoch++
+			m.sampleInFlight = true
+			cmds = append(cmds, m.runSamplesCmd())
+		}
+		return m, tea.Batch(cmds...)
+
 	case DebugMsg:
 		// chat の :debug トグル (要件 030) を watch ペインへ波及させる (要件 034)。live Debug を
 		// 更新し、新 Debug で即再判定する。in-flight の旧判定 (旧 Debug) は epoch を進めて破棄し、
