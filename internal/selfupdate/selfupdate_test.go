@@ -60,6 +60,57 @@ func TestAvailable(t *testing.T) {
 	}
 }
 
+func TestLocalUpdate(t *testing.T) {
+	rev := "44f73cc537c7abcdef0123456789abcdef012345"
+	cur := Current{Known: true, Revision: rev}
+	cases := []struct {
+		name    string
+		cur     Current
+		local   LocalSource
+		wantAv  bool
+		wantSub string // reason に含まれるべき断片
+	}{
+		{"not a repo", cur, LocalSource{Known: false}, false, "not in a repo"},
+		{"dirty wins over sha match", cur, LocalSource{Known: true, Revision: rev, Dirty: true}, true, "uncommitted"},
+		{"installed unknown", Current{Known: false}, LocalSource{Known: true, Revision: rev}, true, "unknown"},
+		{"modified build", Current{Known: true, Revision: rev, Modified: true}, LocalSource{Known: true, Revision: rev}, true, "modified tree"},
+		{"local ahead", cur, LocalSource{Known: true, Revision: "ffffffffffffffff0000000000000000ffffffff"}, true, "ahead"},
+		{"matches", cur, LocalSource{Known: true, Revision: rev}, false, "matches"},
+	}
+	for _, c := range cases {
+		gotAv, reason := LocalUpdate(c.cur, c.local)
+		if gotAv != c.wantAv {
+			t.Errorf("%s: available = %v, want %v", c.name, gotAv, c.wantAv)
+		}
+		if !strings.Contains(reason, c.wantSub) {
+			t.Errorf("%s: reason = %q, want substring %q", c.name, reason, c.wantSub)
+		}
+	}
+}
+
+func TestClassifyRemote(t *testing.T) {
+	t0 := time.Date(2026, 6, 5, 0, 0, 0, 0, time.UTC)
+	t1 := time.Date(2026, 6, 9, 0, 0, 0, 0, time.UTC)
+	latest := Latest{Version: "v0.0.0-20260609000000-def567890abc", Sha: "def567890abc", Time: t1}
+	cases := []struct {
+		name string
+		cur  Current
+		want RemoteState
+	}{
+		{"unknown -> indeterminate", Current{Known: false}, RemoteIndeterminate},
+		{"same sha -> up to date", Current{Known: true, Revision: "def567890abcffff", Time: t0}, RemoteUpToDate},
+		{"older time -> update available", Current{Known: true, Revision: "abc123abc123ffff", Time: t0}, RemoteUpdateAvailable},
+		{"newer time -> installed newer", Current{Known: true, Revision: "fff000fff000ffff", Time: t1.Add(time.Hour)}, RemoteInstalledNewer},
+		{"dirty but newer time -> installed newer", Current{Known: true, Revision: "fff000fff000ffff", Time: t1.Add(time.Hour), Modified: true}, RemoteInstalledNewer},
+		{"equal time -> up to date", Current{Known: true, Revision: "fff000fff000ffff", Time: t1}, RemoteUpToDate},
+	}
+	for _, c := range cases {
+		if got := ClassifyRemote(c.cur, latest); got != c.want {
+			t.Errorf("%s: ClassifyRemote = %v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
 func TestGoEnvSetsGoprivate(t *testing.T) {
 	const mod = "github.com/cry999/atcoder-daily-training"
 	get := func(env []string) (string, bool) {

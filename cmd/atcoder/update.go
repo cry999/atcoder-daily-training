@@ -41,6 +41,12 @@ func cmdUpdate(args []string) (int, error) {
 		return 0, nil
 	}
 
+	// --check: installed / local / remote の 3 基準点と remote・local の 2 判定を
+	// 表示するだけ (入れ替えはしない)。リモート解決に失敗しても local までは出す。
+	if *check {
+		return runCheck(ctx, cur)
+	}
+
 	latest, err := selfupdate.ResolveLatest(ctx, cur.Module)
 	if err != nil {
 		return 1, err
@@ -54,15 +60,6 @@ func cmdUpdate(args []string) (int, error) {
 
 	available := selfupdate.Available(cur, latest)
 
-	if *check {
-		if available {
-			fmt.Println("  update available — run `atcoder update`")
-		} else {
-			fmt.Println("  up to date")
-		}
-		return 0, nil
-	}
-
 	if !available {
 		fmt.Printf("  already up to date (%s)\n", latestRef(latest))
 		return 0, nil
@@ -74,6 +71,76 @@ func cmdUpdate(args []string) (int, error) {
 	}
 	fmt.Printf("  installed %s ✓\n", latestRef(latest))
 	return 0, nil
+}
+
+// runCheck は `atcoder update --check`。installed / local / remote の 3 基準点と、
+// remote (installed ⇄ @latest) ・ local (installed ⇄ 作業ツリー HEAD) の 2 判定を
+// 表示する。リモート解決に失敗しても local 行と local 判定までは出してから
+// exit 1 を返す (リモート確認は要件 050 どおり実行時失敗扱い)。
+func runCheck(ctx context.Context, cur selfupdate.Current) (int, error) {
+	local := selfupdate.ReadLocalSource(ctx)
+	latest, rerr := selfupdate.ResolveLatest(ctx, cur.Module)
+
+	fmt.Printf("  installed  %s\n", describeCurrent(cur))
+	fmt.Printf("  local      %s\n", describeLocal(local))
+	if rerr == nil {
+		fmt.Printf("  remote     %s\n", describeLatest(latest))
+	}
+	fmt.Println()
+
+	if rerr == nil {
+		fmt.Println("  remote: " + remoteVerdict(cur, latest))
+	}
+	fmt.Println("  local:  " + localVerdict(cur, local))
+
+	if rerr != nil {
+		// installed/local までは見せた上で、リモート解決失敗は exit 1。
+		// main が "atcoder update: <err>" を stderr に出す。
+		return 1, rerr
+	}
+	return 0, nil
+}
+
+// remoteVerdict は installed ⇄ remote(@latest) の関係を一行に整形する。
+func remoteVerdict(cur selfupdate.Current, latest selfupdate.Latest) string {
+	switch selfupdate.ClassifyRemote(cur, latest) {
+	case selfupdate.RemoteUpToDate:
+		return "up to date"
+	case selfupdate.RemoteInstalledNewer:
+		return "up to date (installed is newer than origin)"
+	case selfupdate.RemoteUpdateAvailable:
+		return "update available — run `atcoder update`"
+	default: // RemoteIndeterminate
+		return "cannot compare (installed version unknown)"
+	}
+}
+
+// localVerdict は installed ⇄ 作業ツリー HEAD の関係を一行に整形する。
+func localVerdict(cur selfupdate.Current, local selfupdate.LocalSource) string {
+	if !local.Known {
+		return "n/a — run inside the repo to compare with local source"
+	}
+	available, reason := selfupdate.LocalUpdate(cur, local)
+	if available {
+		return "rebuild available — run `atcoder update --local` (" + reason + ")"
+	}
+	return "up to date (" + reason + ")"
+}
+
+// describeLocal は作業ツリー版を "<short-sha> (<time>)[ dirty]" 形式にする。
+// 作業ツリーを読めなければ "n/a (...)"。
+func describeLocal(l selfupdate.LocalSource) string {
+	if !l.Known {
+		return "n/a (not in a repo working tree)"
+	}
+	s := l.ShortRev()
+	if !l.Time.IsZero() {
+		s += " (" + l.Time.Format(time.RFC3339) + ")"
+	}
+	if l.Dirty {
+		s += " dirty"
+	}
+	return s
 }
 
 // describeLatest は最新版を "<sha-or-version> (<time>)" 形式の文字列にする。

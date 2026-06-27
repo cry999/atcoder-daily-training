@@ -154,6 +154,113 @@ func Available(cur Current, latest Latest) bool {
 	return true
 }
 
+// LocalSource は cwd の git 作業ツリーの現在状態 (HEAD)。Known=false なら
+// 作業ツリーとして読めなかった (リポジトリ外・git 不在・取得失敗)。
+type LocalSource struct {
+	Revision string    // git HEAD のフル sha
+	Time     time.Time // HEAD コミット日時
+	Dirty    bool      // tracked に未コミット変更があるか
+	Known    bool      // cwd を作業ツリーとして読めたか
+}
+
+// ReadLocalSource は cwd で git を読み取り、作業ツリーの HEAD 版を返す。
+// `update --local` が入れ直すソース (= いまチェックアウトしている作業ツリー) を
+// 基準にするため、中立 dir ではなく呼び出し時の cwd で git を実行する。
+// リポジトリ外 / git 不在 / 失敗時は Known=false を返す (エラーにはしない:
+// リモート確認は続行できるよう、ローカル比較だけを諦める)。
+func ReadLocalSource(ctx context.Context) LocalSource {
+	rev, err := runGit(ctx, "rev-parse", "HEAD")
+	if err != nil || rev == "" {
+		return LocalSource{}
+	}
+	ls := LocalSource{Revision: rev, Known: true}
+	if iso, err := runGit(ctx, "show", "-s", "--format=%cI", "HEAD"); err == nil {
+		if t, err := time.Parse(time.RFC3339, iso); err == nil {
+			ls.Time = t.UTC() // installed/remote (UTC) と表示を揃える
+		}
+	}
+	// 未追跡ファイル (練習解答など Go ビルドに無関係なもの) を dirty 扱いしない
+	// よう --untracked-files=no。tracked の未コミット変更だけを dirty とみなす。
+	if st, err := runGit(ctx, "status", "--porcelain", "--untracked-files=no"); err == nil {
+		ls.Dirty = st != ""
+	}
+	return ls
+}
+
+// ShortRev は HEAD revision の先頭 12 文字を返す (revision が無ければ "unknown")。
+func (l LocalSource) ShortRev() string {
+	if l.Revision == "" {
+		return "unknown"
+	}
+	return shortSha(l.Revision)
+}
+
+// runGit は cwd で git を読み取り専用に実行し、stdout を trim して返す。
+func runGit(ctx context.Context, args ...string) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", args...)
+	var stdout, stderr strings.Builder
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(stdout.String()), nil
+}
+
+// LocalUpdate は installed (cur) と作業ツリー (local) を比べ、`update --local` で
+// 入れ直すとバイナリが変わるか (available) と、その理由文字列を返す。
+// 表示専用 (入れ替え条件は変えない)。条件は上から順に評価する。
+func LocalUpdate(cur Current, local LocalSource) (bool, string) {
+	switch {
+	case !local.Known:
+		return false, "not in a repo working tree"
+	case local.Dirty:
+		return true, "working tree has uncommitted changes"
+	case !cur.Known:
+		return true, "installed version unknown"
+	case cur.Modified:
+		return true, "installed binary was built from a modified tree"
+	case shortSha(cur.Revision) != shortSha(local.Revision):
+		return true, "local source is ahead of the installed binary"
+	default:
+		return false, "installed matches local source"
+	}
+}
+
+// RemoteState は installed と remote (latest) の関係を表す (表示専用)。
+// 入れ替え要否の判定は Available が担い、こちらは「installed の方が新しい」を
+// 区別して dirty ビルドの誤表示 (常に update available) を避ける。
+type RemoteState int
+
+const (
+	RemoteUpToDate        RemoteState = iota // 入れ替え不要 (同一 or installed が新しい)
+	RemoteInstalledNewer                     // installed のコミット日時が remote より新しい
+	RemoteUpdateAvailable                    // remote の方が新しい
+	RemoteIndeterminate                      // installed が unknown で比較不能
+)
+
+// ClassifyRemote は cur と latest の関係を分類する。
+func ClassifyRemote(cur Current, latest Latest) RemoteState {
+	if !cur.Known {
+		return RemoteIndeterminate
+	}
+	if latest.Sha != "" && strings.HasPrefix(cur.Revision, latest.Sha) {
+		return RemoteUpToDate // 同一コミット
+	}
+	if !latest.Time.IsZero() && !cur.Time.IsZero() {
+		switch {
+		case latest.Time.After(cur.Time):
+			return RemoteUpdateAvailable
+		case cur.Time.After(latest.Time):
+			return RemoteInstalledNewer
+		default:
+			return RemoteUpToDate
+		}
+	}
+	// 時刻で比較できず sha も違う → 安全側に倒して更新ありとみなす。
+	return RemoteUpdateAvailable
+}
+
 // Install は `go install <module>/cmd/atcoder@latest` を中立 dir で実行し、
 // go の出力を out にストリームする。go 不在・install 失敗は error。
 func Install(ctx context.Context, module string, out io.Writer) error {
