@@ -71,6 +71,16 @@ type ChatHeader struct {
 	// (MetaFetch と同型)。internal/ui は testexec/gen を知らないため composition root が
 	// 注入する。
 	Gen func() (input string, warnings []string, err error)
+
+	// Record は :record コマンド (要件 064) で solve-stat の計測・記録を行うフック。
+	// args は :record の第 2 トークン以降 (start/stop/フラグ)。非 nil なら chat から
+	// :record start (着手刻印) / :record stop (完了確定) / :record <非対話フラグ>
+	// (ac/editorial/score/time の記録) / 引数なし :record (現在値表示) を呼べる。
+	// 返った行を chat が info で積む (失敗は err 行 1 本)。start/stop/フラグの解釈と
+	// solve-stat の読み書き・layout 解決は composition root (cmd/atcoder) に逃がす
+	// (internal/ui は solvestat/layout/config を知らない層境界。Meta/Gen と同じ)。
+	// ローカル I/O のみなので同期で呼ぶ (:gen/:meta fetch のような非同期化は不要)。
+	Record func(args []string) (lines []string, err error)
 }
 
 // EditPlan は Ctrl+E のエディタ起動計画。composition root の EditFunc が返す (要件 038)。

@@ -78,6 +78,7 @@ func makeChatRunner(contest, task string, lay layout.Layout, tolerance float64, 
 			MetaSet:     chatMetaSetFunc(contest, task),   // :meta の編集 (要件 055)
 			MetaFetch:   chatMetaFetchFunc(contest, task), // :meta fetch の再取得 (要件 057)
 			Gen:         chatGenFunc(contest, task),       // :gen で制約からランダム入力生成 (要件 060)
+			Record:      chatRecordFunc(contest, task),    // :record で solve-stat の計測・記録 (要件 064)
 		})
 	}
 }

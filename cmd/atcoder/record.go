@@ -131,30 +131,31 @@ func startedStat(now time.Time) solvestat.Stat {
 //   - started_at 済み: 温存 (冪等)。
 //   - 未記録: started_at=now を刻む。
 //
-// stamped は新たに (再)記録したか。破損ブロックは error (呼び出し側で扱う)。
-func stampStartedAt(path string, restart bool) (stamped bool, err error) {
+// stamped は新たに (再)記録したか。warn は完了済み解答への着手を止めたときの案内文言
+// (無ければ ""; 呼び出し側が stderr / chat 行など文脈に合わせて出す)。破損ブロックは
+// error (呼び出し側で扱う)。
+func stampStartedAt(path string, restart bool) (stamped bool, warn string, err error) {
 	st, found, err := solvestat.ReadFile(path)
 	if err != nil {
-		return false, err
+		return false, "", err
 	}
 	now := time.Now()
 	if restart {
 		if err := solvestat.OverwriteFile(path, startedStat(now)); err != nil {
-			return false, err
+			return false, "", err
 		}
-		return true, nil
+		return true, "", nil
 	}
 	if found && !st.SolvedAt.IsZero() {
-		fmt.Fprintln(os.Stderr, "既に完了記録があります。再計測するなら --restart を使ってください。")
-		return false, nil
+		return false, "既に完了記録があります。再計測するなら --restart を使ってください。", nil
 	}
 	if found && !st.StartedAt.IsZero() {
-		return false, nil // 温存 (冪等)
+		return false, "", nil // 温存 (冪等)
 	}
 	if err := solvestat.Update(path, startedStat(now)); err != nil {
-		return false, err
+		return false, "", err
 	}
-	return true, nil
+	return true, "", nil
 }
 
 // recordStart は計測開始 (着手 UI を伴わない軽量開始)。
@@ -184,9 +185,12 @@ func recordStart(args []string) (int, error) {
 	if err := ensureFileExists(rt.path); err != nil {
 		return 1, err
 	}
-	stamped, err := stampStartedAt(rt.path, *restart)
+	stamped, warn, err := stampStartedAt(rt.path, *restart)
 	if err != nil {
 		return 1, err
+	}
+	if warn != "" {
+		fmt.Fprintln(os.Stderr, warn)
 	}
 	if stamped {
 		fmt.Printf("計測を開始しました: %s\n", rt.path)

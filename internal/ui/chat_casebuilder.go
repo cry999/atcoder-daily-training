@@ -156,6 +156,10 @@ func parseCommand(s string) command {
 	case "gen":
 		// :gen — 制約 / 入力形式からランダム入力を 1 つ生成し insert 欄へ前埋め (要件 060)。
 		return command{name: "gen", arg: arg}
+	case "record":
+		// :record [start|stop] [flags] — solve-stat の計測・記録 (要件 064)。
+		// arg にサブコマンド + フラグ (start/stop/ac/noac/ed/noed/score=…/time=…) を載せる。
+		return command{name: "record", arg: arg}
 	default:
 		return command{name: "unknown", arg: name}
 	}
@@ -286,6 +290,9 @@ func (m *chatModel) execCommand(cmd command) (tea.Model, tea.Cmd) {
 		return m, m.execMeta(cmd.arg)
 	case "gen":
 		return m, m.execGen()
+	case "record":
+		m.execRecord(cmd.arg)
+		return m, nil
 	case "task", "contest", "e":
 		return m.execNav(cmd)
 	default: // unknown
@@ -420,6 +427,30 @@ func (m *chatModel) applyGenDone(msg genDoneMsg) {
 	m.addInfoLine("(生成入力を入力欄に前埋めしました。Enter で送信 / 編集可)")
 }
 
+// execRecord は :record (要件 064) を処理する。arg (start/stop/フラグ) を空白で分け、
+// 注入された Record フックへそのまま渡し、返った行を info 行で積む (失敗は err 行 1 本)。
+// solve-stat の読み書き・計測・検証・layout 解決は composition root (cmd/atcoder) に
+// 委譲する (internal/ui は solvestat/layout を知らない層境界。:meta/:gen と同じ)。
+// ローカル I/O のみなので同期実行する (:gen/:meta fetch のような非同期化はしない)。
+func (m *chatModel) execRecord(arg string) {
+	m.returnFromCommand()
+	if m.header.Record == nil {
+		m.addInfoLine("(記録はこの画面では使えません)")
+		m.refreshViewport()
+		return
+	}
+	lines, err := m.header.Record(strings.Fields(arg))
+	if err != nil {
+		m.addErrLine("(" + err.Error() + ")")
+		m.refreshViewport()
+		return
+	}
+	for _, l := range lines {
+		m.addInfoLine(l)
+	}
+	m.refreshViewport()
+}
+
 // metaShow は MetaShow フックを呼び、返ってきた行を info 行で積む。失敗は err 行で 1 本。
 func (m *chatModel) metaShow(field string) {
 	lines, err := m.header.MetaShow(field)
@@ -548,6 +579,7 @@ func (m *chatModel) showCheat() {
 		"  :meta [url|time_limit [値]]  meta の url / time_limit を表示・編集",
 		"  :meta fetch           url からサンプル + Time Limit を再取得",
 		"  :gen                  制約 / 入力形式からランダム入力を生成し入力欄へ前埋め",
+		"  :record [start|stop|<flags>]  実装時間/AC/5 軸を記録 (:record で現在値表示)",
 		"  :cheat (:help :?)     このコマンド一覧",
 		"  :q                    chat 終了 (作成画面中は破棄)",
 	}

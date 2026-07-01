@@ -97,10 +97,15 @@ func cmdStart(args []string) (int, error) {
 	// 着手時刻を刻む (要件 061)。TTY チェック後 = 実際に着手フローへ進むときだけ刻む
 	// (非対話で弾かれる呼び出しでは計測を始めない)。ナビ再ターゲットでは刻まず、
 	// 明示着手した問題のみ。失敗は non-fatal (計測が無くても着手は続行できる)。
-	if stamped, serr := stampStartedAt(t0.SolutionPath, *restart); serr != nil {
+	if stamped, warn, serr := stampStartedAt(t0.SolutionPath, *restart); serr != nil {
 		fmt.Fprintf(os.Stderr, "warning: 着手時刻の記録に失敗しました: %v\n", serr)
-	} else if stamped {
-		fmt.Println("着手時刻を記録しました (計測開始)")
+	} else {
+		if warn != "" {
+			fmt.Fprintln(os.Stderr, warn)
+		}
+		if stamped {
+			fmt.Println("着手時刻を記録しました (計測開始)")
+		}
 	}
 
 	// ナビゲーション解決を注入する: 移動先 ID を算出 (純粋) → buildTarget で再ターゲット
@@ -241,6 +246,7 @@ func (c *startConfig) buildTarget(contestID, task string, refresh bool) (t ui.St
 		MetaSet:     chatMetaSetFunc(contestID, task),   // :meta の編集 (要件 055)
 		MetaFetch:   chatMetaFetchFunc(contestID, task), // :meta fetch の再取得 (要件 057)
 		Gen:         chatGenFunc(contestID, task),       // :gen で制約からランダム入力生成 (要件 060)
+		Record:      chatRecordFunc(contestID, task),    // :record で solve-stat の計測・記録 (要件 064)
 	}
 	return ui.StartTarget{
 		ContestID:    contestID,

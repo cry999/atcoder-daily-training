@@ -9,8 +9,8 @@ import (
 // 候補に出さない (入力中のプレフィックスとしては parseCommand が受理する)。
 var (
 	// 常時出すコマンド名 (`:debug`/`:cheat` は要件 030、`:replay` は要件 039、`:test` は要件 045、
-	// `:meta` は要件 055、`:gen` は要件 060 で追加)。
-	completeNamesBase = []string{"case", "cheat", "debug", "gen", "meta", "pp", "q", "replay", "set", "test", "w"}
+	// `:meta` は要件 055、`:gen` は要件 060、`:record` は要件 064 で追加)。
+	completeNamesBase = []string{"case", "cheat", "debug", "gen", "meta", "pp", "q", "record", "replay", "set", "test", "w"}
 	// NavEnabled (start 分割画面) のときだけ出すコマンド名 (要件 027)。
 	completeNamesNav = []string{"contest", "e", "task"}
 	// 第 2 トークンの候補 (1 語目 → サブトークン)。:set は verify/noverify に加え
@@ -21,9 +21,11 @@ var (
 		"task":    {"next", "prev"},
 		"contest": {"next", "prev"},
 		"meta":    {"fetch", "time_limit", "url"},
+		// :record は start/stop をサブトークン補完 (要件 064)。フラグ (ac/score= 等) は補完しない。
+		"record": {"start", "stop"},
 	}
 	// 後続トークンを取るコマンド (一意確定時に末尾へ空白を足す)。
-	completeExpectsArg = map[string]bool{"set": true, "task": true, "contest": true, "e": true, "test": true, "meta": true}
+	completeExpectsArg = map[string]bool{"set": true, "task": true, "contest": true, "e": true, "test": true, "meta": true, "record": true}
 )
 
 // commandNames は補完で出すコマンド名一覧をアルファベット順で返す。
