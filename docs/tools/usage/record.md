@@ -108,6 +108,31 @@ $ atcoder record abc457 --task d --score 2,3,2,3,1 --no-editorial
 
 `atcoder stats` に solve-stat があると、実装時間・正答率・5 軸平均の `recorded` / `score` セクションが増える (詳細は [`stats.md`](stats.md))。
 
+## chat から記録する (`:record`)
+
+`atcoder start` の分割画面や `test --interactive` の chat では、解答を編集している画面を離れずに `:record` コマンドで計測・記録できる (要件 064)。CLI `atcoder record` と同じ solve-stat 書き込みロジックを**非対話**で呼ぶ (chat では逐次プロンプトの対話ウィザードは持たず、記入はフラグ経由・閲覧は引数なしに割り当てる)。
+
+| 入力 | 動作 |
+|---|---|
+| `:record start` | `started_at` を刻む (`:record start restart` で再計測) |
+| `:record stop` | `solved_at`/`duration_ms` を確定 (`:record stop ac` / `:record stop time=25m` も可) |
+| `:record` | solve-stat の現在値を表示する (**書き込まない**) |
+| `:record ac ed score=2,3,2,3,1 time=25m` | AC/解説/5 軸/実装時間を非対話フラグで一括記録 |
+
+- bool フラグは bare 語 (`ac`/`noac`、`ed`/`noed`)、値フラグは `key=value` (`score=k,t,c,i,v`、`time=<dur>`)。相反 bool の併用・`score`/`time` の不正値は err 行で伝えて chat は継続する。
+- 実装時間が異常値 (負値 / 12h 超) のとき、chat では確認を挟めないので警告行を添えてそのまま記録する (CLI 非対話経路と同じ)。
+- `atcoder record edit` に対応するときは、5 軸を順に見ながら訂正する chat 内編集画面を追加する予定 (対話フォームはそこで持つ)。
+
+```
+:record start
+  計測を開始しました: exercise/2026/07/01/abc457_d.py
+:record ac ed score=2,3,2,3,1
+  記録しました: exercise/2026/07/01/abc457_d.py
+  実装 23m / 目標 35m (-12m, 達成)
+  ac=true  editorial=true
+  score  k=2 t=3 c=2 i=3 v=1
+```
+
 ## exit code
 
 | 状況 | exit |
@@ -119,12 +144,12 @@ $ atcoder record abc457 --task d --score 2,3,2,3,1 --no-editorial
 ## 制約 (現時点 = MVP)
 
 - 対象言語は Python (`#` コメント) のみ。
-- `atcoder record edit` (既存記録の専用編集 UI) は Phase 2。今は `record` の再実行でキー単位訂正できる。
-- chat TUI (Ctrl+S) 経路の AC プロンプト、`review` への per-cell 表示は将来拡張。
+- `atcoder record edit` (既存記録の専用編集 UI) は Phase 2。今は `record` の再実行 (または chat `:record`) でキー単位訂正できる。
+- chat からは `:record` で計測・記録できる (上記)。逐次プロンプトの対話ウィザード・Ctrl+S 提出後の AC プロンプト・`review` への per-cell 表示は将来拡張。
 
 ## 関連
 
-- 要件: [requirements/061-solve-record-stats.md](../requirements/061-solve-record-stats.md)
+- 要件: [requirements/061-solve-record-stats.md](../requirements/061-solve-record-stats.md) / chat 統合 [requirements/064-chat-record.md](../requirements/064-chat-record.md)
 - 集計: [`stats.md`](stats.md) / [requirements/005-exercise-stats.md](../requirements/005-exercise-stats.md)
 - 着手: [`start.md`](start.md) / 提出フロー: [`test.md`](test.md)
 - 決定記録: [ADR 0002](../decisions/0002-stats-readonly-exercise-tree.md) (stats read-only) / [ADR 0006](../decisions/0006-fold-submit-into-test.md) (実提出/AC 取得が不可な理由)
