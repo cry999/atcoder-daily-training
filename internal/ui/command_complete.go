@@ -21,8 +21,8 @@ var (
 		"task":    {"next", "prev"},
 		"contest": {"next", "prev"},
 		"meta":    {"fetch", "time_limit", "url"},
-		// :record は start/stop をサブトークン補完 (要件 064)。フラグ (ac/score= 等) は補完しない。
-		"record": {"start", "stop"},
+		// :record は start/stop/edit をサブトークン補完 (要件 064/066)。フラグ (ac/score= 等) は補完しない。
+		"record": {"edit", "start", "stop"},
 	}
 	// 後続トークンを取るコマンド (一意確定時に末尾へ空白を足す)。
 	completeExpectsArg = map[string]bool{"set": true, "task": true, "contest": true, "e": true, "test": true, "meta": true, "record": true}

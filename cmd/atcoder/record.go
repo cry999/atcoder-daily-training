@@ -15,6 +15,7 @@ import (
 	"github.com/cry999/atcoder-daily-training/internal/config"
 	"github.com/cry999/atcoder-daily-training/internal/layout"
 	"github.com/cry999/atcoder-daily-training/internal/solvestat"
+	"github.com/cry999/atcoder-daily-training/internal/ui"
 	"golang.org/x/term"
 )
 
@@ -32,7 +33,7 @@ func cmdRecord(args []string) (int, error) {
 		case "stop":
 			return recordStop(args[1:])
 		case "edit":
-			return 2, errors.New("record edit は未実装です (Phase 2)。今は record の再実行でキー単位訂正できます")
+			return recordEdit(args[1:])
 		}
 	}
 	return recordMain(args)
@@ -414,6 +415,63 @@ func recordMain(args []string) (int, error) {
 	// 書き込んだ内容を要約表示。
 	final, _, _ := solvestat.ReadFile(rt.path)
 	fmt.Printf("記録しました: %s\n", rt.path)
+	printTimeLine(final.DurationMs, final.TargetMs)
+	printRecordSummary(final)
+	return 0, nil
+}
+
+// recordEdit は既存の solve-stat を全画面フォームで訂正する (record edit。要件 066)。
+// ac / editorial / duration / 5 軸だけを編集し、started_at / solved_at / target_ms は温存する。
+// 既存記録が前提 (無ければ案内エラー)。確定 (Ctrl+S) で OverwriteFile 全置換、取消 (Esc) で無変更。
+func recordEdit(args []string) (int, error) {
+	flagArgs, positionals := cliargs.Split(args)
+	if len(positionals) < 1 {
+		return 2, errors.New("contest is required")
+	}
+	contest := positionals[0]
+
+	fs := flag.NewFlagSet("record edit", flag.ContinueOnError)
+	taskFlag := addTaskFlag(fs)
+	layoutFlag := addLayoutFlag(fs)
+	fs.SetOutput(os.Stderr)
+	if err := fs.Parse(flagArgs); err != nil {
+		return 2, err
+	}
+	task, code, err := requireTask(*taskFlag, contest)
+	if err != nil {
+		return code, err
+	}
+	rt, err := buildRecordTarget(*layoutFlag, contest, task)
+	if err != nil {
+		return 2, err
+	}
+	st, found, err := solvestat.ReadFile(rt.path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 1, errors.New("記録がありません。先に atcoder record start / atcoder record で記録してください")
+		}
+		return 1, err
+	}
+	if !found {
+		return 1, errors.New("solve-stat がありません。先に atcoder record start / atcoder record で記録してください")
+	}
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		return 1, errors.New("record edit は対話端末が必要です。非対話ではフラグで訂正してください (atcoder record ...)")
+	}
+
+	res, err := ui.RunRecordEdit(rt.task, st, rt.targetMs())
+	if err != nil {
+		return 1, err
+	}
+	if !res.Saved {
+		fmt.Println("(編集を取消しました)")
+		return 0, nil
+	}
+	if err := solvestat.OverwriteFile(rt.path, res.Stat); err != nil {
+		return 1, err
+	}
+	final, _, _ := solvestat.ReadFile(rt.path)
+	fmt.Printf("記録を更新しました: %s\n", rt.path)
 	printTimeLine(final.DurationMs, final.TargetMs)
 	printRecordSummary(final)
 	return 0, nil

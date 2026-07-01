@@ -156,6 +156,7 @@ func usage() {
                  [--ac|--no-ac] [--editorial|--no-editorial] [--score <k,t,c,i,v>] [--time <dur>]
   atcoder record start <contest> --task <task> [--restart]   # 計測開始 (着手 UI なし)
   atcoder record stop  <contest> --task <task> [--ac|--no-ac] [--time <dur>]   # 計測終端
+  atcoder record edit  <contest> --task <task>   # 既存記録を全画面フォームで訂正 (対話端末が必要)
   atcoder config <show | get <key> | set <key> <value> | unset <key> | path>
                  # 目標実装時間: set target.<category>.<letter> <dur> (例 target.abc.d 35m)
   atcoder completion <bash|zsh|fish>

@@ -60,25 +60,27 @@ func makeChatRunner(contest, task string, lay layout.Layout, tolerance float64, 
 		sid := chatlog.NewSessionID()
 		prev, _ := chatlog.LoadLastSession(contest, task) // best-effort: 失敗時は前回入力なし
 		return ui.RunChat(ui.Spawner(spawn), ui.ChatHeader{
-			Task:        header.Task,
-			Contest:     header.Contest,
-			TimeLimitMs: header.TimeLimitMs,
-			Debug:       header.Debug,
-			PP:          header.PP,
-			AutoRestart: header.AutoRestart,
-			WatchPath:   header.WatchPath,
-			Submit:      chatSubmitFunc(contest, task, lay),
-			SubmitCheck: chatSubmitCheckFunc(contest, task, lay, tolerance), // Ctrl+S の提出前チェック (要件 044)
-			TaskDir:     cachepath.Task(contest, task),                      // :case/:w の保存先 (tests-extra)
-			Tolerance:   tolerance,
-			Edit:        editFunc(editorOverride, nvimRemote), // Ctrl+E でエディタ起動 (要件 038/041)
-			PrevInputs:  prev,
-			RecordInput: func(line string) { _ = chatlog.Record(contest, task, sid, line) },
-			MetaShow:    chatMetaShowFunc(contest, task),    // :meta の表示 (要件 055)
-			MetaSet:     chatMetaSetFunc(contest, task),     // :meta の編集 (要件 055)
-			MetaFetch:   chatMetaFetchFunc(contest, task),   // :meta fetch の再取得 (要件 057)
-			Gen:         chatGenFunc(contest, task),         // :gen で制約からランダム入力生成 (要件 060)
-			Record:      chatRecordFunc(contest, task, lay), // :record で solve-stat の計測・記録 (要件 064)
+			Task:           header.Task,
+			Contest:        header.Contest,
+			TimeLimitMs:    header.TimeLimitMs,
+			Debug:          header.Debug,
+			PP:             header.PP,
+			AutoRestart:    header.AutoRestart,
+			WatchPath:      header.WatchPath,
+			Submit:         chatSubmitFunc(contest, task, lay),
+			SubmitCheck:    chatSubmitCheckFunc(contest, task, lay, tolerance), // Ctrl+S の提出前チェック (要件 044)
+			TaskDir:        cachepath.Task(contest, task),                      // :case/:w の保存先 (tests-extra)
+			Tolerance:      tolerance,
+			Edit:           editFunc(editorOverride, nvimRemote), // Ctrl+E でエディタ起動 (要件 038/041)
+			PrevInputs:     prev,
+			RecordInput:    func(line string) { _ = chatlog.Record(contest, task, sid, line) },
+			MetaShow:       chatMetaShowFunc(contest, task),            // :meta の表示 (要件 055)
+			MetaSet:        chatMetaSetFunc(contest, task),             // :meta の編集 (要件 055)
+			MetaFetch:      chatMetaFetchFunc(contest, task),           // :meta fetch の再取得 (要件 057)
+			Gen:            chatGenFunc(contest, task),                 // :gen で制約からランダム入力生成 (要件 060)
+			Record:         chatRecordFunc(contest, task, lay),         // :record で solve-stat の計測・記録 (要件 064)
+			RecordEditLoad: chatRecordEditLoadFunc(contest, task, lay), // :record edit の現在値読み込み (要件 066)
+			RecordEditSave: chatRecordEditSaveFunc(contest, task, lay), // :record edit の全置換保存 (要件 066)
 		})
 	}
 }

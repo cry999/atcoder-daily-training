@@ -32,6 +32,45 @@ func chatRecordFunc(contest, task string, lay layout.Layout) func(args []string)
 	}
 }
 
+// chatRecordEditLoadFunc は chat の :record edit (要件 066) が編集フォームへ渡す現在値を
+// 読み込むフック。解答パスを解決し solve-stat を読んで Stat・目標時間 (config)・記録の有無を
+// 返す。ファイルが無い / ブロックが無いときは found=false (フォームは開かず chat が案内する)。
+// layout は chat 起動時に解決済みの lay をそのまま使う (chatRecordFunc と同じ理由)。
+func chatRecordEditLoadFunc(contest, task string, lay layout.Layout) func() (solvestat.Stat, int64, bool, error) {
+	return func() (solvestat.Stat, int64, bool, error) {
+		rt, err := recordTargetFor(lay, contest, task)
+		if err != nil {
+			return solvestat.Empty(), 0, false, err
+		}
+		st, found, err := solvestat.ReadFile(rt.path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return solvestat.Empty(), 0, false, nil
+			}
+			return solvestat.Empty(), 0, false, err
+		}
+		return st, rt.targetMs(), found, nil
+	}
+}
+
+// chatRecordEditSaveFunc は :record edit のフォーム確定時に、編集後の Stat を全置換保存する
+// フック。started_at / solved_at / target_ms はフォームが元値を温存済み。保存後に読み直して
+// 更新結果の要約行を返す (chat が info 行で積む)。
+func chatRecordEditSaveFunc(contest, task string, lay layout.Layout) func(solvestat.Stat) ([]string, error) {
+	return func(st solvestat.Stat) ([]string, error) {
+		rt, err := recordTargetFor(lay, contest, task)
+		if err != nil {
+			return nil, err
+		}
+		if err := solvestat.OverwriteFile(rt.path, st); err != nil {
+			return nil, err
+		}
+		final, _, _ := solvestat.ReadFile(rt.path)
+		lines := []string{"記録を更新しました: " + rt.path, chatRecordTimeLine(final.DurationMs, final.TargetMs)}
+		return append(lines, chatRecordSummaryLines(final)...), nil
+	}
+}
+
 // chatRecordStart は :record start を処理する (CLI recordStart 相当)。started_at を刻む。
 // restart トークンで再計測 (started_at リセット + 完了系クリア)。
 func chatRecordStart(contest, task string, lay layout.Layout, args []string) ([]string, error) {

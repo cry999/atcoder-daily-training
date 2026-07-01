@@ -16,15 +16,17 @@ import (
 
 // chatMode は chat の入力モード (vim 風)。要件 024。
 //
-//	insert  : 既定。textinput にフォーカスし Enter で子に送信 (従来の chat)。
-//	command : ex-command line (`:…`)。コマンドを 1 行打って Enter で実行。
-//	builder : ケースビルダー (input/expected の textarea 2 ペイン)。
+//	insert     : 既定。textinput にフォーカスし Enter で子に送信 (従来の chat)。
+//	command    : ex-command line (`:…`)。コマンドを 1 行打って Enter で実行。
+//	builder    : ケースビルダー (input/expected の textarea 2 ペイン)。
+//	recordEdit : solve-stat の全画面編集フォーム (:record edit。要件 066)。
 type chatMode int
 
 const (
 	modeInsert chatMode = iota
 	modeCommand
 	modeBuilder
+	modeRecordEdit
 )
 
 // caseBuilder は `:case` で開く入出力ケースの作成画面。input/expected の
@@ -436,13 +438,18 @@ func (m *chatModel) applyGenDone(msg genDoneMsg) {
 // start では毎秒 tick する tea.Cmd を返す (失敗・その他は nil)。
 func (m *chatModel) execRecord(arg string) tea.Cmd {
 	m.returnFromCommand()
+	fields := strings.Fields(arg)
+	if len(fields) >= 1 && fields[0] == "edit" {
+		// :record edit → 全画面編集フォームへ (要件 066)。
+		m.enterRecordEdit()
+		return nil
+	}
 	if m.header.Record == nil {
 		m.addInfoLine("(記録はこの画面では使えません)")
 		m.refreshViewport()
 		return nil
 	}
-	args := strings.Fields(arg)
-	lines, err := m.header.Record(args)
+	lines, err := m.header.Record(fields)
 	if err != nil {
 		m.addErrLine("(" + err.Error() + ")")
 		m.refreshViewport()
@@ -455,8 +462,8 @@ func (m *chatModel) execRecord(arg string) tea.Cmd {
 	// :record stop で消灯 (recordGen を進めて走っている tick を世代不一致で止める)。
 	// スピナー tick と同型で、重複 tick を防ぐため世代 (recordGen) を都度更新する。
 	var cmd tea.Cmd
-	if len(args) >= 1 {
-		switch args[0] {
+	if len(fields) >= 1 {
+		switch fields[0] {
 		case "start":
 			m.recording = true
 			m.recordStart = time.Now()
@@ -469,6 +476,59 @@ func (m *chatModel) execRecord(arg string) tea.Cmd {
 	}
 	m.refreshViewport()
 	return cmd
+}
+
+// enterRecordEdit は :record edit (要件 066) で全画面編集フォームへ入る。RecordEditLoad で
+// 現在の solve-stat を読み込み、記録があればフォームを開いて modeRecordEdit へ遷移する。
+// 記録が無い / フックが未注入なら info 行で案内するだけ (insert に留まる)。solve-stat の
+// 読み書きは composition root に委譲し、UI には Stat (純データ) だけ渡す (Record と同じ層境界)。
+func (m *chatModel) enterRecordEdit() {
+	if m.header.RecordEditLoad == nil || m.header.RecordEditSave == nil {
+		m.addInfoLine("(記録の編集はこの画面では使えません)")
+		m.refreshViewport()
+		return
+	}
+	st, targetMs, found, err := m.header.RecordEditLoad()
+	if err != nil {
+		m.addErrLine("(" + err.Error() + ")")
+		m.refreshViewport()
+		return
+	}
+	if !found {
+		m.addInfoLine("(まだ記録がありません。:record start で計測を開始できます)")
+		m.refreshViewport()
+		return
+	}
+	m.editForm = newRecordEditModel(m.header.Task, st, targetMs, true)
+	m.editForm.setWidth(m.width - 2)
+	m.mode = modeRecordEdit
+}
+
+// updateRecordEdit は modeRecordEdit のキー処理。フォームに打鍵を委ね、確定/取消 (done) で
+// 抜ける。確定 (saved) なら RecordEditSave で全置換保存し結果行を、取消なら中止行を積む。
+func (m *chatModel) updateRecordEdit(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	m.editForm.handleKey(msg)
+	if !m.editForm.done {
+		return m, nil
+	}
+	saved := m.editForm.saved
+	result := m.editForm.resultStat()
+	m.editForm = nil
+	m.returnFromCommand() // builder が開いていれば編集へ、なければ insert へ戻す
+	if saved {
+		lines, err := m.header.RecordEditSave(result)
+		if err != nil {
+			m.addErrLine("(" + err.Error() + ")")
+		} else {
+			for _, l := range lines {
+				m.addInfoLine(l)
+			}
+		}
+	} else {
+		m.addInfoLine("(編集を取消しました)")
+	}
+	m.refreshViewport()
+	return m, nil
 }
 
 // metaShow は MetaShow フックを呼び、返ってきた行を info 行で積む。失敗は err 行で 1 本。
@@ -599,7 +659,7 @@ func (m *chatModel) showCheat() {
 		"  :meta [url|time_limit [値]]  meta の url / time_limit を表示・編集",
 		"  :meta fetch           url からサンプル + Time Limit を再取得",
 		"  :gen                  制約 / 入力形式からランダム入力を生成し入力欄へ前埋め",
-		"  :record [start|stop|<flags>]  実装時間/AC/5 軸を記録 (:record で現在値表示)",
+		"  :record [start|stop|edit|<flags>]  実装時間/AC/5 軸を記録 (:record で現在値表示 / edit で編集フォーム)",
 		"  :cheat (:help :?)     このコマンド一覧",
 		"  :q                    chat 終了 (作成画面中は破棄)",
 	}

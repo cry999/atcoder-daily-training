@@ -15,6 +15,7 @@ import (
 	"github.com/mattn/go-runewidth"
 
 	"github.com/cry999/atcoder-daily-training/internal/runner"
+	"github.com/cry999/atcoder-daily-training/internal/solvestat"
 	"github.com/cry999/atcoder-daily-training/internal/watch"
 )
 
@@ -81,6 +82,15 @@ type ChatHeader struct {
 	// (internal/ui は solvestat/layout/config を知らない層境界。Meta/Gen と同じ)。
 	// ローカル I/O のみなので同期で呼ぶ (:gen/:meta fetch のような非同期化は不要)。
 	Record func(args []string) (lines []string, err error)
+
+	// RecordEditLoad / RecordEditSave は :record edit (要件 066) の全画面編集フォーム用フック。
+	// 両方とも非 nil なら chat から :record edit で既存の solve-stat を訂正できる。
+	// RecordEditLoad は現在の Stat と (config の) 目標時間・記録の有無を返す。
+	// RecordEditSave はフォーム確定時に編集後の Stat を全置換保存し、結果行を返す。
+	// solve-stat の読み書き・layout 解決は composition root に逃がす (Record と同じ層境界。
+	// internal/ui は solvestat の純データ型だけを受け渡す)。
+	RecordEditLoad func() (st solvestat.Stat, targetMs int64, found bool, err error)
+	RecordEditSave func(st solvestat.Stat) (lines []string, err error)
 }
 
 // EditPlan は Ctrl+E のエディタ起動計画。composition root の EditFunc が返す (要件 038)。
@@ -292,6 +302,8 @@ type chatModel struct {
 	prevSessionInputs []string        // 直前に完了した (空でない) 子セッションの入力行 (:replay のフォールバック。要件 039)
 	lastTest          *testReplay     // 直近に :test で流したサンプルケース。:replay が「直近の操作」として再送 + 再検証する (今回の起動内でのみ保持。要件 048)
 	lastOpWasTest     bool            // 直近の「再生対象となる操作」が :test ケースなら true、手入力なら false。:replay が手入力/テストを判定する手がかり。:replay 自身はこれを変えない (連続 :replay で対象が遡らないように。要件 048 / バグ報告)
+
+	editForm *recordEditModel // 非 nil なら :record edit の全画面編集フォームを開いている (modeRecordEdit。要件 066)
 }
 
 // initialChatModel は遅延起動の chat モデルを作る。子プロセスは開いた時点では
@@ -628,6 +640,9 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.builder != nil {
 			m.builder.setWidth(m.width - 2)
 		}
+		if m.editForm != nil {
+			m.editForm.setWidth(m.width - 2)
+		}
 		// viewport の高さは refreshViewport の中で content 行数 + maxViewportHeight()
 		// から動的に決定する (空のあいだは入力ボックスを画面の上の方に出す)。
 		m.refreshViewport()
@@ -660,12 +675,14 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// command / builder モードはキーを横取りする (要件 024)。insert モードは従来どおり。
+		// command / builder / record-edit モードはキーを横取りする (要件 024/066)。insert は従来どおり。
 		switch m.mode {
 		case modeCommand:
 			return m.updateCommand(msg)
 		case modeBuilder:
 			return m.updateBuilder(msg)
+		case modeRecordEdit:
+			return m.updateRecordEdit(msg)
 		}
 		// 複数行ペースト (bracketed paste): 各改行を Enter 扱いで完全行を逐次送信し、
 		// 末尾の未改行テキストは入力欄に残す (要件 034)。改行を含まない通常ペースト・
@@ -903,6 +920,11 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *chatModel) View() string {
 	if !m.ready {
 		return ""
+	}
+	// :record edit の編集フォームを開いている間はヘッダ直下に全面表示する (builder と同じ
+	// 「子は裏で生かしたまま画面を占有」。要件 066)。
+	if m.mode == modeRecordEdit && m.editForm != nil {
+		return strings.Join([]string{m.renderHeader(), m.editForm.View()}, "\n")
 	}
 	// ケースビルダーを開いている間 (builder / builder 付き command) は、その画面を
 	// ヘッダの下に重ねて出す (子の出力は止めず裏で流れ続けるが画面はビルダー優先)。

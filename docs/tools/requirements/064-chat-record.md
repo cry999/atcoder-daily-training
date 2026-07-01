@@ -20,7 +20,7 @@ CLI `atcoder record` が持つ**逐次プロンプトの対話ウィザード** 
 | 計測終端 | `:record stop` (`solved_at`/`duration_ms` 確定、`ac`/`time=` 任意) | — |
 | 記録 | `:record` に非対話フラグ (`ac`/`noac`/`ed`/`noed`/`score=`/`time=`) を与えて一括記録 | — |
 | 現在値の表示 | 引数なし `:record` で solve-stat の現在値を読み取り表示 (書き込まない) | — |
-| 対話ウィザード | **スコープ外**。5 軸を順に尋ねる記入 UI は作らない | `record edit` 実装時に chat 内編集画面 (モーダル) として追加 |
+| 対話ウィザード | **スコープ外**。5 軸を順に尋ねる記入 UI は作らない | ✅ `record edit` として実装済み。全画面フォームを chat 内モーダルとして追加 (要件 [066](066-record-edit.md)) |
 | Ctrl+S 提出後の AC プロンプト | **スコープ外** (要件 061 の将来拡張のまま) | 提出準備完了後に AC を尋ねる導線 |
 | 対象画面 | start 分割画面の chat / `test --interactive` の chat 両方 | — |
 | 対象言語 | Python (solve-stat が `#` コメント) のみ (要件 061 に従う) | 言語別プレフィックス |
@@ -160,7 +160,7 @@ Record func(args []string) (lines []string, err error)
 
 ## 将来の拡張ポイント
 
-- **`record edit` の chat 編集画面**: 5 軸スコアを順に見ながら訂正する対話フォーム (chat 内モーダル)。本要件が非対話フラグで残した「対話ウィザード」を埋める。
+- ✅ **`record edit` の chat 編集画面** (要件 [066](066-record-edit.md)): ac/editorial/duration/5 軸を一覧表示して訂正する全画面フォーム (chat 内モーダル)。本要件が非対話フラグで残した「対話ウィザード」を埋めた。
 - **Ctrl+S 提出後の AC プロンプト**: 提出準備完了後に AC を尋ねて `solved_at`/`ac` を確定する導線 (要件 061 の将来拡張)。
 - **ヘッダの経過タイマー表示**: `started_at` を基点に chat/watch ヘッダで経過時間を刻む (要件 061 のタイマー G)。
 

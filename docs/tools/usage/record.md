@@ -46,9 +46,10 @@ atcoder record       <contest> --task <task> [--ac|--no-ac] [--editorial|--no-ed
                                              [--time <dur>] [--layout <auto|abc|exercise>]
 atcoder record start <contest> --task <task> [--restart] [--layout ...]
 atcoder record stop  <contest> --task <task> [--ac|--no-ac] [--time <dur>] [--layout ...]
+atcoder record edit  <contest> --task <task> [--layout ...]
 ```
 
-第 1 引数が `start` / `stop` ならそのサブコマンド、そうでなければ (contest 指定) 記録本体。位置引数 (`<contest>`) とフラグの順序は自由。
+第 1 引数が `start` / `stop` / `edit` ならそのサブコマンド、そうでなければ (contest 指定) 記録本体。位置引数 (`<contest>`) とフラグの順序は自由。
 
 ### `atcoder record` (記録)
 
@@ -72,6 +73,35 @@ atcoder record stop  <contest> --task <task> [--ac|--no-ac] [--time <dur>] [--la
 ### `atcoder record stop` (計測終端)
 
 スコア対話に入らない最小終端。`solved_at` を今に確定し `duration_ms` を算出 (`--time` があれば上書き)、config の目標時間を `target_ms` にスナップショットする。`--ac`/`--no-ac` で AC も記録できる。異常値 (負値 / 12h 超) は warning を出しつつ記録する (日跨ぎ放置対策)。
+
+### `atcoder record edit` (全画面編集フォーム)
+
+既に記録済みの solve-stat を**全画面フォーム**で一覧表示し、任意フィールドを訂正・クリアする (要件 [066](../requirements/066-record-edit.md))。`record` 再実行のフラグ訂正と違い、現在値を見ながら直せて「一度 true にした値を未記録へ戻す」クリアも素直にできる。
+
+- 編集対象は `ac` / `editorial` / `duration` / 5 軸のみ。`started_at` / `solved_at` / `target_ms` は表示も編集もせず保存時に元値を温存する。
+- 既存記録が前提。記録・solve-stat ブロックが無ければ案内して exit 1。全画面フォームは**対話端末が必要**で、非対話 (パイプ・CI) では exit 1 でフラグ経路 (`atcoder record ...`) を案内する。
+- 保存 (Ctrl+S) は `OverwriteFile` で全置換 (クリアしたキーは落ちる)。取消 (Esc) はファイルを書き換えない。
+
+```
+> ac          [ true ]
+  editorial   [ false ]
+  duration    [ 23m ]
+  knowledge   [ 2 ]
+  ...
+目標 35m
+↑↓ 移動   ←→/space 変更   0-3・y/n 入力   Backspace 未記録   Ctrl+S 保存   Esc 取消
+```
+
+| キー | 動作 |
+|---|---|
+| `↑` / `↓` | フィールド間を移動 |
+| `←` / `→` / space | `ac`/`editorial` は `未記録 ↔ true ↔ false` を循環、5 軸は `未記録 ↔ 0..3` を移動 |
+| `y` / `n` | `ac`/`editorial` を true / false に |
+| `0`–`3` | 5 軸の値を直接入力 |
+| `Backspace` | 選択フィールドを未記録へ (duration は 1 文字削除) |
+| `duration` 入力 | 数字と `h`/`m`/`s` を打って実装時間を編集 (空で未計測)。未編集なら元の値を桁落ちなく温存 |
+| `Ctrl+S` | 保存して終了 | 
+| `Esc` / `Ctrl+C` | 取消して終了 |
 
 ## 目標実装時間 (`config`)
 
@@ -118,10 +148,11 @@ $ atcoder record abc457 --task d --score 2,3,2,3,1 --no-editorial
 | `:record stop` | `solved_at`/`duration_ms` を確定 (`:record stop ac` / `:record stop time=25m` も可) |
 | `:record` | solve-stat の現在値を表示する (**書き込まない**) |
 | `:record ac ed score=2,3,2,3,1 time=25m` | AC/解説/5 軸/実装時間を非対話フラグで一括記録 |
+| `:record edit` | 既存記録を**全画面フォーム**で訂正する (要件 066)。Ctrl+S 保存 / Esc 取消 |
 
 - bool フラグは bare 語 (`ac`/`noac`、`ed`/`noed`)、値フラグは `key=value` (`score=k,t,c,i,v`、`time=<dur>`)。相反 bool の併用・`score`/`time` の不正値は err 行で伝えて chat は継続する。
 - 実装時間が異常値 (負値 / 12h 超) のとき、chat では確認を挟めないので警告行を添えてそのまま記録する (CLI 非対話経路と同じ)。
-- `atcoder record edit` に対応するときは、5 軸を順に見ながら訂正する chat 内編集画面を追加する予定 (対話フォームはそこで持つ)。
+- `:record edit` は chat を離れずに CLI `record edit` と同じ全画面フォームを開く (`:case` の作成画面と同様に子プロセスは裏で生かしたまま画面を占有)。記録が無ければ「(まだ記録がありません)」と案内する。保存すると更新結果を info 行で積んで会話へ戻る。
 
 ```
 :record start
@@ -139,17 +170,17 @@ $ atcoder record abc457 --task d --score 2,3,2,3,1 --no-editorial
 |---|---|
 | 正常記録 (警告付き含む) | 0 |
 | 引数・フラグ誤り (`--task` 欠落 / `--score` の値数・範囲 / 相反 bool 併用 / 不正 `--time` / `config set target` の不正 duration) | 2 |
-| 解答ファイル不在 (`record`/`record stop`) / solve-stat ブロック破損 / 書き込み失敗 | 1 |
+| 解答ファイル不在 (`record`/`record stop`/`record edit`) / solve-stat ブロック破損 / 書き込み失敗 / `record edit` の非対話端末・記録なし | 1 |
 
 ## 制約 (現時点 = MVP)
 
 - 対象言語は Python (`#` コメント) のみ。
-- `atcoder record edit` (既存記録の専用編集 UI) は Phase 2。今は `record` の再実行 (または chat `:record`) でキー単位訂正できる。
-- chat からは `:record` で計測・記録できる (上記)。逐次プロンプトの対話ウィザード・Ctrl+S 提出後の AC プロンプト・`review` への per-cell 表示は将来拡張。
+- `atcoder record edit` / `:record edit` (既存記録の全画面編集フォーム) は実装済み (要件 066)。`started_at` / `solved_at` の時刻直接編集は将来拡張。
+- chat からは `:record` で計測・記録、`:record edit` で訂正できる (上記)。Ctrl+S 提出後の AC プロンプト・`review` への per-cell 表示は将来拡張。
 
 ## 関連
 
-- 要件: [requirements/061-solve-record-stats.md](../requirements/061-solve-record-stats.md) / chat 統合 [requirements/064-chat-record.md](../requirements/064-chat-record.md)
+- 要件: [requirements/061-solve-record-stats.md](../requirements/061-solve-record-stats.md) / chat 統合 [requirements/064-chat-record.md](../requirements/064-chat-record.md) / 編集フォーム [requirements/066-record-edit.md](../requirements/066-record-edit.md)
 - 集計: [`stats.md`](stats.md) / [requirements/005-exercise-stats.md](../requirements/005-exercise-stats.md)
 - 着手: [`start.md`](start.md) / 提出フロー: [`test.md`](test.md)
 - 決定記録: [ADR 0002](../decisions/0002-stats-readonly-exercise-tree.md) (stats read-only) / [ADR 0006](../decisions/0006-fold-submit-into-test.md) (実提出/AC 取得が不可な理由)

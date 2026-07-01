@@ -620,7 +620,10 @@ run_case "record --score wrong arity"         2 record fixture --task d --score 
 run_case "record --score out of range"        2 record fixture --task d --score 2,3,2,3,9
 run_case "record --ac + --no-ac (reject)"     2 record fixture --task d --ac --no-ac
 run_case "record --time bad duration"         2 record fixture --task d --time soon
-run_case "record edit (Phase 2 unimplemented)" 2 record edit fixture --task d
+# record edit (要件 066): 記録ありでも非対話端末では TTY を要求して exit 1。
+run_case "record edit needs a TTY (non-interactive)" 1 record edit fixture --task d
+# 記録が無い問題への record edit は案内して exit 1 (解答ファイル自体が無い)。
+run_case "record edit with no record"          1 record edit fixture --task zz
 run_case "record stop missing solution file"  1 record stop fixture --task zz
 
 # stats: solve-stat を書いた解答があるので "recorded" / "score" セクションが出る。

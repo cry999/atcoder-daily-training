@@ -228,25 +228,27 @@ func (c *startConfig) buildTarget(contestID, task string, refresh bool) (t ui.St
 	prevInputs, _ := chatlog.LoadLastSession(contestID, task) // best-effort: 失敗時は前回入力なし
 	// WatchPath を渡すと、保存検知で下ペインの chat も最新コードで reload する。
 	header := ui.ChatHeader{
-		Task:        task,
-		Contest:     contestID,
-		TimeLimitMs: timeLimitMs,
-		Debug:       c.debug,
-		AutoRestart: true,
-		WatchPath:   path,
-		Submit:      chatSubmitFunc(contestID, task, lay),
-		SubmitCheck: chatSubmitCheckFunc(contestID, task, lay, c.tolerance), // Ctrl+S の提出前チェック (要件 044)
-		TaskDir:     cachepath.Task(contestID, task),
-		Tolerance:   c.tolerance,
-		NavEnabled:  true,
-		Edit:        editFunc(c.editor, c.nvimRemote),
-		PrevInputs:  prevInputs,
-		RecordInput: func(line string) { _ = chatlog.Record(contestID, task, sid, line) },
-		MetaShow:    chatMetaShowFunc(contestID, task),    // :meta の表示 (要件 055)
-		MetaSet:     chatMetaSetFunc(contestID, task),     // :meta の編集 (要件 055)
-		MetaFetch:   chatMetaFetchFunc(contestID, task),   // :meta fetch の再取得 (要件 057)
-		Gen:         chatGenFunc(contestID, task),         // :gen で制約からランダム入力生成 (要件 060)
-		Record:      chatRecordFunc(contestID, task, lay), // :record で solve-stat の計測・記録 (要件 064)
+		Task:           task,
+		Contest:        contestID,
+		TimeLimitMs:    timeLimitMs,
+		Debug:          c.debug,
+		AutoRestart:    true,
+		WatchPath:      path,
+		Submit:         chatSubmitFunc(contestID, task, lay),
+		SubmitCheck:    chatSubmitCheckFunc(contestID, task, lay, c.tolerance), // Ctrl+S の提出前チェック (要件 044)
+		TaskDir:        cachepath.Task(contestID, task),
+		Tolerance:      c.tolerance,
+		NavEnabled:     true,
+		Edit:           editFunc(c.editor, c.nvimRemote),
+		PrevInputs:     prevInputs,
+		RecordInput:    func(line string) { _ = chatlog.Record(contestID, task, sid, line) },
+		MetaShow:       chatMetaShowFunc(contestID, task),            // :meta の表示 (要件 055)
+		MetaSet:        chatMetaSetFunc(contestID, task),             // :meta の編集 (要件 055)
+		MetaFetch:      chatMetaFetchFunc(contestID, task),           // :meta fetch の再取得 (要件 057)
+		Gen:            chatGenFunc(contestID, task),                 // :gen で制約からランダム入力生成 (要件 060)
+		Record:         chatRecordFunc(contestID, task, lay),         // :record で solve-stat の計測・記録 (要件 064)
+		RecordEditLoad: chatRecordEditLoadFunc(contestID, task, lay), // :record edit の現在値読み込み (要件 066)
+		RecordEditSave: chatRecordEditSaveFunc(contestID, task, lay), // :record edit の全置換保存 (要件 066)
 	}
 	return ui.StartTarget{
 		ContestID:    contestID,
