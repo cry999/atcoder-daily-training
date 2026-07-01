@@ -230,6 +230,7 @@ func (c *startConfig) buildTarget(contestID, task string, refresh bool) (t ui.St
 		MetaShow:    chatMetaShowFunc(contestID, task),  // :meta の表示 (要件 055)
 		MetaSet:     chatMetaSetFunc(contestID, task),   // :meta の編集 (要件 055)
 		MetaFetch:   chatMetaFetchFunc(contestID, task), // :meta fetch の再取得 (要件 057)
+		Gen:         chatGenFunc(contestID, task),       // :gen で制約からランダム入力生成 (要件 060)
 	}
 	return ui.StartTarget{
 		ContestID:    contestID,

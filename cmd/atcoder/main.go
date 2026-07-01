@@ -14,7 +14,7 @@ import (
 // builtins は組み込みサブコマンド名の集合。下の switch・usage() と同期させること。
 // alias より常に優先される (alias は未知名のときだけ解決される)。
 var builtins = map[string]bool{
-	"new": true, "start": true, "test": true, "meta": true, "stats": true, "review": true,
+	"new": true, "start": true, "test": true, "gen": true, "meta": true, "stats": true, "review": true,
 	"config": true, "commit": true, "completion": true,
 	"update": true, "version": true, "usage": true, "__complete": true,
 }
@@ -62,6 +62,8 @@ func dispatch(name string, rest []string) int {
 		return runCmd("start", cmdStart, rest)
 	case "test":
 		return runCmd("test", cmdTest, rest)
+	case "gen":
+		return runCmd("gen", cmdGen, rest)
 	case "meta":
 		return runCmd("meta", cmdMeta, rest)
 	case "stats":
@@ -136,6 +138,8 @@ func usage() {
                  [sample: -c <N[,M,...]> | --refresh | -j <n> | -w | -s | --json | --submit [--no-open] [--keep-debug]]
                  [ad-hoc: --in <path>|- | --out <path> | --interactive [-R|--auto-restart]]
                  [-v] [-d] [--timeout <dur>] [--tolerance <eps>] [--layout <auto|abc|exercise>]
+  atcoder gen    <contest> --task <task>   # 制約・入力形式を認識してランダム入力を生成 (ベストエフォート)
+                 [-n <count>] [-o <path>] [--save] [--size <random|max|min>] [--seed <n>] [--show-spec] [--refresh]
   atcoder meta   <fetch | show | set> <url | contest --task <task>>   # キャッシュ (samples + time limit) の DL / 表示 / 編集
                  [set: --url <url> | --time-limit <dur>]
   atcoder stats  [-w|--week | -m|--month | -y|--year | -l|--last <dur>] [-g|--graph]

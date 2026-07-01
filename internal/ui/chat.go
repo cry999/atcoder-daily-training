@@ -62,6 +62,14 @@ type ChatHeader struct {
 	// testexec.EnsureTests(refresh=true) をサイレント reporter で実行する
 	// (internal/ui は testexec を知らないため)。
 	MetaFetch func() (lines []string, newTimeLimitMs int, err error)
+
+	// Gen は :gen コマンド (要件 060) で、問題の制約 / 入力形式からランダム入力を
+	// 1 つ生成するフック。非 nil なら chat 内から :gen で生成入力を insert 入力欄へ
+	// 前埋めできる (送信はユーザの Enter に委ねる)。生成入力と (取りこぼしの) 警告を
+	// 返す。初回は gen.toml を fetch しうるため chat は tea.Cmd で非同期に呼ぶ
+	// (MetaFetch と同型)。internal/ui は testexec/gen を知らないため composition root が
+	// 注入する。
+	Gen func() (input string, warnings []string, err error)
 }
 
 // EditPlan は Ctrl+E のエディタ起動計画。composition root の EditFunc が返す (要件 038)。
@@ -87,6 +95,14 @@ type metaFetchDoneMsg struct {
 	lines          []string
 	newTimeLimitMs int
 	err            error
+}
+
+// genDoneMsg は :gen (要件 060) の非同期生成の完了通知。input は生成した入力
+// (insert 欄へ前埋めする)、warnings は取りこぼし警告 (info 行で積む)、err は失敗。
+type genDoneMsg struct {
+	input    string
+	warnings []string
+	err      error
 }
 
 // SubmitResult は chat の Ctrl+S 提出準備の結果。chat はこれを 1 行に整形して表示する。
@@ -829,6 +845,12 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// :meta fetch (要件 057) の非同期再取得の完了。結果行 / err 行を積み、
 		// Time Limit が変わればヘッダに反映する。
 		m.applyMetaFetchDone(msg)
+		m.refreshViewport()
+		return m, nil
+	case genDoneMsg:
+		// :gen (要件 060) の非同期生成の完了。生成入力を insert 欄へ前埋めし、
+		// 取りこぼし警告を info 行で積む。送信はユーザの Enter に委ねる。
+		m.applyGenDone(msg)
 		m.refreshViewport()
 		return m, nil
 	}

@@ -56,6 +56,8 @@
 
 > `atcoder meta` (要件 046) の `show`/`set` と引数誤り (exit 2)・未キャッシュ (exit 1) も `run.sh` で smoke する。プリポピュレートされた `fixture_pass` のキャッシュ (書き込み可能な一時 `XDG_CACHE_HOME` にコピー済み) を再利用するので専用 fixture は不要。`fetch` はネットワークに触れるため回さない。
 
+> `atcoder gen` (要件 060) も `run.sh` で smoke する。プリポピュレートされた `fixture/fixture_gen/gen.toml` (小さい制約) を解析して生成する経路 — `--show-spec` の内容 (`scalar : N M` / `coverage: full`)・`--seed` 生成・`--size max|min`・`-n 2 -o <dir>` の `NN.in`・`--save` の `tests-extra/` 追加、および引数誤り (`--task` 欠落 / `--show-spec` × `--seed` / 不正 `--size`) の exit 2 — を固定する。`fetch` はネットワークに触れるため回さない (生成は入力のみで judge しないため `.py` fixture は不要)。
+
 ## 実行すべきタイミング
 
 リファクタリングや機能追加で以下を触ったときに走らせる:

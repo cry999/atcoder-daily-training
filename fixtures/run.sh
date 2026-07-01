@@ -309,6 +309,31 @@ test -f "$CACHE_HOME/atcoder-tools/abc998/contest.toml" \
 # Invalid contest ID is rejected.
 run_case "new abc arc100 (bad id)"          1 new abc arc100 --no-fetch --tasks a
 
+# ----- gen コマンド (要件 060): 制約・入力形式からランダム入力を生成 -----
+# fetch はネットワークに触れるため回さない。プリポピュレートされた gen.toml
+# (fixture/fixture_gen/gen.toml、小さい制約) を解析して生成する経路だけを固定する。
+# 生成は乱数だが exit code と --show-spec / --seed の決定性を検査する。
+run_case "gen --show-spec"                   0 gen fixture --task gen --show-spec
+run_case "gen (stdout, seeded)"              0 gen fixture --task gen --seed 1
+run_case "gen --size max (seeded)"           0 gen fixture --task gen --size max --seed 1
+run_case "gen --size min (seeded)"           0 gen fixture --task gen --size min --seed 1
+# --show-spec は認識できた形式・変数・カバレッジを出す (この fixture は full)。
+check_output "gen --show-spec shows format"  0 has "scalar : N M"  -- gen fixture --task gen --show-spec
+check_output "gen --show-spec coverage full" 0 has "coverage: full" -- gen fixture --task gen --show-spec
+# -n 2 -o <dir>: 2 件を <dir>/01.in, 02.in に書く。
+GENDIR="$STAGE/gen-out"
+run_case "gen -n 2 -o <dir>"                 0 gen fixture --task gen -n 2 -o "$GENDIR" --seed 3
+test -f "$GENDIR/01.in" && test -f "$GENDIR/02.in" \
+    || { echo "  ✗ gen -n 2 did not write NN.in files"; failures=$((failures + 1)); }
+# --save: 生成入力を tests-extra に入力のみケース (空 .out) で追加する。
+run_case "gen --save (input-only case)"      0 gen fixture --task gen --save --seed 4
+test -f "$CACHE_HOME/atcoder-tools/fixture/fixture_gen/tests-extra/01.in" \
+    || { echo "  ✗ gen --save did not add a tests-extra case"; failures=$((failures + 1)); }
+# 引数・フラグ誤り = exit 2。
+run_case "gen without --task (reject)"       2 gen fixture
+run_case "gen --show-spec + --seed (reject)" 2 gen fixture --task gen --show-spec --seed 1
+run_case "gen --size huge (reject)"          2 gen fixture --task gen --size huge
+
 # ad-hoc モード (旧 run): `atcoder test --in/--out/--interactive` で 1 件実行。
 INPUT_FILE="$STAGE/run-input.txt"
 echo "5" > "$INPUT_FILE"

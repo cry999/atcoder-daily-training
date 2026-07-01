@@ -274,6 +274,9 @@ func ensureTests(reporter Reporter, contest, task, taskDir, testsDir, metaPath s
 	if err := saveMeta(metaPath, mta); err != nil {
 		return nil, false, err
 	}
+	// 入力生成 (要件 060) 用の生セクションも同じ HTML から拾って保存する
+	// (ベストエフォート。失敗してもサンプル取得は成功扱い)。
+	saveGenSource(taskDir, prob)
 	return mta, true, nil
 }
 

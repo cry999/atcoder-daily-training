@@ -28,8 +28,8 @@ func TestCompleteCommandLine(t *testing.T) {
 		{"meta unique appends space for arg cmd", "me", true, "meta ", nil},
 		{"m prefix unique to meta", "m", true, "meta ", nil},
 		{"ambiguous keeps LCP and lists", "c", true, "c", []string{"case", "cheat", "contest"}},
-		{"empty lists all (nav)", "", true, "", []string{"case", "cheat", "contest", "debug", "e", "meta", "q", "replay", "set", "task", "test", "w"}},
-		{"empty lists base only (no nav)", "", false, "", []string{"case", "cheat", "debug", "meta", "q", "replay", "set", "test", "w"}},
+		{"empty lists all (nav)", "", true, "", []string{"case", "cheat", "contest", "debug", "e", "gen", "meta", "q", "replay", "set", "task", "test", "w"}},
+		{"empty lists base only (no nav)", "", false, "", []string{"case", "cheat", "debug", "gen", "meta", "q", "replay", "set", "test", "w"}},
 		{"no match no change", "zzz", true, "zzz", nil},
 		// nav コマンドは navEnabled=false では候補に出ない。
 		{"task hidden without nav", "ta", false, "ta", nil},

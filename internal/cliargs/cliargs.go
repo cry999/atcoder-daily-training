@@ -21,6 +21,7 @@ var valueFlags = map[string]bool{
 	"--out": true, "-o": true, "--jobs": true, "-j": true,
 	"--tolerance": true, "--last": true, "-l": true,
 	"--time-limit": true, "--url": true,
+	"--count": true, "-n": true, "--size": true, "--seed": true,
 }
 
 // TakesValue は name (先頭の "-"/"--" 込み) が値を取るフラグかを返す。

@@ -20,6 +20,10 @@ type problem struct {
 	URL         string
 	TimeLimitMs int
 	Samples     []sample
+	// 入力生成 (要件 060) 用に抽出する生セクション。取れなくても空文字で、
+	// サンプル取得は妨げない (ベストエフォート)。
+	InputFormat string
+	Constraints string
 }
 
 // DefaultTaskURL は contest/task から標準の問題ページ URL を組み立てる。
@@ -72,11 +76,81 @@ func fetchProblem(url string) (*problem, error) {
 		return nil, fmt.Errorf("samples extract: %w", err)
 	}
 
+	// 入力生成用の生セクション (制約 / 入力形式) をベストエフォートで抽出する。
+	// 見つからなくてもエラーにしない (サンプル取得を妨げない)。
+	inputFmt, constraints := extractGenSections(doc)
+
 	return &problem{
 		URL:         url,
 		TimeLimitMs: tlMs,
 		Samples:     samples,
+		InputFormat: inputFmt,
+		Constraints: constraints,
 	}, nil
+}
+
+var (
+	// 節見出しの判定。入力例 (Sample Input) と区別するため "入力" 単独に限定する。
+	inputHeadingRe      = regexp.MustCompile(`^(入力|Input)\s*$`)
+	constraintHeadingRe = regexp.MustCompile(`^(制約|Constraints)\s*$`)
+)
+
+// extractGenSections は問題文の「入力形式」節の <pre> と「制約」節のテキストを
+// 生のまま取り出す (要件 060 / ADR 0008)。lang-ja を優先し、無ければ lang-en。
+// どちらの節も見つからなければ空文字を返す (呼び出し側でベストエフォート扱い)。
+func extractGenSections(doc *html.Node) (inputFormat, constraints string) {
+	root := htmlquery.FindOne(doc, `//span[@class="lang-ja"]`)
+	if root == nil {
+		root = htmlquery.FindOne(doc, `//span[@class="lang-en"]`)
+	}
+	if root == nil {
+		root = doc
+	}
+	for _, h := range htmlquery.Find(root, `.//h3`) {
+		text := strings.TrimSpace(htmlquery.InnerText(h))
+		switch {
+		case inputFormat == "" && inputHeadingRe.MatchString(text):
+			inputFormat = sectionInput(h)
+		case constraints == "" && constraintHeadingRe.MatchString(text):
+			constraints = sectionText(h)
+		}
+	}
+	return inputFormat, constraints
+}
+
+// sectionInput は入力形式節から書式テンプレートの <pre> を取り出す。
+// 節は <div class="part"><section><h3>入力</h3> ... <pre>N M ...</pre></section>。
+func sectionInput(h *html.Node) string {
+	pre := htmlquery.FindOne(h, `following-sibling::pre[1]`)
+	if pre == nil && h.Parent != nil {
+		pre = htmlquery.FindOne(h.Parent, `.//pre[1]`)
+	}
+	if pre == nil {
+		return ""
+	}
+	return normalizeSection(htmlquery.InnerText(pre))
+}
+
+// sectionText は節本文 (見出し h3 を除く親 section のテキスト) を取り出す。
+func sectionText(h *html.Node) string {
+	container := h.Parent
+	if container == nil {
+		return ""
+	}
+	full := htmlquery.InnerText(container)
+	head := htmlquery.InnerText(h)
+	// 先頭に来る見出し文字列を 1 回だけ剥がす。
+	full = strings.TrimSpace(full)
+	head = strings.TrimSpace(head)
+	if strings.HasPrefix(full, head) {
+		full = full[len(head):]
+	}
+	return normalizeSection(full)
+}
+
+func normalizeSection(s string) string {
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+	return strings.Trim(s, "\n ")
 }
 
 var timeLimitRe = regexp.MustCompile(`(?:実行時間制限|Time\s*Limit)\s*[:：]?\s*([\d.]+)\s*sec`)

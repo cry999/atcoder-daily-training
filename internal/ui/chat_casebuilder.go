@@ -150,6 +150,9 @@ func parseCommand(s string) command {
 		// :meta [fetch|url|time_limit [value]] — meta.toml の url / time_limit を表示・編集 (要件 055)、
 		// :meta fetch で url から再取得 (要件 057)。
 		return command{name: "meta", arg: arg}
+	case "gen":
+		// :gen — 制約 / 入力形式からランダム入力を 1 つ生成し insert 欄へ前埋め (要件 060)。
+		return command{name: "gen", arg: arg}
 	default:
 		return command{name: "unknown", arg: name}
 	}
@@ -273,6 +276,8 @@ func (m *chatModel) execCommand(cmd command) (tea.Model, tea.Cmd) {
 		return m.execTest(cmd.arg)
 	case "meta":
 		return m, m.execMeta(cmd.arg)
+	case "gen":
+		return m, m.execGen()
 	case "task", "contest", "e":
 		return m.execNav(cmd)
 	default: // unknown
@@ -369,6 +374,42 @@ func (m *chatModel) applyMetaFetchDone(msg metaFetchDoneMsg) {
 	if msg.newTimeLimitMs > 0 {
 		m.header.TimeLimitMs = msg.newTimeLimitMs
 	}
+}
+
+// execGen は :gen (要件 060) を処理する。制約 / 入力形式からランダム入力を 1 つ
+// 生成して insert 入力欄へ前埋めするフック (Gen) を tea.Cmd で非同期に呼ぶ。初回は
+// gen.toml を fetch しうるため即「(生成中…)」を積み、完了は genDoneMsg で受ける
+// (applyGenDone)。:meta fetch と同型。
+func (m *chatModel) execGen() tea.Cmd {
+	m.returnFromCommand()
+	if m.header.Gen == nil {
+		m.addInfoLine("(入力生成はこの画面では使えません)")
+		m.refreshViewport()
+		return nil
+	}
+	m.addInfoLine("(生成中…)")
+	m.refreshViewport()
+	genFn := m.header.Gen
+	return func() tea.Msg {
+		input, warnings, err := genFn()
+		return genDoneMsg{input: input, warnings: warnings, err: err}
+	}
+}
+
+// applyGenDone は :gen の非同期生成の完了を反映する。成功なら生成入力を insert 欄へ
+// 前埋めし (送信はユーザの Enter に委ねる)、取りこぼし警告を info 行で積む。失敗は
+// err 行を 1 本積み chat は継続する (入力欄は触らない)。
+func (m *chatModel) applyGenDone(msg genDoneMsg) {
+	if msg.err != nil {
+		m.addErrLine("(" + msg.err.Error() + ")")
+		return
+	}
+	for _, w := range msg.warnings {
+		m.addInfoLine("warning: " + w)
+	}
+	m.input.SetValue(strings.TrimRight(msg.input, "\n"))
+	m.input.CursorEnd()
+	m.addInfoLine("(生成入力を入力欄に前埋めしました。Enter で送信 / 編集可)")
 }
 
 // metaShow は MetaShow フックを呼び、返ってきた行を info 行で積む。失敗は err 行で 1 本。
@@ -469,6 +510,7 @@ func (m *chatModel) showCheat() {
 		"  :replay               直近に流した入力 (手入力 / :test ケース) を再送 + 再検証",
 		"  :meta [url|time_limit [値]]  meta の url / time_limit を表示・編集",
 		"  :meta fetch           url からサンプル + Time Limit を再取得",
+		"  :gen                  制約 / 入力形式からランダム入力を生成し入力欄へ前埋め",
 		"  :cheat (:help :?)     このコマンド一覧",
 		"  :q                    chat 終了 (作成画面中は破棄)",
 	}

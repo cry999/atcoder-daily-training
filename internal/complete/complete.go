@@ -69,6 +69,7 @@ var subcommandCands = []Candidate{
 	{"new", "scaffold today's exercise dir (or an abc contest)"},
 	{"start", "create the solution file and launch test --watch"},
 	{"test", "run a solution (samples by default; --in/--out/--interactive for ad-hoc; --submit to submit)"},
+	{"gen", "generate random input from the problem's constraints + input format"},
 	{"meta", "download / show / edit cached samples + time limit (accepts a task URL)"},
 	{"stats", "show daily practice statistics"},
 	{"review", "list practiced contests of a category"},
@@ -136,6 +137,18 @@ var subFlags = map[string][]Candidate{
 		{"--keep-debug", "with --submit, copy as-is without commenting out [DEBUG] print lines"},
 		{"--json", "print the sample-judging result as JSON (sample mode only)"},
 	},
+	"gen": {
+		{"--task", "task ID or short letter (e.g. d)"},
+		{"--count", "number of inputs to generate"},
+		{"-n", "number of inputs to generate"},
+		{"--out", "write to file(s) instead of stdout"},
+		{"-o", "write to file(s) instead of stdout"},
+		{"--save", "also save into tests-extra/ as an input-only case"},
+		{"--size", "input size: random | max | min"},
+		{"--seed", "random seed for reproducible generation"},
+		{"--show-spec", "print the recognized spec instead of generating"},
+		{"--refresh", "re-fetch the cached constraints/input-format sections"},
+	},
 	"meta": {
 		{"--task", "task ID or short letter (e.g. d); unneeded when a task URL is given"},
 		{"--url", "with set: override the fetch URL for this slot (e.g. abc111 D = arc103_b)"},
@@ -170,7 +183,7 @@ var subFlags = map[string][]Candidate{
 }
 
 // takesContest はそのサブコマンドが <contest> 位置引数を取るか。
-var takesContest = map[string]bool{"start": true, "test": true}
+var takesContest = map[string]bool{"start": true, "test": true, "gen": true}
 
 // Subcommands は補完対象のサブコマンド名を返す (__complete は隠すので含めない)。
 func Subcommands() []string {

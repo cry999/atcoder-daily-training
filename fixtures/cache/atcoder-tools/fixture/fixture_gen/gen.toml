@@ -1,0 +1,16 @@
+fetched_at = 2026-06-06T00:00:00+09:00
+
+[raw]
+input_format = '''
+N M
+A_1 A_2 \ldots A_N
+u_1 v_1
+:
+u_M v_M
+'''
+constraints = '''
+1 \leq N \leq 5
+1 \leq M \leq N
+1 \leq A_i \leq 9
+1 \leq u_i, v_i \leq N
+'''

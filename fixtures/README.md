@@ -33,6 +33,8 @@
 >
 > **引数順序の非依存** (`internal/cliargs`) も smoke する。`test --task pass fixture` (フラグ先頭)・`--task=pass`・フラグの間に位置引数・`-c 02` の後に contest、を `exit 0` で確認 (いずれも `test fixture --task pass` と等価)。位置引数先頭の従来ケースも全て不変。
 >
+> `atcoder gen` (要件 060) も smoke する。プリポピュレートされた `fixture/fixture_gen/gen.toml` (小さい制約 `N M` / 配列 / 辺リスト) を解析して生成する経路を、`--show-spec` の内容 (`scalar : N M` / `coverage: full`)・`--seed` 付き生成の `exit 0`・`--size max|min`・`-n 2 -o <dir>` の `NN.in` 生成・`--save` の `tests-extra/` 追加、および引数誤り (`--task` 欠落 / `--show-spec` と `--seed` の併用 / 不正な `--size`) の `exit 2` で固定する。`fetch` はネットワークに触れるため回さない (専用 `.py` は不要 — 生成は入力のみで judge しない)。
+>
 > ユーザ設定 (`config.toml`) も smoke する。`run.sh` は `XDG_CONFIG_HOME` を空 dir に固定して既存テストを config 非依存にしたうえで、専用 dir に `[test] side_by_side = true` を置いて (1) 既定で side-by-side diff になる (出力に `side-by-side` が出る) (2) `--side-by-side=false` でその回だけ unified に戻る (3) 壊れた `config.toml` は `exit 2` を確認する。`side_by_side` は終了コードを変えないため、出力文字列で検証する (`check_output` ヘルパー)。
 >
 > `atcoder config` サブコマンドも smoke する。`config show`/`path` の出力検証、未知サブコマンド・未知キー・型不一致・引数不足の `exit 2`、書き込み専用 dir での `set` → `get` 往復、および `set` した値が `atcoder test` の diff に波及する (出力に `side-by-side` が出る) 経路を確認する。
