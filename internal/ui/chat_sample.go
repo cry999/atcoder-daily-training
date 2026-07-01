@@ -78,14 +78,41 @@ func resolveSampleCase(taskDir, ref string) (in, out []string, id string, ok boo
 		return nil, nil, "", false
 	}
 	base := filepath.Join(taskDir, dir)
-	inBytes, err := os.ReadFile(filepath.Join(base, name+".in"))
-	if err != nil {
-		return nil, nil, "", false
+	for _, cand := range sampleCaseCandidates(dir, ref, name) {
+		inBytes, err := os.ReadFile(filepath.Join(base, cand+".in"))
+		if err != nil {
+			continue
+		}
+		outBytes, _ := os.ReadFile(filepath.Join(base, cand+".out")) // 欠落は空 expected
+		id = cand
+		if dir == extracase.DirName {
+			id = "x" + cand
+		}
+		return splitLines(string(inBytes)), splitLines(string(outBytes)), id, true
 	}
-	outBytes, _ := os.ReadFile(filepath.Join(base, name+".out")) // 欠落は空 expected
-	id = name
-	if dir == extracase.DirName {
-		id = "x" + name
+	return nil, nil, "", false
+}
+
+// sampleCaseCandidates は ref を解決するときに実際に読むファイル basename を優先順に返す。
+// 生の名前 (一覧・保存時に表示される literal な id) を先に、無ければ %02d 正規化名を試す。
+// :w 1 のように数値名をゼロ埋めせず保存した追加ケースは tests-extra/1.in に置かれ、
+// listSampleCases は生の basename から "x1" と一覧表示する。正規化名 "01" だけで探すと
+// tests-extra/01.in を見に行って取りこぼし、一覧に出ているのに :test x1 が「見つかりません」
+// になる (再現バグ)。生の名前を優先することで、1.in と 01.in が両方あっても :test x1→1.in /
+// :test x01→01.in と打った通りの id に解決でき、一覧と食い違わない。公式サンプルは常に
+// %02d で保存されるため生の名前 ("1") は外れて正規化名 ("01") にフォールバックし、従来どおり
+// :test 1→01.in が効く。
+func sampleCaseCandidates(dir, ref, name string) []string {
+	raw := strings.TrimSpace(ref)
+	if dir == extracase.DirName && raw != "" {
+		raw = raw[1:] // 先頭の x|X を除く (dir が extra の時点で先頭は x/X)
 	}
-	return splitLines(string(inBytes)), splitLines(string(outBytes)), id, true
+	var cands []string
+	if raw != "" {
+		cands = append(cands, raw)
+	}
+	if name != raw {
+		cands = append(cands, name)
+	}
+	return cands
 }

@@ -89,6 +89,64 @@ func TestResolveSampleCase(t *testing.T) {
 	}
 }
 
+// 追加ケースを :w 1 のように数値名をゼロ埋めせず保存すると tests-extra/1.in に置かれ、
+// 一覧には "x1" と出る (listSampleCases は生の basename を返す)。この一覧に出た "x1" が
+// :test x1 で解決できなければならない。正規化名 "01" だけで探すと tests-extra/01.in を
+// 見に行って取りこぼす (一覧と解決の不一致による再現バグ)。
+func TestResolveSampleCaseUnpaddedExtra(t *testing.T) {
+	taskDir := t.TempDir()
+	// :w 1 相当 (extracase.Save が name="1" をそのまま使う) の保存結果を模す。
+	writeCase(t, filepath.Join(taskDir, "tests-extra"), "1", "3\n", "9\n")
+
+	// 一覧はこのケースを "x1" と表示する。
+	if got := listSampleCases(taskDir); !equalStrings(got, []string{"x1"}) {
+		t.Fatalf("listSampleCases = %v, want [x1]", got)
+	}
+	// 一覧に出た "x1" で解決できなければならない。
+	in, out, id, ok := resolveSampleCase(taskDir, "x1")
+	if !ok {
+		t.Fatal("extra case x1 (stored as 1.in) should resolve")
+	}
+	if id != "x1" {
+		t.Errorf("id = %q, want x1", id)
+	}
+	if !equalStrings(in, []string{"3"}) {
+		t.Errorf("in = %v, want [3]", in)
+	}
+	if !equalStrings(out, []string{"9"}) {
+		t.Errorf("out = %v, want [9]", out)
+	}
+}
+
+// 自動採番 (:w) で保存した 01.in は一覧 "x01"。数値エイリアス :test x1 でも解決でき、
+// 表示 ID は実ファイルに合わせ "x01" になる (従来挙動の維持)。
+func TestResolveSampleCaseExtraNumericAlias(t *testing.T) {
+	taskDir := t.TempDir()
+	writeCase(t, filepath.Join(taskDir, "tests-extra"), "01", "5\n", "ok\n")
+
+	_, _, id, ok := resolveSampleCase(taskDir, "x1")
+	if !ok || id != "x01" {
+		t.Fatalf("resolveSampleCase(x1) with 01.in = (id %q ok %v), want (x01 true)", id, ok)
+	}
+}
+
+// 1.in と 01.in が両方あるとき、:test x1→1.in / :test x01→01.in と打った通りの id に
+// 解決する (生の名前を正規化名より優先。一覧と解決の対称性を固定する)。
+func TestResolveSampleCaseAmbiguousExtra(t *testing.T) {
+	taskDir := t.TempDir()
+	writeCase(t, filepath.Join(taskDir, "tests-extra"), "1", "raw\n", "R\n")
+	writeCase(t, filepath.Join(taskDir, "tests-extra"), "01", "padded\n", "P\n")
+
+	in1, _, id1, ok1 := resolveSampleCase(taskDir, "x1")
+	if !ok1 || id1 != "x1" || !equalStrings(in1, []string{"raw"}) {
+		t.Errorf("resolveSampleCase(x1) = (id %q in %v ok %v), want (x1 [raw] true)", id1, in1, ok1)
+	}
+	in01, _, id01, ok01 := resolveSampleCase(taskDir, "x01")
+	if !ok01 || id01 != "x01" || !equalStrings(in01, []string{"padded"}) {
+		t.Errorf("resolveSampleCase(x01) = (id %q in %v ok %v), want (x01 [padded] true)", id01, in01, ok01)
+	}
+}
+
 // .out が無いケースも .in があれば解決し、expected は空 (検証なしで流せる)。
 func TestResolveSampleCaseMissingOut(t *testing.T) {
 	taskDir := t.TempDir()
