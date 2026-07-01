@@ -7,10 +7,13 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/atotto/clipboard"
+	"github.com/cry999/atcoder-daily-training/internal/config"
 	"github.com/cry999/atcoder-daily-training/internal/debugstrip"
 	"github.com/cry999/atcoder-daily-training/internal/layout"
+	"github.com/cry999/atcoder-daily-training/internal/solvestat"
 	"github.com/cry999/atcoder-daily-training/internal/testexec"
 	"golang.org/x/term"
 )
@@ -241,7 +244,7 @@ func runSubmitPrep(contest, task string, lay layout.Layout, opts testexec.Option
 	reasons := submitGateReasons(code, runErr, gate.DebugSeen())
 	if len(reasons) == 0 {
 		// クリーン: 確認なしで提出準備する。
-		return prepareSubmission(src, contest, task, noOpen)
+		return finishSubmitPrep(src, contest, task, lay, noOpen)
 	}
 
 	fmt.Fprintln(os.Stderr, "提出前チェックで問題が見つかりました:")
@@ -253,5 +256,62 @@ func runSubmitPrep(contest, task string, lay layout.Layout, opts testexec.Option
 		// 「提出準備に進めなかった」を 1 で表す (実行エラーの詳細は err で返す)。
 		return 1, runErr
 	}
-	return prepareSubmission(src, contest, task, noOpen)
+	return finishSubmitPrep(src, contest, task, lay, noOpen)
+}
+
+// finishSubmitPrep は提出準備を実行し、成功後に AC プロンプト (要件 061) を挟む。
+func finishSubmitPrep(src submitSource, contest, task string, lay layout.Layout, noOpen bool) (int, error) {
+	code, err := prepareSubmission(src, contest, task, noOpen)
+	if code == 0 && err == nil {
+		maybeSubmitACPrompt(contest, task, lay)
+	}
+	return code, err
+}
+
+// maybeSubmitACPrompt は提出準備の直後に「AC できたか」を尋ね、y なら solved_at/ac/
+// duration を solve-stat に記録する (要件 061)。以下を全て満たすときのみ尋ねる:
+//   - solve-stat に started_at 済みかつ solved_at 未記録
+//   - stdin が TTY (非対話は尋ねずスキップ = confirmSubmit と同じ安全側)
+//
+// N/skip/Enter は何もしない (WA は記録しない・計測継続)。ブロックしない。
+func maybeSubmitACPrompt(contest, task string, lay layout.Layout) {
+	path, err := lay.SolutionPath(contest, task)
+	if err != nil {
+		return
+	}
+	st, found, err := solvestat.ReadFile(path)
+	if err != nil || !found {
+		return
+	}
+	if st.StartedAt.IsZero() || !st.SolvedAt.IsZero() {
+		return
+	}
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		return
+	}
+	fmt.Fprintln(os.Stderr, "提出準備が完了しました。ブラウザで提出して結果を確認してください。")
+	fmt.Fprint(os.Stderr, "AC できましたか? [y/N/skip]: ")
+	line, _ := bufio.NewReader(os.Stdin).ReadString('\n')
+	ans := strings.ToLower(strings.TrimSpace(line))
+	if ans != "y" && ans != "yes" {
+		return // N / skip / Enter: 何もしない
+	}
+	now := time.Now()
+	patch := solvestat.Empty()
+	patch.SolvedAt = now
+	patch.AC = solvestat.BoolPtr(true)
+	patch.DurationMs = now.Sub(st.StartedAt).Milliseconds()
+	if letter, e := layout.Letter(task); e == nil {
+		if cfg, e := config.Load(); e == nil {
+			if d, ok := cfg.TargetDuration(contestCategory(contest), letter); ok {
+				patch.TargetMs = d.Milliseconds()
+			}
+		}
+	}
+	if err := solvestat.Update(path, patch); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: solve-stat の記録に失敗しました: %v\n", err)
+		return
+	}
+	fmt.Fprintf(os.Stderr, "solved_at を記録しました (実装 %s)。スコアは `atcoder record %s --task %s` で残せます。\n",
+		fmtDurMs(patch.DurationMs), contest, task)
 }

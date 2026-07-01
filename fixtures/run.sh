@@ -564,6 +564,60 @@ else
     echo "  (zsh not installed; skipping)"
 fi
 
+# ----- record コマンド (要件 061): solve-stat の記録 + config target + stats 集計 -----
+# ネットワーク不要。exercise/ 配下の解答ファイル先頭に solve-stat コメントブロックを
+# 読み書きし、非対話フラグ経路 (stdin 非 TTY では prompt しない) を決定論的に固定する。
+
+# 目標実装時間 (target.<category>.<letter>) を書ける専用 config を用意。
+RECCFG="$(mktemp -d)"
+XDG_CONFIG_HOME="$RECCFG" run_case    "config set target.fixture.d 30m"    0 config set target.fixture.d 30m
+XDG_CONFIG_HOME="$RECCFG" check_output "config get target reads back"      0 has "30m" -- config get target.fixture.d
+XDG_CONFIG_HOME="$RECCFG" check_output "config show lists target"          0 has "target.fixture.d = 30m" -- config show
+XDG_CONFIG_HOME="$RECCFG" run_case    "config set target invalid duration" 2 config set target.fixture.d soon
+XDG_CONFIG_HOME="$RECCFG" run_case    "config set target bad letter"       2 config set target.fixture.dd 30m
+
+RECFILE="$STAGE/$DATE_DIR/fixture_d.py"
+
+# record start → 解答ファイル生成 + started_at 刻印。
+run_case "record start (creates file + started_at)" 0 record start fixture --task d
+grep -qE "atcoder-stat" "$RECFILE" && grep -qE "started_at[[:space:]]*=" "$RECFILE" \
+    || { echo "  ✗ record start did not stamp started_at"; failures=$((failures + 1)); }
+
+# 二度目の record start は着手時刻を温存 (冪等)。
+run_case "record start again (idempotent)" 0 record start fixture --task d
+
+# record stop → solved_at + duration(--time) + ac(false)。target 付き config で target_ms も刻む。
+XDG_CONFIG_HOME="$RECCFG" run_case "record stop --no-ac --time 25m" 0 record stop fixture --task d --no-ac --time 25m
+grep -qE "solved_at[[:space:]]*=" "$RECFILE"        || { echo "  ✗ record stop did not stamp solved_at"; failures=$((failures + 1)); }
+grep -qE "duration_ms[[:space:]]*= 1500000" "$RECFILE" || { echo "  ✗ record stop did not record --time 25m"; failures=$((failures + 1)); }
+grep -qE "target_ms[[:space:]]*=" "$RECFILE"        || { echo "  ✗ record stop did not snapshot target_ms"; failures=$((failures + 1)); }
+
+# record 本体 (非対話フラグ経路) → 5 軸スコア + ac + editorial を部分更新。
+run_case "record --score --ac --no-editorial" 0 record fixture --task d --score 2,3,2,3,1 --ac --no-editorial
+grep -qE "knowledge[[:space:]]*= 2" "$RECFILE" || { echo "  ✗ record did not write score"; failures=$((failures + 1)); }
+grep -qE "ac[[:space:]]*= true" "$RECFILE"     || { echo "  ✗ record did not update ac"; failures=$((failures + 1)); }
+# duration は温存 (record 再実行で壁時計に潰されない)。
+grep -qE "duration_ms[[:space:]]*= 1500000" "$RECFILE" || { echo "  ✗ record clobbered a recorded duration"; failures=$((failures + 1)); }
+
+# 個別軸フラグは --score より優先。
+run_case "record --impl overrides score" 0 record fixture --task d --impl 0
+grep -qE "impl[[:space:]]*= 0" "$RECFILE" || { echo "  ✗ record --impl did not override"; failures=$((failures + 1)); }
+
+# エラー系: 引数/フラグ誤り = 2、実行時失敗 = 1。
+run_case "record (no --task)"                 2 record fixture
+run_case "record --score wrong arity"         2 record fixture --task d --score 2,3
+run_case "record --score out of range"        2 record fixture --task d --score 2,3,2,3,9
+run_case "record --ac + --no-ac (reject)"     2 record fixture --task d --ac --no-ac
+run_case "record --time bad duration"         2 record fixture --task d --time soon
+run_case "record edit (Phase 2 unimplemented)" 2 record edit fixture --task d
+run_case "record stop missing solution file"  1 record stop fixture --task zz
+
+# stats: solve-stat を書いた解答があるので "recorded" / "score" セクションが出る。
+check_output "stats shows recorded section" 0 has "recorded (" -- stats
+check_output "stats shows score section"    0 has "score (avg" -- stats
+
+rm -rf "$RECCFG"
+
 echo
 if [[ "$failures" -gt 0 ]]; then
     echo "${failures} case(s) failed"

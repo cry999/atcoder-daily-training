@@ -41,6 +41,7 @@ func cmdStart(args []string) (int, error) {
 	taskFlag := addTaskFlag(flags)
 	untilPass := flags.Bool("until-pass", false, "Exit when all sample tests pass (otherwise watch until Ctrl+C).")
 	refresh := flags.Bool("refresh", false, "Force refetch sample cases on the first run")
+	restart := flags.Bool("restart", false, "Reset started_at to now and clear a prior completion record (redo practice)")
 	timeoutFlag := flags.Duration("timeout", 0, "Override time limit (e.g. 5s, 500ms). Defaults to the problem's time limit (2s if unknown).")
 	tolFlag := flags.Float64("tolerance", 0, "Float token comparison tolerance (e.g. 1e-9). 0 or unset → default 1e-6.")
 	var debug bool
@@ -91,6 +92,15 @@ func cmdStart(args []string) (int, error) {
 
 	if !ui.IsStdoutTerminal() {
 		return 2, errors.New("start requires a terminal (stdout is not a TTY)")
+	}
+
+	// 着手時刻を刻む (要件 061)。TTY チェック後 = 実際に着手フローへ進むときだけ刻む
+	// (非対話で弾かれる呼び出しでは計測を始めない)。ナビ再ターゲットでは刻まず、
+	// 明示着手した問題のみ。失敗は non-fatal (計測が無くても着手は続行できる)。
+	if stamped, serr := stampStartedAt(t0.SolutionPath, *restart); serr != nil {
+		fmt.Fprintf(os.Stderr, "warning: 着手時刻の記録に失敗しました: %v\n", serr)
+	} else if stamped {
+		fmt.Println("着手時刻を記録しました (計測開始)")
 	}
 
 	// ナビゲーション解決を注入する: 移動先 ID を算出 (純粋) → buildTarget で再ターゲット

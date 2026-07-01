@@ -18,6 +18,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/cry999/atcoder-daily-training/internal/solvestat"
 )
 
 // Period は暦ベースの集計窓。
@@ -53,6 +55,8 @@ type Solve struct {
 	Category string    // コンテスト種別 ("abc"/"arc"/…/"other")
 	Contest  string    // contest_id ("abc457")。先頭英字 + 数字。数字無しは先頭英字
 	Letter   string    // 問題レター ("a".."g") / 不明は "?"
+	HasStat  bool      // solve-stat ブロックを持つか (要件 061)
+	Stat     solvestat.Stat
 }
 
 // Options は集計条件。Now がゼロ値なら time.Now().Local() を使う。
@@ -104,6 +108,104 @@ type Report struct {
 	SeriesOmitted int           // 週別で切り捨てた古い週数
 	Graph         []GraphColumn // Options.Graph 指定時のみ。空なら従来の Series を使う
 	GraphOmitted  int           // 53 週上限で切り捨てた古い週数
+	Record        *Record       // solve-stat 集計 (要件 061)。記録が 1 件も無ければ nil
+}
+
+// axisNames は 5 軸スコアの表示名 (Record.ScoreAvg / ScoreN の並びと一致)。
+var axisNames = [5]string{"knowledge", "translation", "complexity", "impl", "verify"}
+
+// Record は solve-stat (要件 061) の集計。各レートは「そのキーが記録されている
+// solve のみ」を母集団にする (欠損キーは個別に除外)。
+type Record struct {
+	Total     int // 窓内 solve 総数 (母集団と記録済みの差を明示するため)
+	WithStats int // solve-stat ブロックを持つ件数
+
+	ACNum, ACDen     int // ac=true 件数 / ac が記録されている件数
+	SelfNum, SelfDen int // 自力 AC (ac && !editorial) / ac・editorial 両方が記録されている件数
+	EdNum, EdDen     int // editorial=true / editorial が記録されている件数
+
+	DurN              int   // 実装時間が記録されている件数
+	MedianMs          int64 // 実装時間の中央値
+	MinMs, MaxMs      int64
+	TargetNum, TgtDen int // 実装 ≤ 目標 / 目標と実装が両方ある件数
+
+	ScoreAvg [5]float64
+	ScoreN   [5]int
+}
+
+// computeRecord は窓内 solve から solve-stat 集計を組む。記録が 1 件も無ければ nil。
+func computeRecord(in []Solve) *Record {
+	rec := &Record{Total: len(in)}
+	var durs []int64
+	for _, s := range in {
+		if !s.HasStat {
+			continue
+		}
+		rec.WithStats++
+		st := s.Stat
+		if st.AC != nil {
+			rec.ACDen++
+			if *st.AC {
+				rec.ACNum++
+			}
+		}
+		if st.AC != nil && st.Editorial != nil {
+			rec.SelfDen++
+			if *st.AC && !*st.Editorial {
+				rec.SelfNum++
+			}
+		}
+		if st.Editorial != nil {
+			rec.EdDen++
+			if *st.Editorial {
+				rec.EdNum++
+			}
+		}
+		if st.DurationMs > 0 {
+			durs = append(durs, st.DurationMs)
+			if st.TargetMs > 0 {
+				rec.TgtDen++
+				if st.DurationMs <= st.TargetMs {
+					rec.TargetNum++
+				}
+			}
+		}
+		axes := [5]int{st.Score.Knowledge, st.Score.Translation, st.Score.Complexity, st.Score.Impl, st.Score.Verify}
+		for i, v := range axes {
+			if v >= 0 {
+				rec.ScoreAvg[i] += float64(v)
+				rec.ScoreN[i]++
+			}
+		}
+	}
+	if rec.WithStats == 0 {
+		return nil
+	}
+	for i := range rec.ScoreAvg {
+		if rec.ScoreN[i] > 0 {
+			rec.ScoreAvg[i] /= float64(rec.ScoreN[i])
+		}
+	}
+	if len(durs) > 0 {
+		sort.Slice(durs, func(a, b int) bool { return durs[a] < durs[b] })
+		rec.DurN = len(durs)
+		rec.MinMs = durs[0]
+		rec.MaxMs = durs[len(durs)-1]
+		rec.MedianMs = median(durs)
+	}
+	return rec
+}
+
+// median は昇順ソート済みスライスの中央値 (偶数長は下側寄りの単純中点平均)。
+func median(sorted []int64) int64 {
+	n := len(sorted)
+	if n == 0 {
+		return 0
+	}
+	if n%2 == 1 {
+		return sorted[n/2]
+	}
+	return (sorted[n/2-1] + sorted[n/2]) / 2
 }
 
 // maxWeekBuckets は週別時系列で表示する最大週数。超過分は SeriesOmitted に回す。
@@ -141,7 +243,13 @@ func Scan(root string) ([]Solve, error) {
 		}
 		base := parts[3]
 		cat, letter := classify(base)
-		solves = append(solves, Solve{Date: date, File: base, Category: cat, Contest: contestID(base), Letter: letter})
+		s := Solve{Date: date, File: base, Category: cat, Contest: contestID(base), Letter: letter}
+		// solve-stat ブロック (要件 061) を best-effort で読む。破損は無視 (集計から除外)。
+		if st, found, serr := solvestat.ReadFile(m); serr == nil && found {
+			s.HasStat = true
+			s.Stat = st
+		}
+		solves = append(solves, s)
 	}
 	return solves, nil
 }
@@ -242,6 +350,9 @@ func Compute(solves []Solve, opts Options) Report {
 	}
 	rep.CurrentStreak = currentStreak(days, now)
 	rep.LongestStreak = longestStreak(days)
+
+	// solve-stat 集計 (要件 061)。記録が無ければ nil のまま (Render は何も出さない)。
+	rep.Record = computeRecord(in)
 
 	// 時系列。--graph 指定時は草グリッドに差し替え、バー Series は構築しない。
 	// グリッド範囲は窓 (Period でも Rolling でも) の開始日に追従する。

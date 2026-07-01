@@ -57,6 +57,11 @@ func Render(w io.Writer, r Report) error {
 		writeCounts(&b, r.Letters)
 	}
 
+	// solve-stat 集計 (要件 061)。記録が 1 件も無ければ何も出さない (後方互換)。
+	if r.Record != nil {
+		writeRecord(&b, r.Record)
+	}
+
 	// 時系列。--graph 指定時は草グリッド、そうでなければ簡易バー。
 	switch {
 	case len(r.Graph) > 0:
@@ -79,6 +84,60 @@ func Render(w io.Writer, r Report) error {
 
 	_, err := io.WriteString(w, b.String())
 	return err
+}
+
+// writeRecord は solve-stat 集計セクション (recorded + score) を書く (要件 061)。
+func writeRecord(b *strings.Builder, rec *Record) {
+	b.WriteString("\n" + statSectStyle.Render(fmt.Sprintf("recorded (%d solves, %d with stats)", rec.Total, rec.WithStats)) + "\n")
+
+	line := func(label, value, note string) {
+		s := "  " + statLabelStyle.Render(fmt.Sprintf("%-17s", label)) + statValueStyle.Render(value)
+		if note != "" {
+			s += "  " + statInfoStyle.Render(note)
+		}
+		b.WriteString(s + "\n")
+	}
+	line("ac rate", statPct(rec.ACNum, rec.ACDen), fmt.Sprintf("(%d/%d)", rec.ACNum, rec.ACDen))
+	line("self-solved", statPct(rec.SelfNum, rec.SelfDen), fmt.Sprintf("(%d/%d, AC かつ解説なし)", rec.SelfNum, rec.SelfDen))
+	line("editorial rate", statPct(rec.EdNum, rec.EdDen), fmt.Sprintf("(%d/%d)", rec.EdNum, rec.EdDen))
+	if rec.DurN > 0 {
+		line("median time", fmtDurMs(rec.MedianMs),
+			fmt.Sprintf("(min %s / max %s, n=%d)", fmtDurMs(rec.MinMs), fmtDurMs(rec.MaxMs), rec.DurN))
+	}
+	if rec.TgtDen > 0 {
+		line("target hit rate", statPct(rec.TargetNum, rec.TgtDen),
+			fmt.Sprintf("(%d/%d, 実装 ≤ 目標)", rec.TargetNum, rec.TgtDen))
+	}
+
+	// score セクション: 各軸の平均と簡易バー。
+	b.WriteString("\n" + statSectStyle.Render("score (avg 0–3)") + "\n")
+	for i, name := range axisNames {
+		if rec.ScoreN[i] == 0 {
+			b.WriteString("  " + statLabelStyle.Render(fmt.Sprintf("%-13s", name)) + statInfoStyle.Render("-") + "\n")
+			continue
+		}
+		avg := rec.ScoreAvg[i]
+		bar := statBarStyle.Render(barString(int(avg*100), 300, 9))
+		b.WriteString("  " + statLabelStyle.Render(fmt.Sprintf("%-13s", name)) +
+			statValueStyle.Render(fmt.Sprintf("%.1f", avg)) + "  " + bar + "\n")
+	}
+}
+
+// statPct は num/den を "75%" 形式にする。den==0 は "-"。
+func statPct(num, den int) string {
+	if den == 0 {
+		return "-"
+	}
+	return fmt.Sprintf("%d%%", (num*100+den/2)/den)
+}
+
+// fmtDurMs は ms を分単位に丸めた compact 表記 ("23m" / "1h5m") にする。
+func fmtDurMs(ms int64) string {
+	m := int(ms / 60000)
+	if m < 60 {
+		return fmt.Sprintf("%dm", m)
+	}
+	return fmt.Sprintf("%dh%dm", m/60, m%60)
 }
 
 // writeCounts は Count 群を "  key  N" 形式で揃えて書く。

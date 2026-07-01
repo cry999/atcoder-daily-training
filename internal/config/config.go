@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/BurntSushi/toml"
 )
@@ -45,6 +46,30 @@ type Config struct {
 	EditorNvimRemote string            `toml:"editor_nvim_remote,omitempty"` // start の Ctrl+E (nvim 内 remote) のターゲット current/tab (要件 041)
 	Test             TestConfig        `toml:"test"`
 	Alias            map[string]string `toml:"alias"` // [alias] 名前→コマンド列 (git 風 alias)
+	// Target は [target.<category>] テーブル: category (abc/arc/…) × letter (a/b/…) →
+	// 目標実装時間の duration 文字列 ("35m")。record/start が (category,letter) から引く (要件 061)。
+	Target map[string]map[string]string `toml:"target"`
+}
+
+// TargetDuration は (category, letter) に設定された目標実装時間を返す。
+// 未設定・値がパース不能なら ok=false (目標なし扱い)。
+func (c *Config) TargetDuration(category, letter string) (time.Duration, bool) {
+	if c.Target == nil {
+		return 0, false
+	}
+	sub, ok := c.Target[category]
+	if !ok {
+		return 0, false
+	}
+	raw, ok := sub[letter]
+	if !ok {
+		return 0, false
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil {
+		return 0, false
+	}
+	return d, true
 }
 
 // TestConfig は [test] セクション。atcoder test の既定値。

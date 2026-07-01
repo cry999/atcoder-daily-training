@@ -73,6 +73,7 @@ var subcommandCands = []Candidate{
 	{"meta", "download / show / edit cached samples + time limit (accepts a task URL)"},
 	{"stats", "show daily practice statistics"},
 	{"review", "list practiced contests of a category"},
+	{"record", "record implementation time / AC / 5-axis score into solve-stat"},
 	{"config", "show or change tool settings"},
 	{"commit", "git-commit today's exercise solutions"},
 	{"completion", "print a shell completion script"},
@@ -180,10 +181,26 @@ var subFlags = map[string][]Candidate{
 		{"--check", "only check for a newer version; don't install"},
 		{"--local", "install from the local ./cmd/atcoder working tree"},
 	},
+	"record": {
+		{"--task", "task ID or short letter (e.g. d)"},
+		{"--ac", "record AC = true"},
+		{"--no-ac", "record AC = false"},
+		{"--editorial", "record editorial viewed = true"},
+		{"--no-editorial", "record editorial viewed = false"},
+		{"--score", "5-axis score k,t,c,i,v (each 0-3)"},
+		{"--knowledge", "knowledge score 0-3"},
+		{"--translation", "translation score 0-3"},
+		{"--complexity", "complexity score 0-3"},
+		{"--impl", "impl score 0-3"},
+		{"--verify", "verify score 0-3"},
+		{"--time", "override implementation time (e.g. 25m)"},
+		{"--restart", "with record start: reset started_at and clear completion"},
+		{"--layout", "solution file layout"},
+	},
 }
 
 // takesContest はそのサブコマンドが <contest> 位置引数を取るか。
-var takesContest = map[string]bool{"start": true, "test": true, "gen": true}
+var takesContest = map[string]bool{"start": true, "test": true, "gen": true, "record": true}
 
 // Subcommands は補完対象のサブコマンド名を返す (__complete は隠すので含めない)。
 func Subcommands() []string {

@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/cry999/atcoder-daily-training/internal/layout"
@@ -16,6 +17,30 @@ import (
 
 // aliasPrefix は config 上の alias キーの接頭辞 (例 "alias.upd-lo")。
 const aliasPrefix = "alias."
+
+// targetPrefix は目標実装時間キーの接頭辞 (例 "target.abc.d")。
+const targetPrefix = "target."
+
+// targetCategoryRE / targetLetterRE は target.<category>.<letter> の各要素の許容パターン。
+var (
+	targetCategoryRE = regexp.MustCompile(`^[a-z0-9]+$`)
+	targetLetterRE   = regexp.MustCompile(`^[a-z]$`)
+)
+
+// targetParts は key が target キーなら (category, letter) を返す。
+// isTarget は接頭辞一致、ok は category×letter の形が妥当か。
+func targetParts(key string) (category, letter string, isTarget, ok bool) {
+	if !strings.HasPrefix(key, targetPrefix) {
+		return "", "", false, false
+	}
+	parts := strings.Split(key[len(targetPrefix):], ".")
+	if len(parts) != 2 {
+		return "", "", true, false
+	}
+	category, letter = parts[0], parts[1]
+	ok = targetCategoryRE.MatchString(category) && targetLetterRE.MatchString(letter)
+	return category, letter, true, ok
+}
 
 // aliasNameRE は alias 名 (alias.<name> の <name>) の許容パターン。英数字・- ・_。
 var aliasNameRE = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
@@ -161,6 +186,21 @@ func Keys() []string {
 // 未知キーは ErrUnknownKey、既存 config の文法エラーは ErrParse。
 // key が "alias.<name>" なら [alias] から引く (未定義は ErrUnknownKey)。
 func Get(key string) (string, error) {
+	if cat, let, isTarget, ok := targetParts(key); isTarget {
+		if !ok {
+			return "", fmt.Errorf("%w: %s (target キーは target.<category>.<letter>)", ErrInvalidValue, key)
+		}
+		targets, err := Targets()
+		if err != nil {
+			return "", err
+		}
+		if sub, found := targets[cat]; found {
+			if v, found := sub[let]; found {
+				return v, nil
+			}
+		}
+		return "", fmt.Errorf("%w: %s", ErrUnknownKey, key)
+	}
 	if name, isAlias, ok := aliasName(key); isAlias {
 		if !ok {
 			return "", fmt.Errorf("%w: %s (alias 名は英数字・-・_ のみ)", ErrInvalidValue, key)
@@ -198,6 +238,35 @@ func Aliases() (map[string]string, error) {
 	return cfg.Alias, nil
 }
 
+// Targets は [target.<category>] テーブル (category→letter→duration 文字列) を返す。
+// 未設定なら空 map。
+func Targets() (map[string]map[string]string, error) {
+	cfg, err := Load()
+	if err != nil {
+		return nil, err
+	}
+	if cfg.Target == nil {
+		return map[string]map[string]string{}, nil
+	}
+	return cfg.Target, nil
+}
+
+// TargetKeys は補完用に "target.<category>.<letter>" をソートして返す。
+func TargetKeys() ([]string, error) {
+	targets, err := Targets()
+	if err != nil {
+		return nil, err
+	}
+	var out []string
+	for cat, sub := range targets {
+		for let := range sub {
+			out = append(out, targetPrefix+cat+"."+let)
+		}
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
 // AliasKeys は補完用に "alias.<name>" を名前順で返す。
 func AliasKeys() ([]string, error) {
 	aliases, err := Aliases()
@@ -231,6 +300,21 @@ func All() ([]KeyValue, error) {
 	for _, n := range names {
 		out = append(out, KeyValue{Key: aliasPrefix + n, Value: cfg.Alias[n]})
 	}
+	cats := make([]string, 0, len(cfg.Target))
+	for c := range cfg.Target {
+		cats = append(cats, c)
+	}
+	sort.Strings(cats)
+	for _, c := range cats {
+		lets := make([]string, 0, len(cfg.Target[c]))
+		for l := range cfg.Target[c] {
+			lets = append(lets, l)
+		}
+		sort.Strings(lets)
+		for _, l := range lets {
+			out = append(out, KeyValue{Key: targetPrefix + c + "." + l, Value: cfg.Target[c][l]})
+		}
+	}
 	return out, nil
 }
 
@@ -241,6 +325,21 @@ func All() ([]KeyValue, error) {
 // エラー: 未知キーは ErrUnknownKey、値が型に合わなければ ErrInvalidValue、
 // 既存ファイルの文法エラーは ErrParse、書き込み失敗はそのまま (= 実行時エラー)。
 func Set(key, raw string) error {
+	if cat, let, isTarget, ok := targetParts(key); isTarget {
+		if !ok {
+			return fmt.Errorf("%w: %s (target キーは target.<category>.<letter>)", ErrInvalidValue, key)
+		}
+		v := strings.TrimSpace(raw)
+		if _, err := time.ParseDuration(v); err != nil {
+			return fmt.Errorf("%w: %q (target は duration 文字列: 35m, 1h5m)", ErrInvalidValue, raw)
+		}
+		m, err := loadRaw()
+		if err != nil {
+			return err
+		}
+		setNested(m, []string{"target", cat, let}, v)
+		return saveRaw(m)
+	}
 	if name, isAlias, ok := aliasName(key); isAlias {
 		if !ok {
 			return fmt.Errorf("%w: %s (alias 名は英数字・-・_ のみ)", ErrInvalidValue, key)
@@ -273,6 +372,19 @@ func Set(key, raw string) error {
 //
 // 書き込み失敗はそのまま (= 実行時エラー)。
 func Unset(key string) error {
+	if cat, let, isTarget, ok := targetParts(key); isTarget {
+		if !ok {
+			return fmt.Errorf("%w: %s (target キーは target.<category>.<letter>)", ErrInvalidValue, key)
+		}
+		m, err := loadRaw()
+		if err != nil {
+			return err
+		}
+		if !unsetNested(m, []string{"target", cat, let}) {
+			return fmt.Errorf("%w: %s", ErrUnknownKey, key)
+		}
+		return saveRaw(m)
+	}
 	if name, isAlias, ok := aliasName(key); isAlias {
 		if !ok {
 			return fmt.Errorf("%w: %s (alias 名は英数字・-・_ のみ)", ErrInvalidValue, key)

@@ -15,7 +15,7 @@ import (
 // alias より常に優先される (alias は未知名のときだけ解決される)。
 var builtins = map[string]bool{
 	"new": true, "start": true, "test": true, "gen": true, "meta": true, "stats": true, "review": true,
-	"config": true, "commit": true, "completion": true,
+	"record": true, "config": true, "commit": true, "completion": true,
 	"update": true, "version": true, "usage": true, "__complete": true,
 }
 
@@ -70,6 +70,8 @@ func dispatch(name string, rest []string) int {
 		return runCmd("stats", cmdStats, rest)
 	case "review":
 		return runCmd("review", cmdReview, rest)
+	case "record":
+		return runCmd("record", cmdRecord, rest)
 	case "config":
 		return runCmd("config", cmdConfig, rest)
 	case "commit":
@@ -145,7 +147,12 @@ func usage() {
   atcoder stats  [-w|--week | -m|--month | -y|--year | -l|--last <dur>] [-g|--graph]
   atcoder usage  [--flags] [--json]   # ローカルに記録した CLI 利用頻度・所要時間の集計
   atcoder review <category> [-w|--week | -m|--month | -y|--year | -l|--last <dur>]
+  atcoder record <contest> --task <task>   # 実装時間・正答状況・5 軸スコアを solve-stat に記録
+                 [--ac|--no-ac] [--editorial|--no-editorial] [--score <k,t,c,i,v>] [--time <dur>]
+  atcoder record start <contest> --task <task> [--restart]   # 計測開始 (着手 UI なし)
+  atcoder record stop  <contest> --task <task> [--ac|--no-ac] [--time <dur>]   # 計測終端
   atcoder config <show | get <key> | set <key> <value> | unset <key> | path>
+                 # 目標実装時間: set target.<category>.<letter> <dur> (例 target.abc.d 35m)
   atcoder completion <bash|zsh|fish>
   atcoder commit
   atcoder update [--check | --local]

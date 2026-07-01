@@ -21,7 +21,12 @@ var valueFlags = map[string]bool{
 	"--out": true, "-o": true, "--jobs": true, "-j": true,
 	"--tolerance": true, "--last": true, "-l": true,
 	"--time-limit": true, "--url": true,
+	// gen (要件 060): 生成数・サイズ・シードの値フラグ。
 	"--count": true, "-n": true, "--size": true, "--seed": true,
+	// record (要件 061): 5 軸スコア・実装時間・目標などの値フラグ。
+	"--score": true, "--time": true,
+	"--knowledge": true, "--translation": true, "--complexity": true,
+	"--impl": true, "--verify": true,
 }
 
 // TakesValue は name (先頭の "-"/"--" 込み) が値を取るフラグかを返す。
