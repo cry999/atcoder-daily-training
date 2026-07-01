@@ -629,6 +629,22 @@ check_output "stats shows score section"    0 has "score (avg" -- stats
 
 rm -rf "$RECCFG"
 
+# ----- login / logout コマンド (要件 062): REVEL_SESSION cookie 取り込み認証 -----
+# ネットワークに触れる経路 (cookie 検証 GET) は run.sh では回さない。session.toml は
+# 隔離済み XDG_DATA_HOME 配下なので、未ログイン状態の表示・冪等な logout・引数/フラグ
+# 誤り (exit 2) だけを固定する。cookie を渡す検証経路は空 cookie で exit 2 に落とす。
+run_case "login --status (not logged in)"       0 login --status
+run_case "login --status --check (no session)"  0 login --status --check
+check_output "login --status prints not logged in" 0 has "not logged in" -- login --status
+run_case "logout (no session, idempotent)"      0 logout
+check_output "logout prints not logged in"      0 has "not logged in" -- logout
+# 引数・フラグ誤り = exit 2 (いずれもネットワーク前に弾かれる)。
+run_case "login --session-cookie '' (empty → exit 2)"        2 login --session-cookie ""
+run_case "login --status + --session-cookie (mutually excl)" 2 login --status --session-cookie x
+run_case "login --check without --status (reject)"           2 login --check
+run_case "login unexpected positional (reject)"              2 login extra-arg
+run_case "logout unexpected positional (reject)"             2 logout extra-arg
+
 echo
 if [[ "$failures" -gt 0 ]]; then
     echo "${failures} case(s) failed"
