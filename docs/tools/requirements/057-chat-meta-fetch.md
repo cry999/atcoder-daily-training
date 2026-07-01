@@ -2,7 +2,7 @@
 
 ## 概要
 
-インタラクティブ chat の vim 風 command モード ([024](024-interactive-case-builder.md)) の `:meta` ([055](055-chat-meta-edit.md)) に **`:meta fetch`** を足す。`:meta url <url>` で取得元 URL を直した後に、**chat を抜けずに**その URL からサンプル入出力と Time Limit を**再取得**して `meta.toml` + `tests/` を更新し、chat ヘッダの Time Limit 表示にも反映できるようにする。これは CLI の `atcoder meta fetch` ([046](046-meta-command.md)) を chat 内へ持ち込むもので、取得経路・キャッシュ操作はすべて [046] と同一にする。新フラグ・新パッケージ・新キャッシュ層は増やさない。`internal/ui` (chat) は fetch/judge/testexec を知らない層境界を保ち、再取得は `ChatHeader` に**注入する関数フック** (`MetaShow`/`MetaSet` ([055]) と同じパターン) で composition root (`cmd/atcoder`) に委譲する。fetch はネットワーク呼び出し (数秒) を伴うため、chat は `tea.Cmd` で**非同期**に呼び (`Ctrl+E` エディタ起動 ([038](038-chat-edit-command.md)) の `editDoneMsg` と同型)、完了通知 (`metaFetchDoneMsg`) を受けて結果行とヘッダを更新する。
+インタラクティブ chat の vim 風 command モード ([024](024-interactive-case-builder.md)) の `:meta` ([055](055-chat-meta-edit.md)) に **`:meta fetch`** を足す。`:meta url <url>` で取得元 URL を直した後に、**chat を抜けずに**その URL からサンプル入出力と Time Limit を**再取得**して `meta.toml` + `tests/` を更新し、chat ヘッダの Time Limit 表示にも反映できるようにする。これは CLI の `atcoder meta fetch` ([046](046-meta-command.md)) を chat 内へ持ち込むもので、取得経路・キャッシュ操作はすべて [046] と同一にする。新フラグ・新パッケージ・新キャッシュ層は増やさない。`internal/ui` (chat) は fetch/judge/testexec を知らない層境界を保ち、再取得は `ChatHeader` に**注入する関数フック** (`MetaShow`/`MetaSet` ([055]) と同じパターン) で composition root (`cmd/atcoder`) に委譲する。fetch はネットワーク呼び出し (数秒) を伴うため、chat は `tea.Cmd` で**非同期**に呼び (`Ctrl+E` エディタ起動 ([038](038-start-edit-in-editor.md)) の `editDoneMsg` と同型)、完了通知 (`metaFetchDoneMsg`) を受けて結果行とヘッダを更新する。
 
 ## 背景・目的
 
@@ -190,7 +190,7 @@ chat 内コマンドなので exit code 経路は増えない。取得失敗は 
 
 - chat の `:meta` (表示・編集): [055](055-chat-meta-edit.md) (`:meta` / `:meta url` / `:meta time_limit`)
 - CLI 側の元仕様 (取得経路・url override): [046](046-meta-command.md) (`atcoder meta fetch|show|set`)
-- フック注入の前例: [026](026-chat-submit.md) (`Ctrl+S`) / [038](038-chat-edit-command.md) (`Ctrl+E`・`editDoneMsg` 非同期)
+- フック注入の前例: [026](026-chat-submit.md) (`Ctrl+S`) / [038](038-start-edit-in-editor.md) (`Ctrl+E`・`editDoneMsg` 非同期)
 - command モード基盤 / 補完: [024](024-interactive-case-builder.md) / [031](031-command-mode-completion.md)
 - 利用手引: `docs/tools/atcoder-meta-usage.md` / `docs/tools/atcoder-test-usage.md` / `docs/tools/atcoder-start-usage.md`
 - アーキテクチャ: `docs/tools/atcoder-test-architecture.md`

@@ -44,7 +44,7 @@ $XDG_CACHE_HOME/atcoder-tools/<contest>/<task>/meta.toml
 | `time_limit_ms` | int | `:meta time_limit <dur>` で上書き。表示対象。ヘッダ Time Limit にも反映 |
 | `fetched_at` | time | 表示・編集しない (当面) |
 
-chat の `ChatHeader.Contest` / `.Task` には起動時に contest_id (`abc457`) / task_id (`abc457_d`) が入っており ([start.go `buildTarget`](../../cmd/atcoder/start.go) / [adhoc.go `makeChatRunner`](../../cmd/atcoder/adhoc.go))、これがそのまま `LoadMeta(contest, task)` / `SaveMeta(contest, task, m)` のキーになる。
+chat の `ChatHeader.Contest` / `.Task` には起動時に contest_id (`abc457`) / task_id (`abc457_d`) が入っており ([start.go `buildTarget`](../../../cmd/atcoder/start.go) / [adhoc.go `makeChatRunner`](../../../cmd/atcoder/adhoc.go))、これがそのまま `LoadMeta(contest, task)` / `SaveMeta(contest, task, m)` のキーになる。
 
 ## CLI / TUI 仕様
 
