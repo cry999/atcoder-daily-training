@@ -170,6 +170,37 @@ func TestRecordEdit_DurationEditAndValidate(t *testing.T) {
 	}
 }
 
+// j/k で上下移動し、Enter で保存できる (要件 066 のキー変更)。
+func TestRecordEdit_JKMoveEnterSave(t *testing.T) {
+	st := baseStat()
+	m := newRecordEditModel("abc457_d", st, st.TargetMs, false)
+
+	// j 連打で impl (row 6) まで下げ、k で 1 つ戻して complexity (row 5) に置く。
+	for i := 0; i < 6; i++ {
+		m.handleKey(runeKey('j'))
+	}
+	if m.cur().label != "impl" {
+		t.Fatalf("after j*6 cursor=%q want impl", m.cur().label)
+	}
+	m.handleKey(runeKey('k'))
+	if m.cur().label != "complexity" {
+		t.Fatalf("after k cursor=%q want complexity", m.cur().label)
+	}
+	// 端 (row 0) を越えて k しても止まる。
+	for i := 0; i < 10; i++ {
+		m.handleKey(runeKey('k'))
+	}
+	if m.cursor != 0 {
+		t.Fatalf("k clamp top want 0 got %d", m.cursor)
+	}
+
+	// Enter で保存できる。
+	m.handleKey(key(tea.KeyEnter))
+	if !m.saved || !m.done {
+		t.Fatalf("Enter should save: saved=%v done=%v", m.saved, m.done)
+	}
+}
+
 // Esc は取消 (saved=false, done=true)、ファイルは書かない前提。
 func TestRecordEdit_Cancel(t *testing.T) {
 	st := baseStat()

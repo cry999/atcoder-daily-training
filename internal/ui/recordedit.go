@@ -117,7 +117,7 @@ func (m *recordEditModel) setWidth(w int) {
 }
 
 // handleKey はフォームの 1 打鍵を処理する (standalone / chat 埋め込みで共有)。
-// カーソル移動・値の変更・保存 (Ctrl+S)・取消 (Esc/Ctrl+C) をここで完結させる。
+// カーソル移動 (↑↓ / j/k)・値の変更・保存 (Enter / Ctrl+S)・取消 (Esc/Ctrl+C) をここで完結させる。
 func (m *recordEditModel) handleKey(msg tea.KeyMsg) {
 	switch msg.Type {
 	case tea.KeyUp:
@@ -128,7 +128,7 @@ func (m *recordEditModel) handleKey(msg tea.KeyMsg) {
 		if m.cursor < len(m.fields)-1 {
 			m.cursor++
 		}
-	case tea.KeyCtrlS:
+	case tea.KeyEnter, tea.KeyCtrlS:
 		m.save()
 	case tea.KeyEsc, tea.KeyCtrlC:
 		m.saved = false
@@ -140,12 +140,24 @@ func (m *recordEditModel) handleKey(msg tea.KeyMsg) {
 	case tea.KeyBackspace:
 		m.cur().backspace()
 	case tea.KeyRunes:
+		// j/k は上下移動 (vim 風)。それ以外の文字は現在フィールドへ入力する。
 		for _, r := range msg.Runes {
-			m.cur().typeRune(r)
+			switch r {
+			case 'j':
+				if m.cursor < len(m.fields)-1 {
+					m.cursor++
+				}
+			case 'k':
+				if m.cursor > 0 {
+					m.cursor--
+				}
+			default:
+				m.cur().typeRune(r)
+			}
 		}
 	}
-	// 打鍵したら以前のエラーは伏せる (再度 Ctrl+S で検証し直す)。
-	if msg.Type != tea.KeyCtrlS {
+	// 打鍵したら以前のエラーは伏せる (再度保存キーで検証し直す)。
+	if msg.Type != tea.KeyCtrlS && msg.Type != tea.KeyEnter {
 		m.errMsg = ""
 	}
 }
@@ -315,7 +327,7 @@ func (m *recordEditModel) View() string {
 	if m.errMsg != "" {
 		b.WriteString(recEditErrStyle.Render(m.errMsg) + "\n")
 	}
-	b.WriteString(recEditHintStyle.Render("↑↓ 移動   ←→/space 変更   0-3・y/n 入力   Backspace 未記録   Ctrl+S 保存   Esc 取消"))
+	b.WriteString(recEditHintStyle.Render("j/k 移動   ←→/space 変更   0-3・y/n 入力   Backspace 未記録   Enter 保存   Esc 取消"))
 	return b.String()
 }
 

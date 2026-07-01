@@ -80,7 +80,7 @@ atcoder record edit  <contest> --task <task> [--layout ...]
 
 - 編集対象は `ac` / `editorial` / `duration` / 5 軸のみ。`started_at` / `solved_at` / `target_ms` は表示も編集もせず保存時に元値を温存する。
 - 既存記録が前提。記録・solve-stat ブロックが無ければ案内して exit 1。全画面フォームは**対話端末が必要**で、非対話 (パイプ・CI) では exit 1 でフラグ経路 (`atcoder record ...`) を案内する。
-- 保存 (Ctrl+S) は `OverwriteFile` で全置換 (クリアしたキーは落ちる)。取消 (Esc) はファイルを書き換えない。
+- 保存 (Enter) は `OverwriteFile` で全置換 (クリアしたキーは落ちる)。取消 (Esc) はファイルを書き換えない。
 
 ```
 > ac          [ true ]
@@ -89,18 +89,18 @@ atcoder record edit  <contest> --task <task> [--layout ...]
   knowledge   [ 2 ]
   ...
 目標 35m
-↑↓ 移動   ←→/space 変更   0-3・y/n 入力   Backspace 未記録   Ctrl+S 保存   Esc 取消
+j/k 移動   ←→/space 変更   0-3・y/n 入力   Backspace 未記録   Enter 保存   Esc 取消
 ```
 
 | キー | 動作 |
 |---|---|
-| `↑` / `↓` | フィールド間を移動 |
+| `j` / `k` (`↑` / `↓`) | フィールド間を移動 |
 | `←` / `→` / space | `ac`/`editorial` は `未記録 ↔ true ↔ false` を循環、5 軸は `未記録 ↔ 0..3` を移動 |
 | `y` / `n` | `ac`/`editorial` を true / false に |
 | `0`–`3` | 5 軸の値を直接入力 |
 | `Backspace` | 選択フィールドを未記録へ (duration は 1 文字削除) |
 | `duration` 入力 | 数字と `h`/`m`/`s` を打って実装時間を編集 (空で未計測)。未編集なら元の値を桁落ちなく温存 |
-| `Ctrl+S` | 保存して終了 | 
+| `Enter` (`Ctrl+S`) | 保存して終了 | 
 | `Esc` / `Ctrl+C` | 取消して終了 |
 
 ## 目標実装時間 (`config`)
@@ -148,7 +148,7 @@ $ atcoder record abc457 --task d --score 2,3,2,3,1 --no-editorial
 | `:record stop` | `solved_at`/`duration_ms` を確定 (`:record stop ac` / `:record stop time=25m` も可) |
 | `:record` | solve-stat の現在値を表示する (**書き込まない**) |
 | `:record ac ed score=2,3,2,3,1 time=25m` | AC/解説/5 軸/実装時間を非対話フラグで一括記録 |
-| `:record edit` | 既存記録を**全画面フォーム**で訂正する (要件 066)。Ctrl+S 保存 / Esc 取消 |
+| `:record edit` | 既存記録を**全画面フォーム**で訂正する (要件 066)。Enter 保存 / Esc 取消 |
 
 - bool フラグは bare 語 (`ac`/`noac`、`ed`/`noed`)、値フラグは `key=value` (`score=k,t,c,i,v`、`time=<dur>`)。相反 bool の併用・`score`/`time` の不正値は err 行で伝えて chat は継続する。
 - 実装時間が異常値 (負値 / 12h 超) のとき、chat では確認を挟めないので警告行を添えてそのまま記録する (CLI 非対話経路と同じ)。
