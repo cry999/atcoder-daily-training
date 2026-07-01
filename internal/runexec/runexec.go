@@ -44,6 +44,7 @@ type ChatHeader struct {
 	Contest     string
 	TimeLimitMs int
 	Debug       bool   // true なら chat TUI は子の stdout から [DEBUG] 行を別カテゴリに振り分ける
+	PP          bool   // true なら chat TUI は起動時から pp (valid JSON の [DEBUG] 整形) on (要件 047)
 	AutoRestart bool   // true なら chat TUI は起動時から sticky auto-restart
 	WatchPath   string // 非空なら chat TUI は解答ファイルを監視し、保存検知で子を再 spawn する
 }
@@ -68,6 +69,7 @@ type Options struct {
 	Timeout     time.Duration // 0 → meta.toml.time_limit_ms か 2 秒のデフォルト
 	Tolerance   float64       // float トークン比較の誤差。0 以下なら testexec.DefaultTolerance
 	Debug       bool          // DEBUG=1 と [DEBUG] フィルタ (test と同じ規約)
+	PP          bool          // true なら対話モードの chat TUI を起動時から pp on にする (要件 047)
 	AutoRestart bool          // true なら対話モードの chat TUI を起動時から sticky auto-restart にする (TTY のみ有効)
 	ExecutorFor ExecutorFor
 	Reporter    Reporter
@@ -164,6 +166,7 @@ func runChatMode(opts Options, executor Executor, solutionPath string, timeLimit
 		Contest:     opts.Contest,
 		TimeLimitMs: timeLimitMs,
 		Debug:       opts.Debug,
+		PP:          opts.PP,
 		AutoRestart: opts.AutoRestart,
 		WatchPath:   solutionPath, // 保存検知で子を最新ファイルで再 spawn する
 	})

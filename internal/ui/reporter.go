@@ -16,6 +16,7 @@ import (
 type TestReporter struct {
 	verbose    bool
 	sideBySide bool
+	pp         bool // true なら debug: セクションの valid JSON ペイロードを整形して表示する (要件 047)
 
 	// live は stdout が端末のときだけ true。true ならテスト実行中に bubbletea で
 	// ライブ表示 (ケース一覧 + プログレスバー) を出す。パイプ/CI のときは false で、
@@ -25,10 +26,11 @@ type TestReporter struct {
 	done    chan struct{}
 }
 
-func NewTestReporter(verbose, sideBySide bool) *TestReporter {
+func NewTestReporter(verbose, sideBySide, pp bool) *TestReporter {
 	return &TestReporter{
 		verbose:    verbose,
 		sideBySide: sideBySide,
+		pp:         pp,
 		live:       isTerminal(os.Stdout),
 	}
 }
@@ -137,7 +139,11 @@ func (r *TestReporter) printCaseDetail(cr testexec.CaseResult) {
 		printContent("output:", cr.Actual)
 	}
 	if cr.Debug != "" {
-		printContent("debug:", cr.Debug)
+		debug := cr.Debug
+		if r.pp {
+			debug = prettifyDebug(debug)
+		}
+		printContent("debug:", debug)
 	}
 	switch cr.Status {
 	case testexec.Fail:
@@ -222,9 +228,10 @@ const (
 
 type RunReporter struct {
 	verbose bool
+	pp      bool // true なら debug: セクションの valid JSON ペイロードを整形して表示する (要件 047)
 }
 
-func NewRunReporter(verbose bool) *RunReporter { return &RunReporter{verbose: verbose} }
+func NewRunReporter(verbose, pp bool) *RunReporter { return &RunReporter{verbose: verbose, pp: pp} }
 
 func (r *RunReporter) Header(task, contest string, timeLimitMs, timeoutMs int, mode string) {
 	parts := []string{
@@ -252,7 +259,11 @@ func (r *RunReporter) Result(res runexec.Result) {
 	}
 	printContent("output:", res.Stdout)
 	if res.Debug != "" {
-		printContent("debug:", res.Debug)
+		debug := res.Debug
+		if r.pp {
+			debug = prettifyDebug(debug)
+		}
+		printContent("debug:", debug)
 	}
 	// judge モード (--out 指定時) で不一致のとき、diff を出す。
 	if res.Compared && !res.OutputMatch && res.Status == runexec.Ok {

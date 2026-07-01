@@ -10,14 +10,14 @@ import (
 var (
 	// 常時出すコマンド名 (`:debug`/`:cheat` は要件 030、`:replay` は要件 039、`:test` は要件 045、
 	// `:meta` は要件 055、`:gen` は要件 060 で追加)。
-	completeNamesBase = []string{"case", "cheat", "debug", "gen", "meta", "q", "replay", "set", "test", "w"}
+	completeNamesBase = []string{"case", "cheat", "debug", "gen", "meta", "pp", "q", "replay", "set", "test", "w"}
 	// NavEnabled (start 分割画面) のときだけ出すコマンド名 (要件 027)。
 	completeNamesNav = []string{"contest", "e", "task"}
 	// 第 2 トークンの候補 (1 語目 → サブトークン)。:set は verify/noverify に加え
-	// Debug 表示トグルの debug/nodebug も取る (要件 030)。:meta は fetch/url/time_limit
-	// (要件 055 / 057)。
+	// Debug 表示トグルの debug/nodebug (要件 030)・pp 整形トグルの pp/nopp (要件 047)
+	// も取る。:meta は fetch/url/time_limit (要件 055 / 057)。
 	completeSubTokens = map[string][]string{
-		"set":     {"debug", "nodebug", "noverify", "verify"},
+		"set":     {"debug", "nodebug", "nopp", "noverify", "pp", "verify"},
 		"task":    {"next", "prev"},
 		"contest": {"next", "prev"},
 		"meta":    {"fetch", "time_limit", "url"},

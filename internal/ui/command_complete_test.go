@@ -28,8 +28,10 @@ func TestCompleteCommandLine(t *testing.T) {
 		{"meta unique appends space for arg cmd", "me", true, "meta ", nil},
 		{"m prefix unique to meta", "m", true, "meta ", nil},
 		{"ambiguous keeps LCP and lists", "c", true, "c", []string{"case", "cheat", "contest"}},
-		{"empty lists all (nav)", "", true, "", []string{"case", "cheat", "contest", "debug", "e", "gen", "meta", "q", "replay", "set", "task", "test", "w"}},
-		{"empty lists base only (no nav)", "", false, "", []string{"case", "cheat", "debug", "gen", "meta", "q", "replay", "set", "test", "w"}},
+		{"empty lists all (nav)", "", true, "", []string{"case", "cheat", "contest", "debug", "e", "gen", "meta", "pp", "q", "replay", "set", "task", "test", "w"}},
+		{"empty lists base only (no nav)", "", false, "", []string{"case", "cheat", "debug", "gen", "meta", "pp", "q", "replay", "set", "test", "w"}},
+		{"pp unique (no arg)", "pp", true, "pp", nil},
+		{"p prefix unique to pp", "p", true, "pp", nil},
 		{"no match no change", "zzz", true, "zzz", nil},
 		// nav コマンドは navEnabled=false では候補に出ない。
 		{"task hidden without nav", "ta", false, "ta", nil},
@@ -37,11 +39,13 @@ func TestCompleteCommandLine(t *testing.T) {
 		{"w unique without nav", "w", false, "w", nil}, // w は引数任意なので空白を付けない
 
 		// --- 第 2 トークン (サブトークン) ---
-		{"set space lists args", "set ", true, "set ", []string{"debug", "nodebug", "noverify", "verify"}},
+		{"set space lists args", "set ", true, "set ", []string{"debug", "nodebug", "nopp", "noverify", "pp", "verify"}},
 		{"set verify unique", "set v", true, "set verify", nil},
 		{"set debug unique", "set d", true, "set debug", nil},
-		{"set no is ambiguous", "set no", true, "set no", []string{"nodebug", "noverify"}},
-		{"set n is ambiguous (nodebug/noverify)", "set n", true, "set no", []string{"nodebug", "noverify"}},
+		{"set pp unique", "set p", true, "set pp", nil},
+		{"set nopp unique", "set nop", true, "set nopp", nil},
+		{"set no is ambiguous", "set no", true, "set no", []string{"nodebug", "nopp", "noverify"}},
+		{"set n is ambiguous (nodebug/nopp/noverify)", "set n", true, "set no", []string{"nodebug", "nopp", "noverify"}},
 		{"task space lists next/prev", "task ", true, "task ", []string{"next", "prev"}},
 		{"task next unique", "task n", true, "task next", nil},
 		{"task prev unique", "task p", true, "task prev", nil},

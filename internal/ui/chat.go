@@ -24,6 +24,7 @@ type ChatHeader struct {
 	Contest     string
 	TimeLimitMs int
 	Debug       bool       // true なら子の stdout 行のうち [DEBUG] プレフィックスを持つものを別カテゴリで表示する
+	PP          bool       // true なら以降の [DEBUG] 行のうち valid JSON ペイロードを 2-space 整形して表示する (要件 047)
 	AutoRestart bool       // true なら起動時から sticky auto-restart (子終了のたびに再起動する)
 	WatchPath   string     // 非空なら解答ファイルを監視し、保存検知で子を最新ファイルで再 spawn する
 	Submit      SubmitFunc // 非 nil なら Ctrl+S で提出準備を呼べる。composition root が注入する
@@ -747,6 +748,14 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			kind = kindDebug
 			text = strings.TrimPrefix(text, debugPrefix)
 			text = strings.TrimPrefix(text, " ")
+			// pp on なら valid JSON ペイロードを 2-space 整形する (要件 047)。整形は
+			// この行を kindDebug に振り分けた時点で適用し、既描画行には遡及しない
+			// (:pp の非遡及ルール)。整形後は複数行になりうる (renderMsgBlock が対応)。
+			if m.header.PP {
+				if pretty, ok := prettifyJSONPayload(strings.TrimSpace(text)); ok {
+					text = pretty
+				}
+			}
 		}
 		// stdout/stderr は 1 本に統合して読む (順序保証, StartChat 参照) ため stream の由来が
 		// 失われる。Python traceback (= Runtime Error) を行内容から検出して kindErr に戻し、
@@ -1048,7 +1057,12 @@ func renderMsgBlock(msg chatLine, width int) string {
 	if avail < 1 {
 		avail = 1
 	}
-	chunks := hardWrap(msg.text, avail)
+	// msg.text が改行を含みうる (pp 整形済み [DEBUG] JSON など。要件 047) ため、
+	// まず物理行に分割してから各行を幅で折り返す。継続行はいずれも折り返しマーカーで揃える。
+	var chunks []string
+	for _, physical := range strings.Split(msg.text, "\n") {
+		chunks = append(chunks, hardWrap(physical, avail)...)
+	}
 	// 継続行のマーカー (↪) はインディケーター末尾カラムに置き、本文カラムを 1 行目と揃える。
 	contIndent := strings.Repeat(" ", leadColW+promptW-1)
 	out := make([]string, 0, len(chunks))

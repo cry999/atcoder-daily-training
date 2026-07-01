@@ -121,6 +121,17 @@ run_case "fixture_re"                 1 test fixture --task re
 run_case "fixture_tle"                1 test fixture --task tle
 run_case "fixture_debug w/o -d"       1 test fixture --task debug
 run_case "fixture_debug w/  -d"       0 test fixture --task debug -d
+
+# --pp (要件 047): valid JSON の [DEBUG] ペイロードを debug: セクションで 2-space 整形。
+# fixture_debugjson は [DEBUG] {"grid": [[0,1],[2,3]], "n": n} を吐く。-d 無しは行が
+# 混ざり FAIL、-d でフィルタされ PASS。--pp は表示整形だけで exit code は変えない。
+run_case "fixture_debugjson w/o -d (FAIL)" 1 test fixture --task debugjson
+run_case "fixture_debugjson w/  -d (PASS)" 0 test fixture --task debugjson -d
+# -d --pp: pretty 時だけ `"grid": [` が行末に来る (flat は同じ行に [[0, 1] が続く)。
+check_output "test -d --pp formats JSON"    0 has    '"grid": \[$' -- test fixture --task debugjson -d --pp
+check_output "test -d without --pp is flat" 0 hasnot '"grid": \[$' -- test fixture --task debugjson -d
+# --pp を -d 無しで渡すと整形対象が無い旨の note を stderr に出す (exit code は不変)。
+check_output "pp without -d prints note" 0 has 'note: --pp has no effect' -- test fixture --task pass --pp
 run_case "fixture_multi all"          0 test fixture --task multi
 run_case "fixture_multi --case 02"    0 test fixture --task multi --case 02
 run_case "fixture_multi -c 1,3"       0 test fixture --task multi -c 1,3

@@ -70,7 +70,7 @@ func metaFetch(args []string) (int, error) {
 		return 2, err
 	}
 
-	reporter := ui.NewTestReporter(false, false)
+	reporter := ui.NewTestReporter(false, false, false)
 	res, err := testexec.EnsureTests(reporter, contest, task, true)
 	if err != nil {
 		return 1, err

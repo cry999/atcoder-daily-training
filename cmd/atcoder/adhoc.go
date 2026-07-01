@@ -23,7 +23,7 @@ import (
 // 出力もキャプチャしないため、judge (--out) ともファイル入力 (--in <path>) とも
 // 併用できない (引数エラー = exit 2)。
 func runAdHoc(contest, task string, lay layout.Layout, inFile, outFile string,
-	interactive, autoRestart, debug, verbose bool, timeout time.Duration, tolerance float64, editorOverride, nvimRemote string) (int, error) {
+	interactive, autoRestart, debug, verbose, pp bool, timeout time.Duration, tolerance float64, editorOverride, nvimRemote string) (int, error) {
 	if interactive {
 		if outFile != "" {
 			return 2, errors.New("--interactive cannot be combined with --out (judging needs batch-captured output)")
@@ -44,8 +44,9 @@ func runAdHoc(contest, task string, lay layout.Layout, inFile, outFile string,
 		Timeout:     timeout,
 		Tolerance:   tolerance,
 		Debug:       debug,
+		PP:          pp,
 		ExecutorFor: selectRunExecutor,
-		Reporter:    ui.NewRunReporter(verbose),
+		Reporter:    ui.NewRunReporter(verbose, pp),
 		ChatRunner:  makeChatRunner(contest, task, lay, tolerance, editorOverride, nvimRemote),
 	})
 }
@@ -63,6 +64,7 @@ func makeChatRunner(contest, task string, lay layout.Layout, tolerance float64, 
 			Contest:     header.Contest,
 			TimeLimitMs: header.TimeLimitMs,
 			Debug:       header.Debug,
+			PP:          header.PP,
 			AutoRestart: header.AutoRestart,
 			WatchPath:   header.WatchPath,
 			Submit:      chatSubmitFunc(contest, task, lay),

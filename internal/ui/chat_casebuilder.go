@@ -136,6 +136,9 @@ func parseCommand(s string) command {
 	case "debug":
 		// :debug — Debug 表示 (-d 相当) をトグル。
 		return command{name: "debug", arg: arg}
+	case "pp":
+		// :pp — valid JSON の [DEBUG] ペイロード整形 (要件 047) をトグル。:debug と直交。
+		return command{name: "pp", arg: arg}
 	case "cheat", "help", "?":
 		// :cheat / :help / :? — 利用可能なコマンド一覧を表示。
 		return command{name: "cheat", arg: arg}
@@ -265,6 +268,11 @@ func (m *chatModel) execCommand(cmd command) (tea.Model, tea.Cmd) {
 		m.returnFromCommand()
 		m.refreshViewport()
 		return m, debugCmd
+	case "pp":
+		m.togglePP()
+		m.returnFromCommand()
+		m.refreshViewport()
+		return m, nil
 	case "cheat":
 		m.showCheat()
 		m.returnFromCommand()
@@ -462,6 +470,12 @@ func (m *chatModel) applySet(arg string) tea.Cmd {
 		return m.setDebug(true)
 	case "nodebug":
 		return m.setDebug(false)
+	case "pp":
+		m.setPP(true)
+		return nil
+	case "nopp":
+		m.setPP(false)
+		return nil
 	default:
 		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "E518: unknown option :set " + arg})
 		return nil
@@ -497,6 +511,28 @@ func (m *chatModel) toggleDebug() tea.Cmd {
 	return m.setDebug(!m.header.Debug)
 }
 
+// setPP は pp 表示 (valid JSON の [DEBUG] ペイロード整形。要件 047) を on/off する。
+// :debug と直交し、以降届く [DEBUG] 行にだけ反映される (既描画行は遡及しない)。
+// debug 自体が off なら整形対象が無いので info 行に補足を添える。watch ペインへの
+// 波及 (DebugMsg 相当) は将来スコープなので Cmd は返さない (cosmetic のみ)。
+func (m *chatModel) setPP(on bool) {
+	m.header.PP = on
+	state := "off"
+	if on {
+		state = "on"
+	}
+	text := "(pp " + state + ")"
+	if on && !m.header.Debug {
+		text = "(pp on — :debug を on にすると整形結果が見えます)"
+	}
+	m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: text})
+}
+
+// togglePP は pp 表示を反転する (:pp)。
+func (m *chatModel) togglePP() {
+	m.setPP(!m.header.PP)
+}
+
 // showCheat は今この画面で使える command 一覧を info 行で積む (:cheat / :help / :?)。
 // ナビ系 (:task/:contest/:e) は NavEnabled (start 分割画面) のときだけ載せる。
 func (m *chatModel) showCheat() {
@@ -507,6 +543,7 @@ func (m *chatModel) showCheat() {
 		"  :w [name]             追加ケースを tests-extra に保存",
 		"  :set verify|noverify  ライブ検証 on/off",
 		"  :debug                Debug 表示 (-d) を切替 (:set debug|nodebug)",
+		"  :pp                   [DEBUG] の valid JSON を整形表示 (:set pp|nopp)",
 		"  :replay               直近に流した入力 (手入力 / :test ケース) を再送 + 再検証",
 		"  :meta [url|time_limit [値]]  meta の url / time_limit を表示・編集",
 		"  :meta fetch           url からサンプル + Time Limit を再取得",

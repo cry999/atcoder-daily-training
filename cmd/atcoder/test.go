@@ -51,6 +51,8 @@ func cmdTest(args []string) (int, error) {
 	var debug bool
 	flags.BoolVar(&debug, "d", false, "Run with DEBUG=1 and special-case [DEBUG]-prefixed output lines")
 	flags.BoolVar(&debug, "debug", false, "Run with DEBUG=1 and special-case [DEBUG]-prefixed output lines")
+	var pp bool
+	flags.BoolVar(&pp, "pp", false, "Pretty-print valid-JSON [DEBUG] payloads in the debug: section (2-space indent). Orthogonal to -d; no effect without it.")
 	var caseStr string
 	flags.StringVar(&caseStr, "case", "", `Run only the specified case(s); comma-separated (e.g. "01" or "1,3")`)
 	flags.StringVar(&caseStr, "c", "", `Run only the specified case(s); comma-separated (e.g. "01" or "1,3")`)
@@ -103,6 +105,13 @@ func cmdTest(args []string) (int, error) {
 		task = contest + "_" + task
 	}
 
+	// --pp は debug 表示の整形だけを司る (要件 047)。-d 無しでは debug: セクションが
+	// 空なので --pp は無表示になる。「効かない」誤認を避けるため note を 1 行出す
+	// (exit code は変えない。--pp が -d を含意する隠れ結合は入れない)。
+	if pp && !debug {
+		fmt.Fprintln(os.Stderr, "note: --pp has no effect without -d/--debug")
+	}
+
 	lay, err := resolveLayout(*layoutFlag, contest)
 	if err != nil {
 		return 2, err
@@ -134,7 +143,7 @@ func cmdTest(args []string) (int, error) {
 		if setAny("refresh", "case", "c", "jobs", "j", "watch", "w", "s", "side-by-side", "submit", "no-open", "keep-debug") {
 			return 2, errors.New("--refresh/--case/--jobs/--watch/--side-by-side/--submit are sample-mode flags and cannot be combined with --in/--out/--interactive")
 		}
-		return runAdHoc(contest, task, lay, inFile, outFile, interactive, autoRestart, debug, verbose, *timeoutFlag, *tolFlag, cfg.Editor, cfg.EditorNvimRemote)
+		return runAdHoc(contest, task, lay, inFile, outFile, interactive, autoRestart, debug, verbose, pp, *timeoutFlag, *tolFlag, cfg.Editor, cfg.EditorNvimRemote)
 	}
 
 	// --submit は一回限りの提出準備なので、常駐する --watch とは併用不可。
@@ -165,7 +174,7 @@ func cmdTest(args []string) (int, error) {
 			Tolerance:   *tolFlag,
 			Concurrency: jobs,
 			ExecutorFor: selectExecutor,
-			Reporter:    ui.NewTestReporter(verbose, sideBySide),
+			Reporter:    ui.NewTestReporter(verbose, sideBySide, pp),
 		}
 	}
 

@@ -179,7 +179,7 @@ func (c *startConfig) buildTarget(contestID, task string, refresh bool) (t ui.St
 			Tolerance:   c.tolerance,
 			Concurrency: c.jobs,
 			ExecutorFor: selectExecutor,
-			Reporter:    ui.NewTestReporter(false, c.sideBySide),
+			Reporter:    ui.NewTestReporter(false, c.sideBySide, false),
 		}
 	}
 

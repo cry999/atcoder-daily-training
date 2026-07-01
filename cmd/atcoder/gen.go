@@ -68,7 +68,7 @@ func cmdGen(args []string) (int, error) {
 	}
 
 	// 生セクションを用意する (キャッシュ or fetch)。取得進捗は握りつぶす。
-	raw, err := testexec.EnsureGenSource(ui.NewTestReporter(false, false), contest, task, *refresh)
+	raw, err := testexec.EnsureGenSource(ui.NewTestReporter(false, false, false), contest, task, *refresh)
 	if err != nil {
 		return 1, err
 	}

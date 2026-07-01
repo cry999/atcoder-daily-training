@@ -122,6 +122,7 @@ var subFlags = map[string][]Candidate{
 		{"--verbose", "show input/output for each case"},
 		{"-d", "run with DEBUG=1, filter [DEBUG] lines"},
 		{"--debug", "run with DEBUG=1, filter [DEBUG] lines"},
+		{"--pp", "pretty-print valid-JSON [DEBUG] payloads (needs -d)"},
 		{"-s", "show diff side-by-side"},
 		{"--side-by-side", "show diff side-by-side"},
 		{"--tolerance", "float comparison tolerance (e.g. 1e-9)"},
