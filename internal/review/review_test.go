@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cry999/atcoder-daily-training/internal/solvestat"
 	"github.com/cry999/atcoder-daily-training/internal/stats"
 )
 
@@ -127,6 +128,14 @@ func svU(contest, letter string) stats.Solve {
 	return stats.Solve{File: letter + ".py", Category: cat, Contest: contest, Letter: letter}
 }
 
+// svEd は editorial の記録を添えた stats.Solve を作る (date は sv と同じ扱い)。
+func svEd(date time.Time, contest, letter string, editorial bool) stats.Solve {
+	s := sv(date, contest, letter)
+	s.HasStat = true
+	s.Stat.Editorial = solvestat.BoolPtr(editorial)
+	return s
+}
+
 func TestBuildMergeDatedPreference(t *testing.T) {
 	now := d(2026, 6, 9)
 	// exercise: abc457 の d を 6/7 に (日付あり)。category: abc457 の a と d (日付なし)。
@@ -227,5 +236,53 @@ func TestRecencyLevel(t *testing.T) {
 		if got := recencyLevel(solved, now); got != c.want {
 			t.Errorf("recencyLevel(%d days ago) = %d, want %d", c.daysAgo, got, c.want)
 		}
+	}
+}
+
+// TestBuildEditorial は editorial=true が Row.Editorial に立ち、false/未記録では
+// 立たないこと、また同一マスに 1 件でも editorial=true があれば OR で拾うことを確認する。
+func TestBuildEditorial(t *testing.T) {
+	now := d(2026, 6, 9)
+	solves := []stats.Solve{
+		svEd(d(2026, 6, 8), "abc458", "d", true),  // 解説込み → 赤
+		svEd(d(2026, 6, 8), "abc458", "e", false), // 自力 → 赤にしない
+		sv(d(2026, 6, 8), "abc458", "f"),          // 未記録 → 赤にしない
+		svEd(d(2026, 6, 7), "abc457", "d", false), // 同一マスに false → true が来たら OR
+		svEd(d(2026, 6, 8), "abc457", "d", true),
+	}
+	rep := Build(solves, Options{Category: "abc", Now: now})
+	byContest := map[string]Row{}
+	for _, r := range rep.Rows {
+		byContest[r.Contest] = r
+	}
+	if !byContest["abc458"].Editorial["d"] {
+		t.Errorf("abc458 d: want Editorial true")
+	}
+	if byContest["abc458"].Editorial["e"] {
+		t.Errorf("abc458 e: want Editorial false (自力 AC)")
+	}
+	if byContest["abc458"].Editorial["f"] {
+		t.Errorf("abc458 f: want Editorial false (未記録)")
+	}
+	if !byContest["abc457"].Editorial["d"] {
+		t.Errorf("abc457 d: want Editorial true (false の後に true → OR)")
+	}
+}
+
+// TestRowLinesEditorialGlyph は editorial=true のマスが赤 ■ (editorialGlyph) で描かれ、
+// 自力 AC の recency マスとは別の見た目になることを確認する。
+func TestRowLinesEditorialGlyph(t *testing.T) {
+	now := d(2026, 6, 9)
+	solves := []stats.Solve{
+		svEd(d(2026, 6, 8), "abc458", "d", true),  // 解説込み → 赤
+		svEd(d(2026, 6, 8), "abc458", "e", false), // 自力 → recency 色
+	}
+	rep := Build(solves, Options{Category: "abc", Now: now})
+	lines := rep.rowLines(rep.contestWidth())
+	if len(lines) != 1 {
+		t.Fatalf("rowLines = %d 行, want 1", len(lines))
+	}
+	if !strings.Contains(lines[0], editorialGlyph()) {
+		t.Errorf("行に赤 ■ (editorialGlyph) が無い:\n%s", lines[0])
 	}
 }

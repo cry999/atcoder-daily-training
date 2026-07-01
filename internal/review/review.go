@@ -30,6 +30,7 @@ type Options struct {
 type Row struct {
 	Contest    string               // contest_id (例 "abc457")
 	Solved     map[string]time.Time // letter → その letter を最後に解いた日。未解の letter は不在
+	Editorial  map[string]bool      // letter → その letter を解説 (editorial=true) 込みで解いたか。true のマスは赤で描く
 	LastSolved time.Time            // その回を最後に解いた日 (= Solved の最大値)
 }
 
@@ -88,8 +89,13 @@ func Build(solves []stats.Solve, opts Options) Report {
 		letterSeen[s.Letter] = true
 		row := byContest[s.Contest]
 		if row == nil {
-			row = &Row{Contest: s.Contest, Solved: map[string]time.Time{}}
+			row = &Row{Contest: s.Contest, Solved: map[string]time.Time{}, Editorial: map[string]bool{}}
 			byContest[s.Contest] = row
+		}
+		// 解説を見て解いた (editorial=true) 記録が 1 件でもあればそのマスを赤で描く。
+		// 日付の代表値選びとは独立に OR で拾う (どれか 1 回でも解説込みなら「解説を見た」)。
+		if s.Stat.Editorial != nil && *s.Stat.Editorial {
+			row.Editorial[s.Letter] = true
 		}
 		// (contest, letter) ごとに最良の日付を採る。日付あり (exercise) を優先し、
 		// 日付なし (カテゴリツリー) では既存を上書きしない。複数日付なら最大。

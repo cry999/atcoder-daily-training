@@ -19,10 +19,16 @@ var (
 	// revUndatedSt は本番 (カテゴリツリー由来・日付なし) のマス ■ の色。recency の緑とも
 	// 未解の薄灰 · とも別の黄色にして 3 状態を見分けられるようにする。
 	revUndatedSt = lipgloss.NewStyle().Foreground(lipgloss.Color("#f9e2af"))
+	// revEditorialSt は解説を見て解いた (editorial=true) マス ■ の赤。recency/本番の色より
+	// 優先し、「自力ではなかった」問題を一目で拾えるようにする。
+	revEditorialSt = lipgloss.NewStyle().Foreground(lipgloss.Color("#f38ba8"))
 )
 
 // undatedGlyph は本番 (日付なし) で解いたマスの黄色 ■。
 func undatedGlyph() string { return revUndatedSt.Render("■") }
+
+// editorialGlyph は解説込みで解いたマスの赤 ■。
+func editorialGlyph() string { return revEditorialSt.Render("■") }
 
 // Render は Report を人間向けテーブルとして w に書き出す (非 TTY / 一括出力用)。
 // TTY ではページに収まるスクロール表示 (RunTUI) を使う。マスは recency で着色。
@@ -93,6 +99,8 @@ func (r Report) rowLines(contestW int) []string {
 			switch solved, ok := row.Solved[col]; {
 			case !ok:
 				cells.WriteString(stats.ShadeGlyph(0)) // 未解は ·
+			case row.Editorial[col]:
+				cells.WriteString(editorialGlyph()) // 解説込みは recency/本番より優先して赤 ■
 			case solved.IsZero():
 				cells.WriteString(undatedGlyph()) // 日付なしは中立色 ■
 			default:
@@ -113,6 +121,7 @@ func (r Report) rowLines(contestW int) []string {
 func (r Report) legendLine() string {
 	return "  " + revInfoStyle.Render("older ") + recencyLegend() +
 		revInfoStyle.Render(" newer   ") + undatedGlyph() + revInfoStyle.Render(" 本番   ") +
+		editorialGlyph() + revInfoStyle.Render(" 解説   ") +
 		stats.ShadeGlyph(0) + revInfoStyle.Render(" 未着手")
 }
 
