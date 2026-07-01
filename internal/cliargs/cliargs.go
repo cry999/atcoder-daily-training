@@ -27,6 +27,8 @@ var valueFlags = map[string]bool{
 	"--score": true, "--time": true,
 	"--knowledge": true, "--translation": true, "--complexity": true,
 	"--impl": true, "--verify": true,
+	// login (要件 062): 取り込む REVEL_SESSION cookie の値フラグ。
+	"--session-cookie": true,
 }
 
 // TakesValue は name (先頭の "-"/"--" 込み) が値を取るフラグかを返す。

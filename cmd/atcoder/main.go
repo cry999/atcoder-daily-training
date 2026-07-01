@@ -16,6 +16,7 @@ import (
 var builtins = map[string]bool{
 	"new": true, "start": true, "test": true, "gen": true, "meta": true, "stats": true, "review": true,
 	"record": true, "config": true, "commit": true, "completion": true,
+	"login": true, "logout": true,
 	"update": true, "version": true, "usage": true, "__complete": true,
 }
 
@@ -76,6 +77,10 @@ func dispatch(name string, rest []string) int {
 		return runCmd("config", cmdConfig, rest)
 	case "commit":
 		return runCmd("commit", cmdCommit, rest)
+	case "login":
+		return runCmd("login", cmdLogin, rest)
+	case "logout":
+		return runCmd("logout", cmdLogout, rest)
 	case "completion":
 		return runCmd("completion", cmdCompletion, rest)
 	case "update":
@@ -155,6 +160,8 @@ func usage() {
                  # 目標実装時間: set target.<category>.<letter> <dur> (例 target.abc.d 35m)
   atcoder completion <bash|zsh|fish>
   atcoder commit
+  atcoder login  [--session-cookie <value>] [--status [--check]]   # ブラウザの REVEL_SESSION cookie を取り込み認証
+  atcoder logout                                                   # 取り込んだセッションを破棄
   atcoder update [--check | --local]
   atcoder version
   atcoder <alias> [args...]   # config の [alias] (例 alias.upd-lo = "update --local")`)

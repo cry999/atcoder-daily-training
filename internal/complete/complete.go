@@ -76,6 +76,8 @@ var subcommandCands = []Candidate{
 	{"record", "record implementation time / AC / 5-axis score into solve-stat"},
 	{"config", "show or change tool settings"},
 	{"commit", "git-commit today's exercise solutions"},
+	{"login", "import a browser REVEL_SESSION cookie to authenticate"},
+	{"logout", "discard the imported session"},
 	{"completion", "print a shell completion script"},
 	{"update", "update atcoder to the latest version"},
 	{"version", "print the installed atcoder version"},
@@ -197,6 +199,11 @@ var subFlags = map[string][]Candidate{
 		{"--time", "override implementation time (e.g. 25m)"},
 		{"--restart", "with record start: reset started_at and clear completion"},
 		{"--layout", "solution file layout"},
+	},
+	"login": {
+		{"--session-cookie", "REVEL_SESSION cookie value to import (default: read from stdin)"},
+		{"--status", "show saved session status without importing"},
+		{"--check", "with --status, re-validate the saved session over the network"},
 	},
 }
 
