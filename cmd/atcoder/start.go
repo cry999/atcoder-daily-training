@@ -242,11 +242,11 @@ func (c *startConfig) buildTarget(contestID, task string, refresh bool) (t ui.St
 		Edit:        editFunc(c.editor, c.nvimRemote),
 		PrevInputs:  prevInputs,
 		RecordInput: func(line string) { _ = chatlog.Record(contestID, task, sid, line) },
-		MetaShow:    chatMetaShowFunc(contestID, task),  // :meta の表示 (要件 055)
-		MetaSet:     chatMetaSetFunc(contestID, task),   // :meta の編集 (要件 055)
-		MetaFetch:   chatMetaFetchFunc(contestID, task), // :meta fetch の再取得 (要件 057)
-		Gen:         chatGenFunc(contestID, task),       // :gen で制約からランダム入力生成 (要件 060)
-		Record:      chatRecordFunc(contestID, task),    // :record で solve-stat の計測・記録 (要件 064)
+		MetaShow:    chatMetaShowFunc(contestID, task),    // :meta の表示 (要件 055)
+		MetaSet:     chatMetaSetFunc(contestID, task),     // :meta の編集 (要件 055)
+		MetaFetch:   chatMetaFetchFunc(contestID, task),   // :meta fetch の再取得 (要件 057)
+		Gen:         chatGenFunc(contestID, task),         // :gen で制約からランダム入力生成 (要件 060)
+		Record:      chatRecordFunc(contestID, task, lay), // :record で solve-stat の計測・記録 (要件 064)
 	}
 	return ui.StartTarget{
 		ContestID:    contestID,

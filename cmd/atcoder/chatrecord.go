@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cry999/atcoder-daily-training/internal/layout"
 	"github.com/cry999/atcoder-daily-training/internal/solvestat"
 )
 
@@ -14,25 +15,26 @@ import (
 // solve-stat 書き込みロジックを非対話で使い、第 1 トークンで start/stop/(記録本体) を
 // dispatch する。chat (TUI) から呼ばれるため stderr には一切出さず、結果・警告・案内は
 // すべて行で返す (chat が info/err 行で表示する)。ローカル I/O のみなので同期。
-// layout は現行 chat と同じく auto 解決 (start 分割画面 / test --interactive のどちらでも
-// 解いている解答ファイルに紐づく)。
-func chatRecordFunc(contest, task string) func(args []string) ([]string, error) {
+// layout は chat 起動時 (start 分割画面 / test --interactive) に解決済みの lay を受け取り、
+// それをそのまま使う (auto 再判定を挟むと abc<NNN> を exercise で解いていても常に ABC
+// パスに落ちてしまうため。要件 064)。
+func chatRecordFunc(contest, task string, lay layout.Layout) func(args []string) ([]string, error) {
 	return func(args []string) ([]string, error) {
 		if len(args) >= 1 {
 			switch args[0] {
 			case "start":
-				return chatRecordStart(contest, task, args[1:])
+				return chatRecordStart(contest, task, lay, args[1:])
 			case "stop":
-				return chatRecordStop(contest, task, args[1:])
+				return chatRecordStop(contest, task, lay, args[1:])
 			}
 		}
-		return chatRecordMain(contest, task, args)
+		return chatRecordMain(contest, task, lay, args)
 	}
 }
 
 // chatRecordStart は :record start を処理する (CLI recordStart 相当)。started_at を刻む。
 // restart トークンで再計測 (started_at リセット + 完了系クリア)。
-func chatRecordStart(contest, task string, args []string) ([]string, error) {
+func chatRecordStart(contest, task string, lay layout.Layout, args []string) ([]string, error) {
 	restart := false
 	for _, a := range args {
 		if a != "restart" {
@@ -40,7 +42,7 @@ func chatRecordStart(contest, task string, args []string) ([]string, error) {
 		}
 		restart = true
 	}
-	rt, err := buildRecordTarget("auto", contest, task)
+	rt, err := recordTargetFor(lay, contest, task)
 	if err != nil {
 		return nil, err
 	}
@@ -65,12 +67,12 @@ func chatRecordStart(contest, task string, args []string) ([]string, error) {
 
 // chatRecordStop は :record stop を処理する (CLI recordStop 相当)。solved_at を確定し
 // duration を算出、target をスナップショットする。ac / time= のみ受ける (スコアは記録本体で)。
-func chatRecordStop(contest, task string, args []string) ([]string, error) {
+func chatRecordStop(contest, task string, lay layout.Layout, args []string) ([]string, error) {
 	ac, _, _, overrideMs, err := parseChatRecordTokens(args, false)
 	if err != nil {
 		return nil, err
 	}
-	rt, err := buildRecordTarget("auto", contest, task)
+	rt, err := recordTargetFor(lay, contest, task)
 	if err != nil {
 		return nil, err
 	}
@@ -112,12 +114,12 @@ func chatRecordStop(contest, task string, args []string) ([]string, error) {
 // ac / editorial / score / time を solve-stat へ部分更新で書き戻す。引数なし (:record 単体)
 // のときは書き込まず現在値だけ表示する (chat では対話ウィザードを持たないため、記入は
 // フラグ経由・閲覧は引数なしに割り当てる)。
-func chatRecordMain(contest, task string, args []string) ([]string, error) {
+func chatRecordMain(contest, task string, lay layout.Layout, args []string) ([]string, error) {
 	ac, editorial, score, overrideMs, err := parseChatRecordTokens(args, true)
 	if err != nil {
 		return nil, err
 	}
-	rt, err := buildRecordTarget("auto", contest, task)
+	rt, err := recordTargetFor(lay, contest, task)
 	if err != nil {
 		return nil, err
 	}

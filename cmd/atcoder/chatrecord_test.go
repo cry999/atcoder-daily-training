@@ -1,9 +1,12 @@
 package main
 
 import (
+	"os"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/cry999/atcoder-daily-training/internal/layout"
 	"github.com/cry999/atcoder-daily-training/internal/solvestat"
 )
 
@@ -21,7 +24,7 @@ const chatRecPath = "abc/457/d.py"
 // :record start → started_at を刻み、solve-stat ブロックを新規作成する。
 func TestChatRecordFunc_Start(t *testing.T) {
 	chatRecordEnv(t)
-	rec := chatRecordFunc(chatRecContest, chatRecTask)
+	rec := chatRecordFunc(chatRecContest, chatRecTask, layout.ABC{})
 
 	lines, err := rec([]string{"start"})
 	if err != nil {
@@ -47,7 +50,7 @@ func TestChatRecordFunc_Start(t *testing.T) {
 // :record ac ed score=… → 非対話フラグを solve-stat へ書き戻し、要約行を返す。
 func TestChatRecordFunc_RecordFlags(t *testing.T) {
 	chatRecordEnv(t)
-	rec := chatRecordFunc(chatRecContest, chatRecTask)
+	rec := chatRecordFunc(chatRecContest, chatRecTask, layout.ABC{})
 	if _, err := rec([]string{"start"}); err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +78,7 @@ func TestChatRecordFunc_RecordFlags(t *testing.T) {
 // 引数なし :record は書き込まず現在値だけ返す。記録前は「まだ記録がありません」。
 func TestChatRecordFunc_ShowNoWrite(t *testing.T) {
 	chatRecordEnv(t)
-	rec := chatRecordFunc(chatRecContest, chatRecTask)
+	rec := chatRecordFunc(chatRecContest, chatRecTask, layout.ABC{})
 
 	// 記録前 (ファイルも無い) の表示。
 	lines, err := rec(nil)
@@ -104,10 +107,35 @@ func TestChatRecordFunc_ShowNoWrite(t *testing.T) {
 	}
 }
 
+// chat は起動時に選ばれた layout を :record にも反映する。abc<NNN> の contest でも
+// exercise レイアウトなら exercise/YYYY/MM/DD/<task>.py へ記録し、abc パスは作らない
+// (以前は buildRecordTarget("auto", …) 固定で常に abc/<num>/<letter>.py に落ちていた)。
+func TestChatRecordFunc_HonorsLayout(t *testing.T) {
+	chatRecordEnv(t)
+	lay := layout.Exercise{Today: time.Date(2026, 7, 1, 0, 0, 0, 0, time.Local)}
+	exercisePath := "exercise/2026/07/01/abc457_d.py"
+
+	rec := chatRecordFunc(chatRecContest, chatRecTask, lay)
+	if _, err := rec([]string{"start"}); err != nil {
+		t.Fatal(err)
+	}
+
+	st, found, err := solvestat.ReadFile(exercisePath)
+	if err != nil || !found {
+		t.Fatalf("exercise パスに記録されていない: found=%v err=%v", found, err)
+	}
+	if st.StartedAt.IsZero() {
+		t.Fatal("started_at が刻まれていない")
+	}
+	if _, err := os.Stat(chatRecPath); err == nil {
+		t.Fatalf("abc パス %s に誤って記録された (layout が無視されている)", chatRecPath)
+	}
+}
+
 // stop は解答ファイルが無ければ error (先に start を促す)。
 func TestChatRecordFunc_StopMissing(t *testing.T) {
 	chatRecordEnv(t)
-	rec := chatRecordFunc(chatRecContest, chatRecTask)
+	rec := chatRecordFunc(chatRecContest, chatRecTask, layout.ABC{})
 	if _, err := rec([]string{"stop"}); err == nil {
 		t.Fatal("want error for stop before start")
 	}
@@ -116,7 +144,7 @@ func TestChatRecordFunc_StopMissing(t *testing.T) {
 // 不正トークンは error (chat は err 行で吸収)。
 func TestChatRecordFunc_BadTokens(t *testing.T) {
 	chatRecordEnv(t)
-	rec := chatRecordFunc(chatRecContest, chatRecTask)
+	rec := chatRecordFunc(chatRecContest, chatRecTask, layout.ABC{})
 	if _, err := rec([]string{"start"}); err != nil {
 		t.Fatal(err)
 	}

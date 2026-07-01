@@ -53,6 +53,13 @@ func buildRecordTarget(layoutFlag, contest, task string) (recordTarget, error) {
 	if err != nil {
 		return recordTarget{}, err
 	}
+	return recordTargetFor(lay, contest, task)
+}
+
+// recordTargetFor は解決済み layout から解答パスと category×letter を求める。
+// chat の :record は起動時に選ばれた layout を保持しているので、これを直接使う
+// (buildRecordTarget の "auto" 再判定を挟むと abc<NNN> が常に ABC に落ちてしまう)。
+func recordTargetFor(lay layout.Layout, contest, task string) (recordTarget, error) {
 	path, err := lay.SolutionPath(contest, task)
 	if err != nil {
 		return recordTarget{}, err
