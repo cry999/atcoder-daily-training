@@ -61,6 +61,8 @@
 
 > `atcoder record` (solve-stat 記録, 要件 061) も `run.sh` で smoke する。ネットワーク不要・非 TTY では対話プロンプトを出さないので、非対話フラグ経路だけで決定論的に検証する。`config set/get/show target.<category>.<letter>` (目標実装時間) と不正値の `exit 2` / `record start` が解答ファイルを作り `started_at` を刻む (冪等な再 start) / `record stop --no-ac --time 25m` が `solved_at`・`duration_ms`・(目標があれば) `target_ms` を刻む / `record --score`・個別軸 (`--impl`)・`--ac`/`--no-editorial` の部分更新と既存 duration の温存 / エラー系 (`--task` 欠落・`--score` の値数/範囲・`--ac`+`--no-ac` 併用・不正 `--time`・`record edit` 未実装・解答ファイル不在) の `exit 2`/`1` / solve-stat を書いた後 `stats` に `recorded (`・`score (avg` セクションが出ること、を確認する。record は `record start` が作る解答ファイル先頭のコメントブロックを読み書きするだけで judge しないため、専用 `.py` fixture は不要。
 
+> `atcoder login` / `logout` (REVEL_SESSION cookie 取り込み認証, 要件 062) も `run.sh` で smoke する。cookie 検証 GET はネットワークに触れるため回さず、`session.toml` が隔離済み `XDG_DATA_HOME` 配下に置かれることを利用して、ネットワーク不要な経路だけを固定する: `login --status` / `--status --check` の未ログイン `not logged in` (`exit 0`) / `logout` が無セッションでも `not logged in` の冪等 `exit 0` / 引数・フラグ誤り (空 `--session-cookie`・`--status` × `--session-cookie` 併用・`--check` 単独・余分な位置引数) の `exit 2`。空 cookie は検証 GET の前に弾かれるのでネットワーク非依存に `exit 2` を固定できる。login/logout は解答ファイルを持たない組み込みサブコマンドなので専用 `.py` fixture は不要。
+
 ## 実行すべきタイミング
 
 リファクタリングや機能追加で以下を触ったときに走らせる:
@@ -72,6 +74,7 @@
 - `internal/cachepath/` — キャッシュ配置の解決
 - `internal/ui/` — Reporter 実装・スタイル
 - `internal/usagelog/` — 利用テレメトリの記録・集計 (要件 037)
+- `internal/atcoder/` — 認証セッション (REVEL_SESSION cookie) の永続化・検証 (要件 062)
 
 逆に、`docs/` や `exercise/`/`abc/`/`adt/`/`dp/` 等の練習問題のみの変更では走らせる必要はない。
 

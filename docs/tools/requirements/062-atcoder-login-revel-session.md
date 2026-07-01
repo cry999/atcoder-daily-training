@@ -242,4 +242,4 @@ var (
 - ロードマップ: [`todo.md`](../todo.md) の **K. 認証 (`atcoder login`)**
 - submit を browser-defer に畳んだ決定 (案 A を将来余地に): [ADR 0006](../decisions/0006-fold-submit-into-test.md) / [要件 015](015-fold-submit-into-test.md)
 - 提出前ゲート (将来の実提出が繋ぐ先): [要件 044](044-submit-precheck-confirm.md)
-- 利用手引: `docs/tools/usage/login.md` (実装時に新規作成 — feature フェーズ)
+- 利用手引: [`docs/tools/usage/login.md`](../usage/login.md)
