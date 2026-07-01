@@ -70,7 +70,9 @@ func buildSubmitSource(contest, task string, lay layout.Layout, keepDebug bool) 
 	if err != nil {
 		return submitSource{}, fmt.Errorf("解答ファイルの読み込みに失敗しました: %w", err)
 	}
-	body := string(src)
+	// solve-stat ブロック (個人の練習メタデータ) は提出物に載せない (要件 063)。常時除去。
+	// keepDebug と独立で、DEBUG コメントアウトより前に素のコードへ戻す。
+	body := string(solvestat.Strip(src))
 	commented := 0
 	if !keepDebug {
 		body, commented = debugstrip.CommentOut(body)

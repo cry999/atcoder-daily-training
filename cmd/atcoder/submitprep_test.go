@@ -1,6 +1,73 @@
 package main
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+// fakeLayout は buildSubmitSource のテスト用に固定パスを返す最小 Layout。
+type fakeLayout struct{ path string }
+
+func (fakeLayout) Name() string                                          { return "fake" }
+func (l fakeLayout) SolutionPath(contestID, task string) (string, error) { return l.path, nil }
+
+// TestBuildSubmitSourceStripsSolveStat は提出される中身 (Body) から solve-stat ブロックが
+// 除去され、DEBUG コメントアウトと両立することを固定する (要件 063)。解答ファイル本体は不変。
+func TestBuildSubmitSourceStripsSolveStat(t *testing.T) {
+	src := `# >>> atcoder-stat >>>
+# started_at  = 2026-07-01T16:00:00+09:00
+# duration_ms = 1500000
+# ac          = true
+# <<< atcoder-stat <<<
+n = int(input())
+print(f"[DEBUG] n={n}")
+print(n * 2)
+`
+	dir := t.TempDir()
+	path := filepath.Join(dir, "abc457_d.py")
+	if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	lay := fakeLayout{path: path}
+
+	// keepDebug=false: solve-stat 除去 + DEBUG コメントアウト。
+	got, err := buildSubmitSource("abc457", "d", lay, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(got.Body, "atcoder-stat") || strings.Contains(got.Body, "duration_ms") {
+		t.Fatalf("solve-stat block must be stripped from Body, got:\n%s", got.Body)
+	}
+	if !strings.Contains(got.Body, "# print(f\"[DEBUG] n={n}\")") {
+		t.Fatalf("DEBUG print should be commented out, got:\n%s", got.Body)
+	}
+	if got.DebugCommented != 1 {
+		t.Fatalf("DebugCommented = %d, want 1", got.DebugCommented)
+	}
+
+	// keepDebug=true: solve-stat は除去、DEBUG は温存。
+	kept, err := buildSubmitSource("abc457", "d", lay, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(kept.Body, "atcoder-stat") {
+		t.Fatalf("solve-stat must be stripped even with keepDebug, got:\n%s", kept.Body)
+	}
+	if !strings.Contains(kept.Body, "print(f\"[DEBUG] n={n}\")") || strings.Contains(kept.Body, "# print(f\"[DEBUG]") {
+		t.Fatalf("DEBUG print should be kept verbatim with keepDebug, got:\n%s", kept.Body)
+	}
+
+	// 解答ファイル本体は不変 (読み取りのみ)。
+	after, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(after) != src {
+		t.Fatalf("solution file must be untouched\nwant:\n%s\ngot:\n%s", src, after)
+	}
+}
 
 func TestSubmitURLFor(t *testing.T) {
 	cases := []struct {

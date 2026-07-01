@@ -194,6 +194,65 @@ func TestParseBadValueErrors(t *testing.T) {
 	}
 }
 
+func TestStripRemovesBlock(t *testing.T) {
+	code := "n = int(input())\nprint(n * 2)\n"
+	// 061 の Merge が挿入したのと同じ形 (先頭にブロック + 元コード)。
+	patch := Empty()
+	patch.StartedAt = time.Date(2026, 7, 1, 16, 0, 0, 0, time.FixedZone("JST", 9*3600))
+	patch.DurationMs = 1500000
+	patch.AC = BoolPtr(true)
+	withBlock, err := Merge([]byte(code), patch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(string(withBlock), startMarker) {
+		t.Fatalf("precondition: block should be at top, got:\n%s", withBlock)
+	}
+	got := string(Strip(withBlock))
+	if strings.Contains(got, "atcoder-stat") || strings.Contains(got, "duration_ms") {
+		t.Fatalf("solve-stat markers/keys must be gone, got:\n%s", got)
+	}
+	// ブロックを剥がすと挿入前の元コードにバイト等価で戻る。
+	if got != code {
+		t.Fatalf("stripped source must equal original code\nwant: %q\ngot:  %q", code, got)
+	}
+}
+
+func TestStripNoBlockUnchanged(t *testing.T) {
+	code := "a, b = map(int, input().split())\nprint(a + b)\n"
+	got := Strip([]byte(code))
+	if string(got) != code {
+		t.Fatalf("no-block source must be byte-equal, got:\n%s", got)
+	}
+}
+
+func TestStripCorruptedLeftIntact(t *testing.T) {
+	// マーカー不整合 (片方だけ/重複/順序逆転) は誤削除を避けて無加工で返す。
+	cases := []string{
+		"# >>> atcoder-stat >>>\n# ac = true\nprint(1)\n",                                    // no end
+		"# ac = true\n# <<< atcoder-stat <<<\nprint(1)\n",                                    // no start
+		"# >>> atcoder-stat >>>\n# >>> atcoder-stat >>>\n# <<< atcoder-stat <<<\nprint(1)\n", // duplicate start
+		"# <<< atcoder-stat <<<\n# >>> atcoder-stat >>>\nprint(1)\n",                         // end before start
+	}
+	for i, src := range cases {
+		if got := string(Strip([]byte(src))); got != src {
+			t.Fatalf("case %d: corrupted block must be left intact\nwant: %q\ngot:  %q", i, src, got)
+		}
+	}
+}
+
+func TestStripIdempotent(t *testing.T) {
+	withBlock := "# >>> atcoder-stat >>>\n# started_at = 2026-07-01T16:00:00+09:00\n# <<< atcoder-stat <<<\nprint(1)\n"
+	once := Strip([]byte(withBlock))
+	twice := Strip(once)
+	if string(once) != string(twice) {
+		t.Fatalf("Strip must be idempotent\nonce:  %q\ntwice: %q", once, twice)
+	}
+	if strings.Contains(string(once), "atcoder-stat") {
+		t.Fatalf("marker should be gone after first strip, got:\n%s", once)
+	}
+}
+
 func TestMergeCorruptedRefused(t *testing.T) {
 	base := "# >>> atcoder-stat >>>\n# ac = true\n" // missing end marker
 	patch := Empty()

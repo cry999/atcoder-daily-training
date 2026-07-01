@@ -120,6 +120,25 @@ func Merge(src []byte, patch Stat) ([]byte, error) {
 	return spliceBlock(src, renderBlock(merged), found), nil
 }
 
+// Strip は src から solve-stat ブロックを取り除いた新ソースを返す。ブロックが無ければ
+// src をそのまま返す。マーカーが破損している (片方だけ/重複/順序逆転) 場合は、コードを
+// 誤って削らないよう src をそのまま返す (Parse と同じ安全側)。提出される中身から個人の
+// 練習メタデータ (solve-stat) を除くのに使う (要件 063)。解答ファイルは書き換えない。
+func Strip(src []byte) []byte {
+	lines := strings.Split(string(src), "\n")
+	startIdx, endIdx, startCount, endCount := locateMarkers(lines)
+	if startCount == 0 && endCount == 0 {
+		return src // ブロック無し: 無加工 (バイト等価)。
+	}
+	if startCount != 1 || endCount != 1 || startIdx > endIdx {
+		return src // 破損: 誤削除を避け、そのまま返す。
+	}
+	out := make([]string, 0, len(lines))
+	out = append(out, lines[:startIdx]...)
+	out = append(out, lines[endIdx+1:]...)
+	return []byte(strings.Join(out, "\n"))
+}
+
 // Overwrite は既存ブロックを破棄し st だけのブロックへ置き換えた新ソースを返す
 // (--restart 用: 前回の完了記録・スコアを捨てて着手からやり直す)。src が破損して
 // いる場合は error。
