@@ -5,7 +5,9 @@
 - 要件: [requirements/015-fold-submit-into-test.md](../requirements/015-fold-submit-into-test.md)
 - 関連: [0005](0005-unify-test-run-into-test.md) (run→test の前例)
 
-> **追記 (後日):** ここで参照していた `login`/`status` の認証基盤は、AtCoder ログインが Cloudflare Turnstile 保護で programmatic ログイン不可と判明したため**撤去された** (todo.md「K」)。submit を `test --submit` に畳む本決定自体は有効で、実提出 (認証 POST) への格上げ案 (案 A) は実現不可として打ち切り。
+> **追記 (後日):** ここで参照していた `login`/`status` の認証基盤は、AtCoder ログインが Cloudflare Turnstile 保護で programmatic ログイン不可と判明したため**撤去された** (todo.md「K」)。submit を `test --submit` に畳む本決定自体は有効で、実提出 (認証 POST) への格上げ案 (案 A) は当時実現不可として打ち切り。
+>
+> **追記 2 (2026-07-01):** 認証を **REVEL_SESSION cookie 取り込み方式**で再設計することにした ([ADR 0009](0009-atcoder-login-revel-session-cookie.md) / [要件 062](../requirements/062-atcoder-login-revel-session.md))。これにより案 A (実提出 POST への格上げ) の前提となるセッション基盤 (`internal/atcoder`) が用意される。ただし **login / セッション管理のみが 062 のスコープ**で、案 A の実提出そのものは別途要件化する。
 
 ## コンテキスト
 
