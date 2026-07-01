@@ -47,6 +47,7 @@
 | `fixture_debug` (`-d` 無し) | `5` | `10` | FAIL, exit 1 | `[DEBUG]` 行が比較で汚染 |
 | `fixture_debug` (`-d` 付き) | `5` | `10` | PASS, exit 0 | DEBUG=1 env 受け渡し + `[DEBUG]` フィルタ |
 | `fixture_debug` (`--submit`) | `5` | `10` | exit 0 (提出準備へ) | 無条件 `[DEBUG]` print がコメントアウト後ソース実行で消える → クリーン (要件 049) |
+| `fixture_debugjson` (`-d --pp`) | `5` | `10` | PASS, exit 0 | valid JSON の `[DEBUG]` が `debug:` で 2-space 整形される (`--pp` 単体は stderr に note)。要件 047 |
 | `fixture_extra` | `5` / x01 `7` / x02 `3` | `10` / `14` / `999` | suite exit 1 (x02 FAIL) | `tests-extra/` 連結消費・表示 id `x01`/`x02`・`-c x01`/`-c 01` フィルタ |
 | `fixture_okdebug` | `5` | `10` | 通常 PASS exit 0 / `--submit` exit 1 | `sys.stderr.write` で `[DEBUG]` (コメントアウトをすり抜ける)。判定は stdout のみで PASS だが `--submit` はコメントアウト後ソース実行でも `[DEBUG]` が残り検出 → 非 TTY 中止 (要件 044 / 049 安全網) |
 

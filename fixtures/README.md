@@ -23,6 +23,7 @@
 | `fixture_debug` (`-d` 無し) | `5` | `10` | `[DEBUG]` 行で汚染 → FAIL、exit 1 |
 | `fixture_debug` (`-d` 付き) | `5` | `10` | `[DEBUG]` がフィルタされ PASS、exit 0 |
 | `fixture_debug` (`--submit`) | `5` | `10` | 無条件 `[DEBUG]` print はコメントアウト後ソース実行で消える → クリーン → 提出準備 (exit 0)。要件 049 |
+| `fixture_debugjson` | `5` | `10` | `[DEBUG] {"grid": [[0,1],[2,3]], "n": n}` を吐く。`-d` 無しは行が混ざり FAIL (exit 1)、`-d` で PASS (exit 0)。`-d --pp` で `debug:` の JSON が 2-space 整形される (`--pp` を単体で渡すと stderr に note)。要件 047 |
 | `fixture_multi` | `1`/`2`/`3` | `2`/`4`/`6` | 3 ケース持ちで `--case` フィルタの動作確認用 |
 | `fixture_interactive` | 任意 | 任意 | 簡易インタラクティブ (query/response loop) — `test --interactive` 用 |
 | `fixture_diff` | `1` | 3 行 (`1 2 3 4 5` / `hello world` / `last line`) | 複数行 + 行内 1 token 違いの誤答。`delta` 風の intra-line token highlight を視覚確認するため |
