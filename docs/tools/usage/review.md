@@ -99,5 +99,5 @@ exercise abc review — this month (2026-06)
 
 ## 関連
 
-- `docs/tools/atcoder-stats-usage.md` (`stats` 集計コマンド・データ層と期間フラグの定義元)
+- `docs/tools/usage/stats.md` (`stats` 集計コマンド・データ層と期間フラグの定義元)
 - `docs/tools/requirements/014-exercise-review.md` (要件定義)

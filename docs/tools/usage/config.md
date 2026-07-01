@@ -29,8 +29,8 @@ exit code: 引数誤り / 未知キー / 型・値の不一致 / 不正な alias
 | キー | 型 | 既定 | 説明 |
 |---|---|---|---|
 | `layout` | enum (`auto` / `abc` / `exercise`) | `auto` | 解答ファイルの既定レイアウト (下記) |
-| `editor` | string | `(unset)` | `atcoder start` / `test --interactive` の `Ctrl+E` で**nvim 外**のとき使うエディタコマンド (空白区切りで argv 展開、例 `nvim -p` / `code -w`)。未設定は `$EDITOR` → `nvim`。nvim の `:terminal` 内 (`$NVIM` 在り) は親 nvim へ送るのでこのキーは効かない ([要件 038](requirements/038-start-edit-in-editor.md)) |
-| `editor_nvim_remote` | enum (`current` / `tab`) | `current` | nvim の `:terminal` 内 (`$NVIM` 在り) で `Ctrl+E` したときの remote ターゲット。`current`=現在のウィンドウで開く (`--remote`、タブを再利用)、`tab`=新規タブ (`--remote-tab`、問題ごとにタブが増える)。nvim 外には効かない ([要件 041](requirements/041-edit-nvim-remote-reuse.md)) |
+| `editor` | string | `(unset)` | `atcoder start` / `test --interactive` の `Ctrl+E` で**nvim 外**のとき使うエディタコマンド (空白区切りで argv 展開、例 `nvim -p` / `code -w`)。未設定は `$EDITOR` → `nvim`。nvim の `:terminal` 内 (`$NVIM` 在り) は親 nvim へ送るのでこのキーは効かない ([要件 038](../requirements/038-start-edit-in-editor.md)) |
+| `editor_nvim_remote` | enum (`current` / `tab`) | `current` | nvim の `:terminal` 内 (`$NVIM` 在り) で `Ctrl+E` したときの remote ターゲット。`current`=現在のウィンドウで開く (`--remote`、タブを再利用)、`tab`=新規タブ (`--remote-tab`、問題ごとにタブが増える)。nvim 外には効かない ([要件 041](../requirements/041-edit-nvim-remote-reuse.md)) |
 | `test.side_by_side` | bool | `false` | `atcoder test` の FAIL 時 diff を左右 2 カラムで表示する既定値 (`-s` 相当) |
 
 ```toml
@@ -76,7 +76,7 @@ $ atcoder test abc457 --task d --layout exercise
 
 未設定 (`config.toml` に `layout` が無い) のとき、`config get layout` / `config show` は実効既定値の **`auto`** を表示する (env / フラグの上書きは含まない、config 層から見た既定)。`auto` に戻したいときは `atcoder config set layout auto` を明示する。
 
-> レイアウトそのものの定義 (`abc` = `abc/<num>/<letter>.py`、`exercise` = `exercise/YYYY/MM/DD/<task>.py`) は [`atcoder test` の `--layout`](atcoder-test-usage.md) と要件 `002-exercise-abc-layout.md` を参照。
+> レイアウトそのものの定義 (`abc` = `abc/<num>/<letter>.py`、`exercise` = `exercise/YYYY/MM/DD/<task>.py`) は [`atcoder test` の `--layout`](test.md) と要件 `002-exercise-abc-layout.md` を参照。
 
 ### starship に現在のレイアウトを表示する
 
@@ -135,7 +135,7 @@ unset alias.upd-lo  (...)
 
 ## 補完
 
-`atcoder config <TAB>` は sub-subcommand (`show`/`get`/`set`/`unset`/`path`) を、`config get|set|unset <TAB>` は既知キー + 既存 `alias.<name>` を、`config set <key> <TAB>` は値候補 (`layout` なら `abc auto exercise`、bool キーなら `true false`) を補完する。`atcoder <TAB>` のサブコマンド位置には組み込みに加え `[alias]` の名前も出る (説明は展開先)。詳細は [`atcoder-completion-usage.md`](atcoder-completion-usage.md)。
+`atcoder config <TAB>` は sub-subcommand (`show`/`get`/`set`/`unset`/`path`) を、`config get|set|unset <TAB>` は既知キー + 既存 `alias.<name>` を、`config set <key> <TAB>` は値候補 (`layout` なら `abc auto exercise`、bool キーなら `true false`) を補完する。`atcoder <TAB>` のサブコマンド位置には組み込みに加え `[alias]` の名前も出る (説明は展開先)。詳細は [`docs/tools/usage/completion.md`](completion.md)。
 
 ## 注意
 
@@ -144,7 +144,7 @@ unset alias.upd-lo  (...)
 
 ## 関連
 
-- 設定ファイル基盤と XDG: [ADR 0003](decisions/0003-user-config-xdg-toml.md) / 要件 007
+- 設定ファイル基盤と XDG: [ADR 0003](../decisions/0003-user-config-xdg-toml.md) / 要件 007
 - サブコマンドのキーレジストリ: 要件 009
-- 既定レイアウト: 要件 017 / [`atcoder-test-usage.md`](atcoder-test-usage.md)
-- alias: 要件 016 / [`atcoder-completion-usage.md`](atcoder-completion-usage.md)
+- 既定レイアウト: 要件 017 / [`docs/tools/usage/test.md`](test.md)
+- alias: 要件 016 / [`docs/tools/usage/completion.md`](completion.md)

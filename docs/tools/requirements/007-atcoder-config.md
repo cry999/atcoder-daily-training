@@ -122,7 +122,7 @@ $ atcoder test abc457 --task d --side-by-side=false   # その回だけ unified 
 | 新規 `internal/config/` | `config.toml` のスキーマ・XDG パス解決・`Load()`。`cachepath` と対をなすユーザ設定層 |
 | `cmd/atcoder/test.go` | 起動時に `config.Load()` → `-s` の flag デフォルトに config 値を反映。パース失敗は exit 2 |
 | `fixtures/run.sh` | `XDG_CONFIG_HOME` を空 temp dir に固定 (既存テストを config 非依存に) + config 適用 / flag 上書き / パース失敗の smoke を追加 |
-| `docs/tools/atcoder-test-usage.md` | 設定ファイルの所在・スキーマ・優先順位・side_by_side の例を追記 |
+| `docs/tools/usage/test.md` | 設定ファイルの所在・スキーマ・優先順位・side_by_side の例を追記 |
 | `docs/tools/atcoder-test-architecture.md` | `internal/config` をパッケージ構成・依存方向に追記 |
 | `docs/tools/todo.md` | 「K. ユーザ設定ファイル」を `✅ DONE` でマーク |
 
@@ -189,5 +189,5 @@ func Load() (*Config, error)
 
 - `docs/tools/decisions/0003-user-config-xdg-toml.md` (決定記録。完了に伴い todo.md の「K. ユーザ設定ファイル」から移動)
 - `docs/tools/requirements/001-exercise-test.md` (test サブコマンドの基盤要件。side-by-side diff の `-s` 定義元)
-- `docs/tools/atcoder-test-usage.md` (利用手引。設定ファイルの使い方を追記)
+- `docs/tools/usage/test.md` (利用手引。設定ファイルの使い方を追記)
 - `docs/tools/atcoder-test-architecture.md` (内部設計。`internal/config` の位置づけを追記)

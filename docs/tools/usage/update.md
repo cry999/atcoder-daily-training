@@ -130,7 +130,7 @@ $ atcoder update            # 既に最新
 
 ## 関連
 
-- [requirements/050-atcoder-self-update.md](./requirements/050-atcoder-self-update.md) — 要件定義
-- [requirements/059-update-local-check.md](./requirements/059-update-local-check.md) — `--check` のローカル (作業ツリー) 比較拡張
-- [requirements/006-rename-cli-to-atcoder.md](./requirements/006-rename-cli-to-atcoder.md) — `go install ./cmd/atcoder` 前提
-- [atcoder-completion-usage.md](./atcoder-completion-usage.md) — `version`/`update` も補完対象
+- [requirements/050-atcoder-self-update.md](../requirements/050-atcoder-self-update.md) — 要件定義
+- [requirements/059-update-local-check.md](../requirements/059-update-local-check.md) — `--check` のローカル (作業ツリー) 比較拡張
+- [requirements/006-rename-cli-to-atcoder.md](../requirements/006-rename-cli-to-atcoder.md) — `go install ./cmd/atcoder` 前提
+- [docs/tools/usage/completion.md](completion.md) — `version`/`update` も補完対象

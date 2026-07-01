@@ -87,7 +87,7 @@ watching … — save to re-run, [i] interactive, [q]/Ctrl+C quit
 | `cmd/atcoder/start.go` | `runStartWatch` (キー多重化ループ)・`waitForAction`・純粋関数 `keyToAction(byte) startAction`。`cmdStart` を `runStartWatch` 呼び出しに変更。interactive 起動は既存 `runAdHoc` を再利用 |
 | `cmd/atcoder/start_test.go` | `keyToAction` のテーブルテスト (q/Q/Ctrl+C→quit、i/I→interactive、他→none) |
 | `internal/ui/watch.go` | `StartWatchFooter(path)` を追加 (キーヒント入りの待機案内) |
-| `docs/tools/atcoder-start-usage.md` | キー操作を追記 |
+| `docs/tools/usage/start.md` | キー操作を追記 |
 | `docs/tools/todo.md` | ロードマップ P にキーアクションを追記 |
 
 ### 素描
@@ -145,4 +145,4 @@ func runStartWatch(contest, task string, lay layout.Layout, refresh bool,
 - `docs/tools/requirements/018-start-command.md` (start 本体)
 - `docs/tools/requirements/004-exercise-test-watch.md` (watch / mtime ポーリング)
 - `docs/tools/requirements/013-unify-test-run.md` (interactive chat の統合元)
-- `docs/tools/atcoder-start-usage.md` (利用手引)
+- `docs/tools/usage/start.md` (利用手引)

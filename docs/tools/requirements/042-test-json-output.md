@@ -185,7 +185,7 @@ $ echo $?
 | `cmd/atcoder/test.go` (純粋関数) | `CaseStatus` → 文字列 (`AC`/`WA`/`TLE`/`RE`) の写像をユニットテスト可能な純粋関数で |
 | `internal/complete/` | `test` のフラグ候補に `--json` を追加 |
 | `fixtures/run.sh` | `test --task pass --json` = exit 0 / `test --task fail --json` = exit 1 / `--json --interactive` 等の併用 = exit 2 を smoke。JSON 本文の妥当性 (`passed`/`status` キー) も最低限 grep で確認 |
-| `docs/tools/atcoder-test-usage.md` | `--json` の説明・出力例・非併用の注意を追記 |
+| `docs/tools/usage/test.md` | `--json` の説明・出力例・非併用の注意を追記 |
 | `docs/tools/atcoder-test-architecture.md` | SummaryReporter のメタ捕捉と JSON 出力経路を追記 |
 | `docs/tools/todo.md` | 本機能を新項目として記録 (TUI vs nvim 段階 1) し本要件へ相互リンク |
 
@@ -243,5 +243,5 @@ func (r *SummaryReporter) Meta() (timeLimitMs, timeoutMs, ntests int, tolerance 
 - `docs/tools/requirements/001-exercise-test.md` (test サブコマンド本体・fetch / judge / meta の基盤)
 - `docs/tools/requirements/037-usage-telemetry.md` (`usage --json` の先例。人間向け表 / 機械向け JSON の出し分け)
 - `docs/tools/requirements/028-start-watch-per-case.md` / `036-start-watch-detail-view.md` (`SummaryReporter` の per-case 捕捉・I/O 同梱の前例)
-- `docs/tools/atcoder-test-usage.md` / `atcoder-test-architecture.md` (利用手引 / 内部設計)
+- `docs/tools/usage/test.md` / `atcoder-test-architecture.md` (利用手引 / 内部設計)
 - `docs/tools/todo.md` (TUI vs nvim 段階 1 の記録先)

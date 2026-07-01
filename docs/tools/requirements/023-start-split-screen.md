@@ -92,7 +92,7 @@ atcoder start <contest> --task <task> [--until-pass] [--refresh] [-d] [-s] [-j <
 | `internal/watch` | 既存の `Watcher.Changed()` を流用 (非ブロッキング poll)。追加なし想定 |
 | `cmd/atcoder/start_test.go` | 純粋関数 (要約フォーマット・レイアウト高さ計算) のユニットテスト。TUI 本体は TTY 必須で手動確認 |
 | `fixtures/run.sh` | start は TTY 必須 → 非 TTY で `exit 2` の smoke を確認 (既存の TTY 必須 smoke を流用・分割化で壊れないこと) |
-| `docs/tools/atcoder-start-usage.md` | 分割画面の説明・画面イメージ・キー操作に書き換え |
+| `docs/tools/usage/start.md` | 分割画面の説明・画面イメージ・キー操作に書き換え |
 | `docs/tools/todo.md` | 項目 P (start) に分割画面化を追記、本要件へ相互リンク |
 
 ### `internal/ui/startsplit.go` の責務 (素描)
@@ -168,5 +168,5 @@ func RunStartSplit(cfg StartSplitConfig) (int, error)
 
 - `docs/tools/requirements/054-start-key-actions.md` (start の watch + `i` キー: 本要件で分割画面に発展)
 - `docs/tools/requirements/020-interactive-auto-restart-flag.md` (chat の auto-restart)
-- `docs/tools/atcoder-start-usage.md` (利用手引)
+- `docs/tools/usage/start.md` (利用手引)
 - `docs/tools/atcoder-test-architecture.md` (chat TUI 内部設計)

@@ -77,7 +77,7 @@
 | `internal/ui/chat_casebuilder.go` | `parseCommand` に `debug` / `cheat`(別名 `help`,`?`) を追加。`execCommand` にハンドラ。`applySet` に `debug`/`nodebug`。`toggleDebug`/`setDebug`/`showCheat` ヘルパを追加。`newCommandInput` の placeholder にコマンドを追記 |
 | `internal/ui/chat.go` | 変更最小。`m.header.Debug` は既にモデル上で可変で、`chatLineMsg` 側の `[DEBUG]` 振り分けが参照する (ロジック変更なし) |
 | `internal/ui/chat_casebuilder_test.go` | `parseCommand` 拡張・`toggleDebug`/`setDebug`・`applySet` debug・`showCheat`(NavEnabled 有無) のテスト |
-| `docs/tools/atcoder-test-usage.md` | command モードのコマンド表に `:debug` / `:cheat` を追記 |
+| `docs/tools/usage/test.md` | command モードのコマンド表に `:debug` / `:cheat` を追記 |
 | `docs/tools/todo.md` | 本項目を記載し本要件へ相互リンク |
 
 ### ヘルパの素描
@@ -118,5 +118,5 @@ func (m *chatModel) showCheat()          // 利用可能コマンドを info 行
 ## 関連ドキュメント
 
 - command モード基盤: [024](024-interactive-case-builder.md) / ナビ追加: [027](027-start-problem-navigation.md)
-- 利用手引: `docs/tools/atcoder-test-usage.md`
+- 利用手引: `docs/tools/usage/test.md`
 - ロードマップ: `docs/tools/todo.md`

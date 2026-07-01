@@ -69,7 +69,7 @@
 |---|---|
 | `internal/ui/chat.go` | insert モードの `KeyMsg` 処理に**ペースト横取り**を追加。送信ロジックを `submitLines([]string)` ヘルパに抽出し、単一行 `Enter` と複数行ペーストで共有。`Enter` ハンドラは `submitLines([]string{value})` に置き換え。改行正規化・分割は純粋関数 `splitPasteLines(current, pasted string) (send []string, remainder string)` に切る |
 | `internal/ui/chat_test.go` | `splitPasteLines` の純粋テスト (CRLF・末尾改行有無・空行・改行なし)、ペースト `KeyMsg{Paste:true}` を `Update` に流すと各行が `kindIn` として積まれ末尾が入力欄に残るテスト、単一行 `Enter` が従来どおり動くテスト |
-| `docs/tools/atcoder-test-usage.md` / `atcoder-start-usage.md` | 対話モードの説明に「複数行ペーストは各行を順に送信 (末尾の未改行行は残る)」を追記 |
+| `docs/tools/usage/test.md` / `docs/tools/usage/start.md` | 対話モードの説明に「複数行ペーストは各行を順に送信 (末尾の未改行行は残る)」を追記 |
 
 ### ヘルパの素描
 
@@ -112,4 +112,4 @@ func (m *chatModel) submitLines(lines []string, cmds *[]tea.Cmd)
 ## 関連ドキュメント
 
 - chat / command モード: [024](024-interactive-case-builder.md)、出力タイミング: [019](019-interactive-output-timing.md)
-- 利用手引: `docs/tools/atcoder-test-usage.md` / `docs/tools/atcoder-start-usage.md`
+- 利用手引: `docs/tools/usage/test.md` / `docs/tools/usage/start.md`

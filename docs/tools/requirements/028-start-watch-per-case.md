@@ -80,7 +80,7 @@ watch  exercise/2026/06/11/abc999_a.py
 | `cmd/atcoder/start.go` | `runSamples` で `Result()` の `cases` を `ui.CaseVerdict` に写す (Label は `caseLabel(status)` で `AC/WA/TLE/RE`)。`Failing` は per-case から導出 |
 | `internal/testexec/summaryreporter_test.go` | `End`→`Result` で per-case を順序付きで返すテストに更新 |
 | `internal/ui/startsplit_test.go` | `formatSampleSummary` が per-case verdict を出す/幅で切り詰めるテストを追加 |
-| `docs/tools/atcoder-start-usage.md` | watch ペインの説明・画面イメージを per-case verdict に更新 |
+| `docs/tools/usage/start.md` | watch ペインの説明・画面イメージを per-case verdict に更新 |
 | `docs/tools/requirements/023-start-split-screen.md` | watch ペインを per-case verdict 表示に更新した旨を追記 (相互リンク) |
 | `docs/tools/todo.md` | 本項目を記載し本要件へ相互リンク |
 
@@ -130,4 +130,4 @@ func (r *SummaryReporter) Result() (passed, total int, cases []CaseResult)
 ## 関連ドキュメント
 
 - `docs/tools/requirements/023-start-split-screen.md` (分割画面 watch ペインの定義元)
-- `docs/tools/atcoder-start-usage.md` (利用手引)
+- `docs/tools/usage/start.md` (利用手引)

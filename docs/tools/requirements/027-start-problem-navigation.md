@@ -152,8 +152,8 @@ ID 用語は既存要件に準拠: `contest_id` = `abc457` / `contest_num` = `45
 | `internal/ui/chat_test.go` / `startsplit_test.go` | nav コマンドのパース (`parseNavCommand`)・`:e` spec パース・target epoch 切替の純粋部分をユニットテスト |
 | `cmd/atcoder/start.go` | 初期起動とナビ解決を共通化する `buildTarget(contestID, task) (ui.StartTarget, error)` を切り出し、初回は直接・ナビ時は `Navigate` 経由で呼ぶ。`ensureSolutionFile`/`resolveLayout`/`buildOpts` を再利用 |
 | `cmd/atcoder/start_test.go` | `buildTarget` の純粋部分 (ID 算出・境界) のユニットテスト (TUI 本体は手動確認) |
-| `docs/tools/atcoder-start-usage.md` | コマンドモードのナビゲーション一覧・画面イメージを追記 |
-| `docs/tools/atcoder-test-usage.md` | コマンドモード節 (024 で追記) に「ナビは start 限定」を 1 行注記 |
+| `docs/tools/usage/start.md` | コマンドモードのナビゲーション一覧・画面イメージを追記 |
+| `docs/tools/usage/test.md` | コマンドモード節 (024 で追記) に「ナビは start 限定」を 1 行注記 |
 | `docs/tools/todo.md` | 項目 P (start) にナビゲーションの追記節を足し、本要件へ相互リンク |
 
 ### API 素描
@@ -263,6 +263,6 @@ type Navigate func(contestID, task string, req NavRequest) (StartTarget, error)
 - `docs/tools/requirements/017-config-layout-default.md` (`resolveLayout` の precedence — 移動時に保持)
 - `docs/tools/requirements/026-chat-submit.md` (層境界: `internal/ui` はコールバック/メッセージで `cmd/atcoder` と疎結合)
 - `docs/tools/decisions/0007-interactive-command-mode-trigger.md` (`Esc` トリガー・受信不能キーの罠)
-- `docs/tools/atcoder-start-usage.md` (利用手引・実装時にナビゲーションを追記)
+- `docs/tools/usage/start.md` (利用手引・実装時にナビゲーションを追記)
 </content>
 </invoke>

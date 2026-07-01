@@ -3,7 +3,7 @@
 - ステータス: Accepted
 - 日付: 2026-06-09
 - 要件: [requirements/013-unify-test-run.md](../requirements/013-unify-test-run.md)
-- 関連: [0001](0001-test-watch-mtime-polling.md) (watch) / [atcoder-test-usage.md](../atcoder-test-usage.md)
+- 関連: [0001](0001-test-watch-mtime-polling.md) (watch) / [docs/tools/usage/test.md](../usage/test.md)
 
 ## コンテキスト
 

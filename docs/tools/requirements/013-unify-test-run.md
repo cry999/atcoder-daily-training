@@ -144,7 +144,7 @@ $ atcoder test abc999 --task a --interactive
 | `internal/complete/complete.go` | `subcommandCands` から `run` 削除。`subFlags["test"]` に `--in`/`--out`/`--interactive`(`-I`) を追加し `subFlags["run"]` を削除。`takesContest`/位置引数判定から `run` を除去 |
 | `internal/complete/complete_test.go` | `run` を使うケースを `test` に書き換え |
 | `fixtures/run.sh` | `run ...` ケースを `test ... --in/--out/--interactive` に変換。`run` 削除 (exit 2)・モード混在 (exit 2) の smoke 追加。「`--in` 省略=stdin」ケースは `--in -` に変更 |
-| `docs/tools/atcoder-test-usage.md` | ad-hoc / 対話 / モード表を追記 (run-usage の内容を統合)。run-usage への壊れリンクを修正 |
+| `docs/tools/usage/test.md` | ad-hoc / 対話 / モード表を追記 (run-usage の内容を統合)。run-usage への壊れリンクを修正 |
 | `docs/tools/atcoder-run-usage.md` | **削除** (内容は test-usage に統合) |
 | `docs/tools/atcoder-test-architecture.md` | `runexec` は「`test` の ad-hoc モードの実装」と書き換え。`run` サブコマンド記述を更新 |
 | `docs/tools/requirements/002-*.md` 等の run-usage リンク | 壊れリンクを test-usage へ張り替え (本文の歴史記述は据え置き) |
@@ -195,7 +195,7 @@ func runAdHoc(contest, task string, lay layout.Layout, inFile, outFile string,
 ## 関連ドキュメント
 
 - [ADR 0005](../decisions/0005-unify-test-run-into-test.md) (統一の決定記録)
-- `docs/tools/atcoder-test-usage.md` (統一後の利用手引)
+- `docs/tools/usage/test.md` (統一後の利用手引)
 - `docs/tools/atcoder-test-architecture.md` (testexec / runexec の内部設計)
 - `docs/tools/requirements/001-exercise-test.md` (test の基盤要件)
 - `docs/tools/requirements/004-exercise-test-watch.md` (watch モード)

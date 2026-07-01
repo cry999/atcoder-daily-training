@@ -114,7 +114,7 @@ debug パイプライン本体 (`splitDebug`・`CaseResult.Debug`・`reporter.pr
 | `internal/ui/chat.go` | `debug:` ブロック描画時に `header.PP` なら `prettifyDebug` を通す ([chat.go:644](../../../internal/ui/chat.go) 周辺の `[DEBUG]` 振り分け表示) |
 | `internal/ui/command_complete.go` | 常時コマンドに `pp`、`:set` サブトークンに `pp`/`nopp` を追加 ([031](031-command-mode-completion.md)) |
 | `fixtures/` | 既存 `fixture_debug.py` を JSON 行を吐くケースに拡張するか、`fixture_debug_json.py` を追加。`fixtures/run.sh` に `-d --pp` で整形・非整形が出し分くスモークを追加 ([test-tool] スキルの対象) |
-| `docs/tools/atcoder-test-usage.md` | `--pp` フラグ・`:pp` コマンド・JSON 出力推奨パターン (`json.dumps`) を追記 (実装は feature フェーズ) |
+| `docs/tools/usage/test.md` | `--pp` フラグ・`:pp` コマンド・JSON 出力推奨パターン (`json.dumps`) を追記 (実装は feature フェーズ) |
 
 ### `prettifyDebug` の API 素描 (実装は feature へ)
 

@@ -2,7 +2,7 @@
 
 `atcoder` ツールで下した設計判断の記録。**完了した機能の「なぜそう作ったか」を恒久的に残す**場所。
 
-ロードマップ (`docs/tools/todo.md` / `abc-todo.md`) は「これからやること」を扱い、完了した項目は順次ここへ決定記録として移す。各機能の **what / how** は要件定義 (`docs/tools/requirements/NNN-*.md`) と利用手引 (`docs/tools/atcoder-*-usage.md`) に、**why (採用理由・却下案・トレードオフ)** はこの ADR にある。
+ロードマップ (`docs/tools/todo.md` / `abc-todo.md`) は「これからやること」を扱い、完了した項目は順次ここへ決定記録として移す。各機能の **what / how** は要件定義 (`docs/tools/requirements/NNN-*.md`) と利用手引 (`docs/tools/usage/*.md`) に、**why (採用理由・却下案・トレードオフ)** はこの ADR にある。
 
 ## 一覧
 

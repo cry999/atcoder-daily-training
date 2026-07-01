@@ -139,7 +139,7 @@ chat は対話モードで起動するため、`Ctrl+S` を押した時点では
 | `fixtures/fixture_okdebug.py` + `fixtures/cache/.../fixture_okdebug/` | 「stdout は正解・stderr に `[DEBUG]`」= 通過するが DEBUG 検出される fixture |
 | `fixtures/run.sh` | 非 TTY での `--submit` 確認スキップ (中止 → exit 1) を固定する run_case を追加 |
 | `fixtures/README.md` / `docs/tools/atcoder-test-testing.md` | fixture 一覧に `fixture_okdebug` を追記 |
-| `docs/tools/atcoder-test-usage.md` | `--submit` 節に提出前チェックと確認の挙動を追記 |
+| `docs/tools/usage/test.md` | `--submit` 節に提出前チェックと確認の挙動を追記 |
 | `docs/tools/atcoder-test-architecture.md` | 提出準備の内部設計にゲート段 (`runSubmitPrep` / `submitGateReporter`) を追記 |
 | `docs/tools/todo.md` | 本要件の項目を追加し相互リンク |
 
@@ -216,4 +216,4 @@ func runSubmitPrep(contest, task string, lay layout.Layout, opts testexec.Option
 - [049-submit-precheck-run-commented-source.md](./049-submit-precheck-run-commented-source.md) (本件のゲート実行対象を「提出される中身=コメントアウト後ソース」に変える改訂)
 - [026-chat-submit.md](./026-chat-submit.md) (chat `Ctrl+S` の提出準備)
 - [001-exercise-test.md](./001-exercise-test.md) (`-d`/`--debug` と `[DEBUG]` 規約 / `splitDebug` の初出)
-- `docs/tools/atcoder-test-usage.md` (test 利用手引) / `docs/tools/atcoder-test-architecture.md` (内部設計)
+- `docs/tools/usage/test.md` (test 利用手引) / `docs/tools/atcoder-test-architecture.md` (内部設計)

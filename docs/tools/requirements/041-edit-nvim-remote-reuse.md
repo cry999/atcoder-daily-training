@@ -88,7 +88,7 @@ atcoder config unset editor_nvim_remote    # 既定 (current) に戻す
 | `cmd/atcoder/test.go` / `adhoc.go` | `runAdHoc` / `makeChatRunner` に `nvimRemote` を通し、`editFunc(editorOverride, nvimRemote)` を注入 |
 | `cmd/atcoder/edit_test.go` | `planEdit` の test に `nvimRemote` 列を足し、既定 (current=`--remote`) / `tab` (`--remote-tab`) の両 argv を assert |
 | `internal/config/keys_test.go` | `editor_nvim_remote` の get 既定 (`current`) / set 正常 (`tab`) / set 異常 (未知値→`ErrInvalidValue`) を test |
-| `docs/tools/atcoder-config-usage.md` / `atcoder-start-usage.md` / `atcoder-test-usage.md` | config キー一覧・`Ctrl+E` 説明に `editor_nvim_remote` と既定 `current` を追記 |
+| `docs/tools/usage/config.md` / `docs/tools/usage/start.md` / `docs/tools/usage/test.md` | config キー一覧・`Ctrl+E` 説明に `editor_nvim_remote` と既定 `current` を追記 |
 | `docs/tools/requirements/038-start-edit-in-editor.md` | remote 既定が本要件で `--remote` に変わった旨の注記と相互リンク |
 
 ### 型の素描
@@ -139,6 +139,6 @@ func editFunc(editorOverride, nvimRemote string) ui.EditFunc
 
 - 親要件 (Ctrl+E エディタ起動): [038](038-start-edit-in-editor.md)
 - chat の外部アクション前例: [026](026-chat-submit.md) / 分割画面: [023](023-start-split-screen.md) / ナビ: [027](027-start-problem-navigation.md)
-- 利用手引: `docs/tools/atcoder-config-usage.md` / `atcoder-start-usage.md` / `atcoder-test-usage.md`
+- 利用手引: `docs/tools/usage/config.md` / `docs/tools/usage/start.md` / `docs/tools/usage/test.md`
 </content>
 </invoke>

@@ -172,7 +172,7 @@ exercise abc review — 237 contests, 387 solves
 | `internal/review/render.go` / `tui.go` | undated マスを黄色 `■`、last solved が無ければ `—`。凡例に `■ 本番` を追加 |
 | `internal/review/*_test.go` | カテゴリツリー走査・マージ (日付優先)・undated 描画・期間除外のテストを追加 |
 | `fixtures/run.sh` | カテゴリツリーを stage した `review` の smoke を追加 |
-| `docs/tools/atcoder-review-usage.md` | 集計対象 (2 ツリー)・undated の見方を追記 |
+| `docs/tools/usage/review.md` | 集計対象 (2 ツリー)・undated の見方を追記 |
 
 > 既存実装からの差分のみ記載 (`review` 本体・`stats.Solve.Contest`・補完・usage は実装済み)。
 
@@ -282,4 +282,4 @@ func Render(w io.Writer, r Report) error
 - `docs/tools/requirements/005-exercise-stats.md` (集計コマンド `stats`・データ層 `Scan`/`Solve`/`Period` の定義元)
 - `docs/tools/requirements/011-stats-graph.md` (`stats --graph`・濃淡記号 `■`/`·` の前例)
 - `docs/tools/requirements/002-exercise-abc-layout.md` (`layout` の ID 抽出規則)
-- `docs/tools/atcoder-review-usage.md` (利用手引・feature 実装時に作成)
+- `docs/tools/usage/review.md` (利用手引・feature 実装時に作成)

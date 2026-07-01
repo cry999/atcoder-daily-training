@@ -128,7 +128,7 @@ print(total)
 | `cmd/atcoder/main.go` | `test` の usage 文字列に `--keep-debug` を追記 |
 | `internal/complete/complete.go` (+ test) | `test` のフラグ候補に `--keep-debug` を追加 |
 | `fixtures/...` + `fixtures/run.sh` | コメントアウト挙動を固定する fixture と run_case (詳細は テスト戦略) |
-| `docs/tools/atcoder-test-usage.md` | `--submit` 節に `--keep-debug` とコメントアウト挙動を追記 |
+| `docs/tools/usage/test.md` | `--submit` 節に `--keep-debug` とコメントアウト挙動を追記 |
 | `docs/tools/atcoder-test-architecture.md` | 提出準備の内部設計に DEBUG コメントアウト段を追記 |
 | `docs/tools/todo.md` | 該当項目を `✅ DONE` 化し本要件へ相互リンク |
 
@@ -201,4 +201,4 @@ func submitPrepCore(contest, task string, lay layout.Layout, noOpen, keepDebug b
 - [026-chat-submit.md](./026-chat-submit.md) (chat `Ctrl+S` の提出準備)
 - [044-submit-precheck-confirm.md](./044-submit-precheck-confirm.md) (提出前チェックと確認。実行時の DEBUG 検出で本件のコメントアウト漏れを補完する)
 - [049-submit-precheck-run-commented-source.md](./049-submit-precheck-run-commented-source.md) (本件のコメントアウト出力を提出ゲートの実行対象にする)
-- `docs/tools/atcoder-test-usage.md` (test 利用手引) / `docs/tools/atcoder-test-architecture.md` (内部設計)
+- `docs/tools/usage/test.md` (test 利用手引) / `docs/tools/atcoder-test-architecture.md` (内部設計)

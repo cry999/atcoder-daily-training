@@ -76,7 +76,7 @@ chat 待機中のキー (フラグ変更なし):
 |---|---|
 | `internal/ui/chat.go` | `KeyCtrlD` 処理を「終了 / auto-restart 時は graceful 停止」に変更 (`handle.Stdin.Close()` をやめる)。`stdinClosed` フィールドと `Enter` の閉鎖後分岐を除去。placeholder 文言を更新。`Ctrl+D` の動作を純粋関数 `ctrlDActionFor(autoRestart bool)` に切り出し |
 | `internal/ui/chat_test.go` (新規 or 追記) | `ctrlDActionFor` のテスト (auto-restart OFF→quit、ON→stopAfterSession) |
-| `docs/tools/atcoder-test-usage.md` | interactive 節の `Ctrl+D` 説明を「chat 終了」に修正 (EOF 記述を削除) |
+| `docs/tools/usage/test.md` | interactive 節の `Ctrl+D` 説明を「chat 終了」に修正 (EOF 記述を削除) |
 | `docs/tools/todo.md` | R の `Ctrl+D graceful` 注記を「EOF を送らず graceful 停止」に補正、本要件へリンク |
 
 ### 素描
@@ -119,4 +119,4 @@ func ctrlDActionFor(autoRestart bool) ctrlDAction
 
 - `docs/tools/requirements/013-unify-test-run.md` (interactive chat の統合元)
 - `docs/tools/requirements/020-interactive-auto-restart-flag.md` (auto-restart / R)
-- `docs/tools/atcoder-test-usage.md` (interactive 利用手引)
+- `docs/tools/usage/test.md` (interactive 利用手引)

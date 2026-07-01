@@ -118,7 +118,7 @@ $ atcoder config path
 | `internal/config/config.go` | キーレジストリ (`fields`)・`Keys()`・`Get()`・`Set()`・`All()`・`ValueCandidates()`・sentinel error (`ErrUnknownKey` / `ErrInvalidValue` / `ErrParse`) を追加。汎用 map の read/write helper。stale な "exercise" コメントを "atcoder" に修正 |
 | `internal/complete/complete.go` | `Subcommands()` に `config` を追加。`config <show\|get\|set\|path>`・`get`/`set` のキー・`set` の値 (bool は true/false) を補完 |
 | `fixtures/run.sh` | `config` の smoke (show / set→get の往復 / set の test への波及 / 未知キー・型不一致・未知サブコマンドの exit 2 / path) を追加 |
-| `docs/tools/atcoder-test-usage.md` | 「設定ファイルで既定値を固定する」節に `atcoder config` の使い方を追記 |
+| `docs/tools/usage/test.md` | 「設定ファイルで既定値を固定する」節に `atcoder config` の使い方を追記 |
 | `docs/tools/atcoder-test-architecture.md` | キーレジストリと `config` サブコマンドの位置づけを追記 |
 | `docs/tools/todo.md` | 「L. `config` サブコマンド」を `✅ DONE` でマーク |
 
@@ -183,5 +183,5 @@ type KeyValue struct{ Key, Value string }
 
 - `docs/tools/requirements/007-atcoder-config.md` (設定層の基盤要件。スキーマ・所在・優先順位の定義元)
 - `docs/tools/todo.md` (上位ロードマップ。「L. `config` サブコマンド」の要件詳細が本書)
-- `docs/tools/atcoder-test-usage.md` (利用手引。`atcoder config` の使い方を追記)
+- `docs/tools/usage/test.md` (利用手引。`atcoder config` の使い方を追記)
 - `docs/tools/atcoder-test-architecture.md` (内部設計。キーレジストリの位置づけを追記)

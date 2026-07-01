@@ -80,7 +80,7 @@
 | `internal/ui/chat_test.go` | `Ctrl+C`=中断・再起動 (sessionN++・quit しない・中断 info)、`Ctrl+D`=quit、spawn 無し `Ctrl+C`=quit のテストを追加 (`m.handle=nil` で fake の Kill/Wait を回避する既存手筋) |
 | `docs/tools/requirements/022-…md` | 「Ctrl+C も終了」を本要件で覆した旨の追記 (相互リンク) |
 | `docs/tools/requirements/024-…md` / `decisions/0007-…md` | 「Ctrl+C/Ctrl+D は終了 (不変)」の旧記述を「Ctrl+D=終了 / Ctrl+C=中断・再起動」に更新 |
-| `docs/tools/atcoder-test-usage.md` | interactive のキー説明を更新 (`Ctrl+C`=中断・再起動 / `Ctrl+D`=終了) |
+| `docs/tools/usage/test.md` | interactive のキー説明を更新 (`Ctrl+C`=中断・再起動 / `Ctrl+D`=終了) |
 
 ## エラーハンドリング
 
@@ -114,5 +114,5 @@
 - 終了キー統一 (本要件が部分的に覆す): [022](022-interactive-unify-quit-keys.md)
 - Ctrl+D を chat 終了にした経緯: [021](021-interactive-ctrl-d-quit.md) / auto-restart: [020](020-interactive-auto-restart-flag.md) / 出力タイミング: [019](019-interactive-output-timing.md)
 - ケースビルダー / command モード: [024](024-interactive-case-builder.md) / [ADR 0007](../decisions/0007-interactive-command-mode-trigger.md)
-- 利用手引: `docs/tools/atcoder-test-usage.md`
+- 利用手引: `docs/tools/usage/test.md`
 - ロードマップ: `docs/tools/todo.md` (R 節)

@@ -80,7 +80,7 @@
 |---|---|
 | `internal/ui/chat.go` | `chatModel` に待機状態 (`awaiting`/`awaitSince`/`spinnerFrame`/`spinGen`) を追加。`spinnerTickMsg` と `spinnerTickCmd`。Enter ハンドラで待機開始、`chatLineMsg`/`streamEndMsg`/`restart` で解除。`renderInputBox` の下罫線に待機表示を重ねる。純粋関数 `waitStatus(frame int, elapsed time.Duration) string` |
 | `internal/ui/chat_test.go` (または新規) | `waitStatus` のフォーマットと、待機状態の遷移 (送信で on・出力で off・世代タグで stale 破棄) をユニットテスト |
-| `docs/tools/atcoder-test-usage.md` | 対話モード節に「送信後の待機スピナー + 経過時間」を 1 行追記 |
+| `docs/tools/usage/test.md` | 対話モード節に「送信後の待機スピナー + 経過時間」を 1 行追記 |
 | `docs/tools/atcoder-test-architecture.md` | chat の状態遷移にスピナー待機を追記 (あれば) |
 | `docs/tools/todo.md` | 本項目を記載し本要件へ相互リンク |
 
@@ -138,5 +138,5 @@ func waitStatus(frame int, elapsed time.Duration) string
 ## 関連ドキュメント
 
 - `docs/tools/requirements/020-interactive-auto-restart-flag.md` / `021` / `022` (chat の挙動)
-- `docs/tools/atcoder-test-usage.md` (対話モードの利用手引)
+- `docs/tools/usage/test.md` (対話モードの利用手引)
 - `docs/tools/atcoder-test-architecture.md` (chat TUI 内部設計)

@@ -104,7 +104,7 @@ atcoder test <contest> --task <task> [... 既存フラグ ...] --submit [--no-op
 | `fixtures/fixture_<name>.py` + `fixtures/cache/.../` | コメントアウト後に DEBUG が消えて PASS する fixture / コメントアウトをすり抜けて DEBUG が残る fixture (詳細はテスト戦略) |
 | `fixtures/run.sh` | 「無条件 `[DEBUG]` print 入り解答を `--submit` (非 TTY) → コメントアウト後実行でクリーン → 提出準備に進む (exit 0)」を固定する run_case を追加 |
 | `fixtures/README.md` / `docs/tools/atcoder-test-testing.md` | fixture 一覧に追記 |
-| `docs/tools/atcoder-test-usage.md` | `--submit` 節に「提出前チェックはコメントアウト後の中身で判定する」を追記 |
+| `docs/tools/usage/test.md` | `--submit` 節に「提出前チェックはコメントアウト後の中身で判定する」を追記 |
 | `docs/tools/atcoder-test-architecture.md` | 提出ゲートの内部設計に「提出される中身を一時ファイルで実行」段を追記 |
 | `docs/tools/todo.md` | 本要件の項目を追加し相互リンク |
 
@@ -187,4 +187,4 @@ func writeTempSource(origPath, body string) (tmpPath string, cleanup func(), err
 - [026-chat-submit.md](./026-chat-submit.md) (chat `Ctrl+S` の提出準備)
 - [001-exercise-test.md](./001-exercise-test.md) (`-d`/`--debug` と `[DEBUG]` 規約 / `splitDebug`)
 - [015-fold-submit-into-test.md](./015-fold-submit-into-test.md) / [ADR 0006](../decisions/0006-fold-submit-into-test.md) (`--submit` を test に畳んだ前例)
-- `docs/tools/atcoder-test-usage.md` (test 利用手引) / `docs/tools/atcoder-test-architecture.md` (内部設計)
+- `docs/tools/usage/test.md` (test 利用手引) / `docs/tools/atcoder-test-architecture.md` (内部設計)

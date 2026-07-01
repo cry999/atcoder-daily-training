@@ -90,7 +90,7 @@ $
 | `internal/complete/complete.go` | `test` のフラグ候補に `--auto-restart` / `-R` を追加 |
 | `internal/ui/chat_test.go` (新規 or 既存) | auto-restart 初期化・子終了時の restart/quit 分岐をユニットテスト (bubbletea Model を直接駆動) |
 | `fixtures/run.sh` | 非 TTY での `--interactive --auto-restart` (exit 0・1 回実行)、`--auto-restart` 単体 (exit 2) の smoke を追加 |
-| `docs/tools/atcoder-test-usage.md` | 対話モード節に `--auto-restart` とキー操作を追記 |
+| `docs/tools/usage/test.md` | 対話モード節に `--auto-restart` とキー操作を追記 |
 | `docs/tools/atcoder-test-architecture.md` | chat TUI の restart 状態遷移の記述を更新 (awaitingRestart 廃止) |
 | `docs/tools/todo.md` | 本項目を記載し本要件へ相互リンク |
 
@@ -150,5 +150,5 @@ type ChatHeader struct {
 ## 関連ドキュメント
 
 - `docs/tools/requirements/015-fold-submit-into-test.md` (`test` のモード体系)
-- `docs/tools/atcoder-test-usage.md` (対話モードの利用手引)
+- `docs/tools/usage/test.md` (対話モードの利用手引)
 - `docs/tools/atcoder-test-architecture.md` (chat TUI 内部設計)

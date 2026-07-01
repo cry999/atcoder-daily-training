@@ -3,7 +3,7 @@
 要件 / 利用手引はそれぞれ以下を参照:
 
 - 要件定義: [001-exercise-test.md](./requirements/001-exercise-test.md)
-- 利用手引: [atcoder-test-usage.md](./atcoder-test-usage.md)
+- 利用手引: [docs/tools/usage/test.md](usage/test.md)
 
 このドキュメントは `cmd/atcoder` ツールの内部設計、特に `test` サブコマンドのパッケージ構成・依存方向・型設計を扱う。
 
@@ -84,7 +84,7 @@ internal/debugstrip/
                  # 純粋関数 CommentOut。判定/実行に非関与、文字列変換のみ (要件 043)
 ```
 
-> 補足: `internal/runexec` は `atcoder test` の **ad-hoc / 対話モード** の実装 (旧 `atcoder run` サブコマンド。[ADR 0005](./decisions/0005-unify-test-run-into-test.md) で `test` に統合・廃止)。`testexec` (サンプル判定) と並列の位置付けで、判定 suite を行わず単発実行に特化する。`cmd/atcoder/test.go` がフラグ (`--in`/`--out`/`--interactive`) を見て `testexec.Run` / `runexec.Run` のどちらに振り分けるかを決め、ad-hoc 結線は `cmd/atcoder/adhoc.go` が持つ。詳細は [atcoder-test-usage.md](./atcoder-test-usage.md) の「モード」節。
+> 補足: `internal/runexec` は `atcoder test` の **ad-hoc / 対話モード** の実装 (旧 `atcoder run` サブコマンド。[ADR 0005](./decisions/0005-unify-test-run-into-test.md) で `test` に統合・廃止)。`testexec` (サンプル判定) と並列の位置付けで、判定 suite を行わず単発実行に特化する。`cmd/atcoder/test.go` がフラグ (`--in`/`--out`/`--interactive`) を見て `testexec.Run` / `runexec.Run` のどちらに振り分けるかを決め、ad-hoc 結線は `cmd/atcoder/adhoc.go` が持つ。詳細は [docs/tools/usage/test.md](usage/test.md) の「モード」節。
 
 ## 依存方向
 

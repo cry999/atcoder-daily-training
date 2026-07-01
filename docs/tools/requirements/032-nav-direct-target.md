@@ -80,7 +80,7 @@ solution: exercise/2026/06/11/abc457_f.py (exists)
 | `internal/ui/chat_casebuilder.go` | `execNav` の利用法案内文を「`next|prev` (n|p) または直指定」に更新。`showCheat` の `:task`/`:contest` 行を直指定対応の表記に更新 |
 | `internal/ui/nav_test.go` | `navRequestFor` が `:task f`→`NavLetterExplicit{Spec:"f"}`、`:contest 123`→`NavContestExplicit{Spec:"123"}`、引数なし→`ok=false` を返すテスト |
 | `cmd/atcoder/start_test.go` | `nextTarget` が直指定を解決 (`:task f`/`:contest 123`/桁数保持/不正値エラー) するテスト。`layout` 側に `WithContestNum` の単体テスト |
-| `docs/tools/atcoder-start-usage.md` / `atcoder-test-usage.md` | command 表のナビ説明に直指定を追記 |
+| `docs/tools/usage/start.md` / `docs/tools/usage/test.md` | command 表のナビ説明に直指定を追記 |
 
 ### 型の素描
 
@@ -129,4 +129,4 @@ func WithContestNum(contestID string, n int) (string, error)
 
 - ナビ基盤: [027](027-start-problem-navigation.md) / command モード: [024](024-interactive-case-builder.md)
 - 分割画面: [023](023-start-split-screen.md)
-- 利用手引: `docs/tools/atcoder-start-usage.md` / `docs/tools/atcoder-test-usage.md`
+- 利用手引: `docs/tools/usage/start.md` / `docs/tools/usage/test.md`

@@ -114,8 +114,8 @@ chat の `ChatHeader.Contest` / `.Task` には起動時に contest_id (`abc457`)
 | `internal/ui/chatmeta_test.go` (新規) | `execMeta` の各分岐を fake フックで検証: 引数なしで show 行が積まれる、`url <url>`/`time_limit <dur>` で set が呼ばれ結果行が積まれる、`time_limit` 成功で `header.TimeLimitMs` が更新される、未知フィールドで `E518`、フック nil で「使えません」、set の err が err 行になる |
 | `internal/ui/command_complete_test.go` | 候補一覧の期待値に `meta` を反映。`:me`→`meta ` (空白付き) 確定、第 2 トークン `url`/`time_limit` 補完のケースを追加 |
 | `cmd/atcoder/chatmeta_test.go` (新規, 任意) | `chatMetaSetFunc` の検証 (url 不正/duration 不正/未キャッシュ time_limit) を一時 `XDG_CACHE_HOME` で固定 |
-| `docs/tools/atcoder-test-usage.md` / `atcoder-start-usage.md` | command モードのコマンド表に `:meta` を追記 |
-| `docs/tools/atcoder-meta-usage.md` | chat からの編集 (`:meta`) への相互リンクを 1 行追記 |
+| `docs/tools/usage/test.md` / `docs/tools/usage/start.md` | command モードのコマンド表に `:meta` を追記 |
+| `docs/tools/usage/meta.md` | chat からの編集 (`:meta`) への相互リンクを 1 行追記 |
 | `docs/tools/atcoder-test-architecture.md` | chat の command モード節に `:meta` (meta 表示・編集フック) を追記 |
 | `docs/tools/todo.md` | ロードマップ項目を追記し本要件へ相互リンク |
 
@@ -206,7 +206,7 @@ chat 内コマンドなので exit code 経路は増えない (CLI `meta` の ex
 - command モード基盤: [024](024-interactive-case-builder.md) (ケースビルダー・ライブ検証)
 - フック注入の前例: [026](026-chat-submit.md) (`Ctrl+S` 提出準備・`ChatHeader.Submit`)
 - コマンド追加の前例: [030](030-chat-debug-cheat-commands.md) / [045](045-chat-run-sample-case.md) (`:test`) / 補完: [031](031-command-mode-completion.md)
-- 利用手引: `docs/tools/atcoder-meta-usage.md` / `docs/tools/atcoder-test-usage.md` / `docs/tools/atcoder-start-usage.md`
+- 利用手引: `docs/tools/usage/meta.md` / `docs/tools/usage/test.md` / `docs/tools/usage/start.md`
 - アーキテクチャ: `docs/tools/atcoder-test-architecture.md`
 - ロードマップ: `docs/tools/todo.md`
 </content>

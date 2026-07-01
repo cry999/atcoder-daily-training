@@ -107,7 +107,7 @@ abc457_d  contest=abc457  ...
 | `cmd/atcoder/review.go` | 同上 (位置引数 = category) |
 | `cmd/atcoder/new.go` | `new abc <contest>` の sub-args を `cliargs.Split` 経由に (mode 語 `abc` は dispatch 済み) |
 | `fixtures/run.sh` | フラグ先頭・混在順の `run_case` を追加 (exit 0) + 既存の位置引数先頭が不変なことを確認 |
-| `docs/tools/atcoder-test-usage.md` ほか | 「引数の順序は自由」の一文を追記 |
+| `docs/tools/usage/test.md` ほか | 「引数の順序は自由」の一文を追記 |
 
 ### 新規 API スケッチ (`internal/cliargs`)
 
@@ -157,5 +157,5 @@ func Split(args []string) (flagArgs, positionals []string)
 ## 関連ドキュメント
 
 - `internal/complete/complete.go` (`valueFlags` の現所在・補完の位置引数判定)
-- `docs/tools/atcoder-completion-usage.md` (補完が同じ value-flag 知識を使う)
-- `docs/tools/atcoder-test-usage.md` ほか各 usage (引数順序の追記先)
+- `docs/tools/usage/completion.md` (補完が同じ value-flag 知識を使う)
+- `docs/tools/usage/test.md` ほか各 usage (引数順序の追記先)

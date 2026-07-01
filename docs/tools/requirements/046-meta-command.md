@@ -144,7 +144,7 @@ $ atcoder test abc111 --task d   # 以降はこの url から取得する
 | `internal/cliargs/cliargs.go` | `--time-limit` / `--url` を値フラグに登録 (位置引数と取り違えないため) |
 | `internal/complete/complete.go` | `meta` のサブコマンド候補とフラグ (`--task`/`--url`/`--time-limit`) |
 | `fixtures/run.sh` | `meta` の exit code を固定する run_case 群を追加 (ネットワーク非依存の show/set/url override/引数誤りのみ) |
-| `docs/tools/atcoder-meta-usage.md` (新規) | `meta` の利用手引 |
+| `docs/tools/usage/meta.md` (新規) | `meta` の利用手引 |
 | `docs/tools/todo.md` | ロードマップ項目を追記し本要件へ相互リンク |
 
 ### `internal/layout` に足す関数 (素描)
@@ -225,6 +225,6 @@ func SampleCount(contest, task string) (int, error)
 
 - 元のサンプル取得・キャッシュ仕様: [`001-exercise-test.md`](001-exercise-test.md)
 - コンテストメタ一括準備 (将来の統合先): [`003-exercise-abc-contest-meta.md`](003-exercise-abc-contest-meta.md)
-- 利用手引: [`../atcoder-meta-usage.md`](../atcoder-meta-usage.md)
+- 利用手引: [`docs/tools/usage/meta.md`](../usage/meta.md)
 - アーキテクチャ: [`../atcoder-test-architecture.md`](../atcoder-test-architecture.md)
 - ロードマップ: [`../todo.md`](../todo.md)

@@ -123,7 +123,7 @@ by day
 | `cmd/atcoder/main.go` | `usage()` の `stats` 行に `-l\|--last <dur>` を追記 |
 | `internal/stats/stats_test.go` | ローリング窓 (7d/1w/1m/1y、N 省略、粒度切替) の決定的テストを追加 |
 | `fixtures/run.sh` | `stats --last 1m` (exit 0) と `stats --last 0d` / `--week --last 7d` (exit 2) の smoke を追加 |
-| `docs/tools/atcoder-stats-usage.md` | `--last` の表・文法・出力例を追記 |
+| `docs/tools/usage/stats.md` | `--last` の表・文法・出力例を追記 |
 | `docs/tools/todo.md` | J 項目にローリング期間対応を追記 (DONE) |
 
 ### `internal/stats` の追加 API (素描)
@@ -187,5 +187,5 @@ type Options struct {
 ## 関連ドキュメント
 
 - `docs/tools/requirements/005-exercise-stats.md` (`atcoder stats` の基本仕様)
-- `docs/tools/atcoder-stats-usage.md` (利用手引)
+- `docs/tools/usage/stats.md` (利用手引)
 - `docs/tools/todo.md` (上位ロードマップ J 項目)

@@ -85,7 +85,7 @@ $ atcoder test abc457 --<Tab>     # zsh + fzf-tab
 | `cmd/atcoder/completion.go` | `cmdComplete` を `値<TAB>説明` 出力に変更。bash/zsh スクリプトを説明対応に書き換え (fish は素通しのまま) |
 | `internal/complete/complete_test.go` | `Complete` の戻り値変更に追従。説明が付くこと・動的候補が説明なしであることを検証 |
 | `fixtures/run.sh` | `__complete` の出力検証を `値<TAB>説明` 形式に更新 (値列で一致確認 + 説明が付くことの確認) |
-| `docs/tools/atcoder-completion-usage.md` | 説明表示 (zsh/fish) と bash の扱いを追記 |
+| `docs/tools/usage/completion.md` | 説明表示 (zsh/fish) と bash の扱いを追記 |
 | `docs/tools/decisions/0004-shell-completion-no-framework.md` | 後続として本要件へのリンクを追記 |
 
 ### 型と公開 API (素描)
@@ -146,4 +146,4 @@ func Flags(sub string) []string
 - `docs/tools/requirements/008-atcoder-completion.md` (補完の基盤・候補生成)
 - `docs/tools/requirements/010-stats-rolling-window.md` (stats `--last`。本変更でフラグ表に登録)
 - `docs/tools/decisions/0004-shell-completion-no-framework.md` (FW 非導入の決定記録)
-- `docs/tools/atcoder-completion-usage.md` (利用手引)
+- `docs/tools/usage/completion.md` (利用手引)

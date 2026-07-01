@@ -3,7 +3,7 @@
 - ステータス: Accepted
 - 日付: 2026-06-09
 - 実装: `dd3c3a8` (`feat(stats): add daily practice statistics`)
-- 関連: [requirements/005-exercise-stats.md](../requirements/005-exercise-stats.md) / [atcoder-stats-usage.md](../atcoder-stats-usage.md)
+- 関連: [requirements/005-exercise-stats.md](../requirements/005-exercise-stats.md) / [docs/tools/usage/stats.md](../usage/stats.md)
 - 後続: [requirements/010-stats-rolling-window.md](../requirements/010-stats-rolling-window.md) (ローリング期間 `--last <dur>` の追加)
 
 ## コンテキスト

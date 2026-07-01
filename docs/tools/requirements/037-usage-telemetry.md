@@ -133,7 +133,7 @@ $ atcoder usage
 | `internal/usagelog/usagelog_test.go` (新規) | record→load の roundtrip、`FlagsFromArgs` の正規化 (`--task`→`task`, `--last=3d`→`last`, `-`→除外, 重複除去)、`Aggregate` の count/total/last、壊れ行スキップ、`ATCODER_NO_USAGE` で書かない |
 | `cmd/atcoder/usage_test.go` (新規) | 一時 `XDG_DATA_HOME` にイベントを置き `cmdUsage` が exit 0 で集計を出す・空時のメッセージ・`--flags` 内訳 |
 | `fixtures/run.sh` | `usage` のオフライン smoke を 1 ケース (一時 XDG_DATA_HOME で記録 → `atcoder usage` exit 0)。既存 `test` ケースには `ATCODER_NO_USAGE=1` を効かせ実ユーザのデータ領域を汚さない |
-| `docs/tools/atcoder-usage-usage.md` (新規) | `atcoder usage` の利用手引 (集計の見方・保存先・無効化・プライバシー) |
+| `docs/tools/usage/usage.md` (新規) | `atcoder usage` の利用手引 (集計の見方・保存先・無効化・プライバシー) |
 | `docs/tools/todo.md` | 本項目を追加し ✅ DONE。要件 037 と相互リンク |
 
 ### `internal/usagelog` の公開 API 素描
@@ -210,6 +210,6 @@ func Aggregate(r io.Reader) ([]Stat, error)
 ## 関連ドキュメント
 
 - `docs/tools/requirements/005-exercise-stats.md` (`stats`。責務が別であることの対比)
-- `docs/tools/atcoder-stats-usage.md` (集計コマンドの利用手引の前例)
+- `docs/tools/usage/stats.md` (集計コマンドの利用手引の前例)
 - `internal/cachepath` (XDG パス解決の前例。本件はデータ領域版を usagelog に持つ)
 - `cmd/atcoder/main.go` (dispatch のフック箇所)

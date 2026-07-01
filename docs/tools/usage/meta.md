@@ -2,13 +2,13 @@
 
 `atcoder meta` は、サンプル入出力と Time Limit を保持するキャッシュ
 (`$XDG_CACHE_HOME/atcoder-tools/<contest>/<task>/`) を、**問題ページの URL を貼るだけ**で
-用意・点検・補正するためのサブコマンドです (要件 [046](requirements/046-meta-command.md))。
+用意・点検・補正するためのサブコマンドです (要件 [046](../requirements/046-meta-command.md))。
 
 - `fetch` — task URL (または contest + `--task`) を渡してサンプル + Time Limit をダウンロードする。
 - `show` — キャッシュ済みメタの内容を表示する。
 - `set` — キャッシュ済みメタのフィールド (現状 Time Limit) を手で上書きする。
 
-judge は行いません (それは [`atcoder test`](atcoder-test-usage.md))。`meta` はキャッシュ層だけを
+judge は行いません (それは [`atcoder test`](test.md))。`meta` はキャッシュ層だけを
 操作し、解答ファイルや `tests-extra/` (ユーザ追加ケース) には一切触れません。
 
 ## ターゲット指定 (3 サブコマンド共通)
@@ -133,11 +133,11 @@ fetched abc111_d
 (`Esc` → `:`) の **`:meta`** で `show`/`set` 相当を chat を抜けずに行えます。`:meta` で url /
 time limit / samples を表示、`:meta url <url>` で URL override、`:meta time_limit 5s` で Time Limit
 を上書きします。編集対象・検証規則・未キャッシュ時の扱いは本コマンドの `set` と同一です
-(要件 [055](./requirements/055-chat-meta-edit.md))。さらに **`:meta fetch`** で本コマンドの `fetch`
+(要件 [055](../requirements/055-chat-meta-edit.md))。さらに **`:meta fetch`** で本コマンドの `fetch`
 相当 (url からサンプル + Time Limit を再取得) を chat 内から実行できます。`:meta url <url>` で
 取得元を直した後に `:meta fetch` と続ければ、新しい url の問題内容へ差し替えられます
-(取得は非同期。要件 [057](./requirements/057-chat-meta-fetch.md))。詳細は
-[atcoder-test-usage.md](./atcoder-test-usage.md) / [atcoder-start-usage.md](./atcoder-start-usage.md)
+(取得は非同期。要件 [057](../requirements/057-chat-meta-fetch.md))。詳細は
+[docs/tools/usage/test.md](test.md) / [docs/tools/usage/start.md](start.md)
 の command モードのコマンド表を参照してください。
 
 ## exit code
@@ -156,10 +156,10 @@ time limit / samples を表示、`:meta url <url>` で URL override、`:meta tim
 
 ## 関連
 
-- 要件定義: [046-meta-command.md](./requirements/046-meta-command.md)
-- chat からの編集 (`:meta`): [055-chat-meta-edit.md](./requirements/055-chat-meta-edit.md)
-- chat からの再取得 (`:meta fetch`): [057-chat-meta-fetch.md](./requirements/057-chat-meta-fetch.md)
-- サンプル取得・キャッシュの元仕様: [001-exercise-test.md](./requirements/001-exercise-test.md)
-- テスト実行: [atcoder-test-usage.md](./atcoder-test-usage.md)
-- アーキテクチャ: [atcoder-test-architecture.md](./atcoder-test-architecture.md)
-- ツール本体: [`cmd/atcoder/meta.go`](../../cmd/atcoder/meta.go)
+- 要件定義: [046-meta-command.md](../requirements/046-meta-command.md)
+- chat からの編集 (`:meta`): [055-chat-meta-edit.md](../requirements/055-chat-meta-edit.md)
+- chat からの再取得 (`:meta fetch`): [057-chat-meta-fetch.md](../requirements/057-chat-meta-fetch.md)
+- サンプル取得・キャッシュの元仕様: [001-exercise-test.md](../requirements/001-exercise-test.md)
+- テスト実行: [docs/tools/usage/test.md](test.md)
+- アーキテクチャ: [atcoder-test-architecture.md](../atcoder-test-architecture.md)
+- ツール本体: [`cmd/atcoder/meta.go`](../../../cmd/atcoder/meta.go)

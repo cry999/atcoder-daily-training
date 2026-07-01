@@ -235,4 +235,4 @@ CLI 層 (`cmd/atcoder`) が文字列フラグを `Layout` に変換して `teste
 
 - `docs/tools/abc-todo.md` (上位ロードマップ。MVP "A" の要件詳細が本書)
 - `docs/tools/requirements/001-exercise-test.md` (既存の test サブコマンド要件)
-- `docs/tools/atcoder-test-usage.md` (ad-hoc 実行の使用例。旧 run-usage は 013 で test-usage に統合)
+- `docs/tools/usage/test.md` (ad-hoc 実行の使用例。旧 run-usage は 013 で test-usage に統合)

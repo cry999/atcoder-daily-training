@@ -34,7 +34,7 @@
 - **ネットワーク必須** (`update` と `--check`)。proxy/GitHub に到達できなければエラー (exit 1)。`atcoder version` は**オフラインで動く** (埋め込み情報を読むだけ)。
 - モジュールが解決できること (公開リポジトリ前提)。`GOBIN`/`GOFLAGS` 等のユーザ環境は尊重する。
 
-> **実装時の修正 (バグ対応)**: 当初は `GOPROXY` もそのまま尊重する設計だったが、proxy.golang.org が `@latest` をキャッシュするため push 直後に古いコミットを最新として返し、「最新のはずが古い版がインストールされる」不具合が出た。対策として **このツール自身のモジュールだけを `GOPRIVATE` に入れ、proxy を介さず git remote へ直接解決する**ように変更 (依存モジュールは通常どおり proxy 経由)。また `go install …@latest` 由来のバイナリは VCS スタンプが付かないため、現在版は **モジュールの pseudo-version からも読む**ようにした。詳細は `atcoder-update-usage.md` の「バージョン表示について」。
+> **実装時の修正 (バグ対応)**: 当初は `GOPROXY` もそのまま尊重する設計だったが、proxy.golang.org が `@latest` をキャッシュするため push 直後に古いコミットを最新として返し、「最新のはずが古い版がインストールされる」不具合が出た。対策として **このツール自身のモジュールだけを `GOPRIVATE` に入れ、proxy を介さず git remote へ直接解決する**ように変更 (依存モジュールは通常どおり proxy 経由)。また `go install …@latest` 由来のバイナリは VCS スタンプが付かないため、現在版は **モジュールの pseudo-version からも読む**ようにした。詳細は `docs/tools/usage/update.md` の「バージョン表示について」。
 
 ## バージョンの持ち方 (自動 VCS スタンプ)
 
@@ -138,7 +138,7 @@ $ atcoder update            # 既に最新
 | `internal/complete/complete.go` | サブコマンド候補に `version` / `update` を追加 (説明付き、要件 012)。`update` のフラグ表に `--check`。`valueFlags` 変更なし (--check は値を取らない) |
 | `internal/complete/complete_test.go` | `version`/`update` がサブコマンド候補に出る期待を追加 |
 | `fixtures/run.sh` | `version` の exit 0 (オフライン) を smoke。`update` の引数誤り (exit 2) を smoke。ネットワーク経路 (`update`/`--check`) はオフライン化の工夫が要る (下記テスト方針) |
-| `docs/tools/atcoder-update-usage.md` | 利用手引 (新規。version/update/--check のインストール手順と前提) |
+| `docs/tools/usage/update.md` | 利用手引 (新規。version/update/--check のインストール手順と前提) |
 | `docs/tools/todo.md` | 項目 L として記載し、本要件へ相互リンク |
 
 ### 新規 `internal/selfupdate/` パッケージの責務 (素描)
@@ -233,5 +233,5 @@ func Install(ctx context.Context, module string, w io.Writer) error
 - `docs/tools/requirements/006-rename-cli-to-atcoder.md` (CLI 名 `atcoder` 化・`go install ./cmd/atcoder` の前提)
 - `docs/tools/requirements/008-atcoder-completion.md` / `012-completion-descriptions.md` (サブコマンド/フラグ補完にここで `version`/`update` を足す)
 - `docs/tools/requirements/059-update-local-check.md` (`update --check` をローカル作業ツリー比較に拡張する子要件)
-- `docs/tools/atcoder-update-usage.md` (利用手引。本機能で新設)
+- `docs/tools/usage/update.md` (利用手引。本機能で新設)
 - `docs/tools/todo.md` (上位ロードマップ。項目 L として記載)

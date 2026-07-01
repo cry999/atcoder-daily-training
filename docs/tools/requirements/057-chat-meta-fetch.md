@@ -89,8 +89,8 @@ $XDG_CACHE_HOME/atcoder-tools/<contest>/<task>/
 | `cmd/atcoder/adhoc.go` | `makeChatRunner` の `ui.ChatHeader{...}` に `MetaFetch: chatMetaFetchFunc(contest, task)` を注入 (`test --interactive` 経路) |
 | `internal/ui/chatmeta_test.go` | `:meta fetch` の分岐を fake フックで検証: `(再取得中…)` 行が積まれ非 nil cmd が返る、cmd が `MetaFetch` を呼ぶ、`applyMetaFetchDone` 成功で結果行が積まれ `header.TimeLimitMs` が更新される、err で err 行になる、フック nil で「使えません」 |
 | `internal/ui/command_complete_test.go` | 第 2 トークン補完の期待値に `fetch` を反映 |
-| `docs/tools/atcoder-test-usage.md` / `atcoder-start-usage.md` | command モードのコマンド表の `:meta` 行に `fetch` を追記 |
-| `docs/tools/atcoder-meta-usage.md` | chat からの再取得 (`:meta fetch`) への相互リンクを 1 行追記 |
+| `docs/tools/usage/test.md` / `docs/tools/usage/start.md` | command モードのコマンド表の `:meta` 行に `fetch` を追記 |
+| `docs/tools/usage/meta.md` | chat からの再取得 (`:meta fetch`) への相互リンクを 1 行追記 |
 | `docs/tools/atcoder-test-architecture.md` | chat の command モード節の `:meta` に `fetch` (再取得フック・非同期) を追記 |
 | `docs/tools/todo.md` | ロードマップ項目を追記し本要件へ相互リンク |
 
@@ -192,7 +192,7 @@ chat 内コマンドなので exit code 経路は増えない。取得失敗は 
 - CLI 側の元仕様 (取得経路・url override): [046](046-meta-command.md) (`atcoder meta fetch|show|set`)
 - フック注入の前例: [026](026-chat-submit.md) (`Ctrl+S`) / [038](038-start-edit-in-editor.md) (`Ctrl+E`・`editDoneMsg` 非同期)
 - command モード基盤 / 補完: [024](024-interactive-case-builder.md) / [031](031-command-mode-completion.md)
-- 利用手引: `docs/tools/atcoder-meta-usage.md` / `docs/tools/atcoder-test-usage.md` / `docs/tools/atcoder-start-usage.md`
+- 利用手引: `docs/tools/usage/meta.md` / `docs/tools/usage/test.md` / `docs/tools/usage/start.md`
 - アーキテクチャ: `docs/tools/atcoder-test-architecture.md`
 - ロードマップ: `docs/tools/todo.md`
 </content>

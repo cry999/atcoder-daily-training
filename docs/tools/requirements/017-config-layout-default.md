@@ -133,7 +133,7 @@ test.side_by_side = false
 | `cmd/atcoder/test.go` | `layout.Parse(*layoutFlag, contest)` を `resolveLayout(*layoutFlag, contest)` に置換 |
 | `cmd/atcoder/main.go` | 変更なし (`--layout <auto\|abc\|exercise>` の syntax 表記は既に正確。専用サブコマンドは追加しない) |
 | `fixtures/run.sh` | `ATCODER_LAYOUT` unset 下で config set/get layout・不正値 (exit 2)・env/config/flag precedence smoke |
-| `docs/tools/atcoder-config-usage.md` | `layout` キーと precedence を追記 (config usage に統合) |
+| `docs/tools/usage/config.md` | `layout` キーと precedence を追記 (config usage に統合) |
 | `docs/tools/todo.md` | ロードマップに DONE 記載 |
 
 ### `internal/layout` への追加
@@ -211,4 +211,4 @@ type field struct {
 - `docs/tools/requirements/007-atcoder-config.md` (ユーザ設定ファイル `internal/config` の定義元)
 - `docs/tools/requirements/009-atcoder-config-subcommand.md` (汎用 `config` サブコマンドとキーレジストリ)
 - `docs/tools/requirements/016-config-alias.md` (将来の `config unset`)
-- `docs/tools/atcoder-config-usage.md` (利用手引)
+- `docs/tools/usage/config.md` (利用手引)

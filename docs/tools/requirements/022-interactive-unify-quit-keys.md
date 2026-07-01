@@ -72,7 +72,7 @@
 |---|---|
 | `internal/ui/chat.go` | `KeyCtrlC` と `KeyCtrlD` を同一処理 (kill+quit) に。`ctrlDAction`/`ctrlDActionFor`/`ctrlDStopAfterSession`、`quitOnChildExit` フィールド、`streamEnd` の `quitOnChildExit` 分岐を撤去。placeholder と auto-restart ヒント文言を更新 |
 | `internal/ui/chat_test.go` | `TestCtrlDActionFor` と `TestStreamEndQuitsWhenQuitOnChildExit` を撤去 (対象機構が無くなるため)。`TestStreamEndQuitsWhenNoAutoRestart` は維持 |
-| `docs/tools/atcoder-test-usage.md` | interactive 節の `Ctrl+C`/`Ctrl+D` 説明を「どちらも終了」に統一 |
+| `docs/tools/usage/test.md` | interactive 節の `Ctrl+C`/`Ctrl+D` 説明を「どちらも終了」に統一 |
 | `docs/tools/todo.md` | R の注記を「graceful 停止は廃止、両キーで即 quit」に補正、本要件へリンク |
 
 ## エラーハンドリング
@@ -102,4 +102,4 @@
 
 - `docs/tools/requirements/021-interactive-ctrl-d-quit.md` (前段: `Ctrl+D`=chat 終了)
 - `docs/tools/requirements/020-interactive-auto-restart-flag.md` (auto-restart / R)
-- `docs/tools/atcoder-test-usage.md` (interactive 利用手引)
+- `docs/tools/usage/test.md` (interactive 利用手引)

@@ -132,7 +132,7 @@ contribution graph (shade = Σ letter weight/day; a=1…g=7)
 | `internal/complete/complete.go` | `stats` のフラグ候補に `--graph` / `-g` を追加 |
 | `internal/stats/stats_test.go` | `letterWeight`/`shadeLevel`/`buildGraph` (整列・パディング・53 週上限・レベル分類) のユニットテスト |
 | `fixtures/run.sh` | `stats --graph` 系の smoke (exit 0、期間フラグ併用、排他違反 exit 2) を追加 |
-| `docs/tools/atcoder-stats-usage.md` | `--graph` の説明・出力例・レベル計算の表を追記 |
+| `docs/tools/usage/stats.md` | `--graph` の説明・出力例・レベル計算の表を追記 |
 | `docs/tools/todo.md` | 本項目を ✅ DONE で記載し本要件へリンク |
 
 ### `internal/stats` パッケージへの追加 (素描)
@@ -214,4 +214,4 @@ func buildGraph(dayScore map[time.Time]int, p Period, now time.Time) (cols []Gra
 
 - `docs/tools/requirements/005-exercise-stats.md` (stats 本体)
 - `docs/tools/decisions/0002-stats-readonly-exercise-tree.md` (読み取り専用の決定記録)
-- `docs/tools/atcoder-stats-usage.md` (利用手引)
+- `docs/tools/usage/stats.md` (利用手引)

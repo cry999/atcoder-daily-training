@@ -139,7 +139,7 @@ by day
 | 新規 `internal/stats/` | 集計ロジック (純粋関数) + テーブルレンダリング |
 | `fixtures/run.sh` | `stats` の smoke (exit 0 / 排他フラグ exit 2) を追加 |
 | `internal/stats/stats_test.go` | 集計ロジックのユニットテスト (Now 注入で決定的に) |
-| `docs/tools/atcoder-stats-usage.md` | 利用手引 (新規) |
+| `docs/tools/usage/stats.md` | 利用手引 (新規) |
 | `docs/tools/todo.md` | ロードマップに本項目を ✅ DONE で記載 |
 
 ### 新規 `internal/stats/` パッケージの責務
@@ -239,4 +239,4 @@ func Render(w io.Writer, r Report) error
 
 - `docs/tools/decisions/0002-stats-readonly-exercise-tree.md` (決定記録。完了に伴い todo.md の項目 J から移動)
 - `docs/tools/requirements/002-exercise-abc-layout.md` (`layout.Letter` 等 ID 抽出の定義元)
-- `docs/tools/atcoder-stats-usage.md` (利用手引)
+- `docs/tools/usage/stats.md` (利用手引)

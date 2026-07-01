@@ -5,7 +5,7 @@
 仕様・利用方法・内部設計は別ドキュメント:
 
 - 要件定義: [001-exercise-test.md](./requirements/001-exercise-test.md)
-- 利用手引: [atcoder-test-usage.md](./atcoder-test-usage.md)
+- 利用手引: [docs/tools/usage/test.md](usage/test.md)
 - アーキテクチャ: [atcoder-test-architecture.md](./atcoder-test-architecture.md)
 
 ## 方針

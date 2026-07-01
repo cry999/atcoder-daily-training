@@ -88,8 +88,8 @@ Result: 3/3 PASS
 | `internal/complete/complete.go` | `subcommandCands`/`subFlags`/`takesContest`/位置引数判定から `submit` を除去。`test` に `--submit`/`--no-open` を追加 |
 | `internal/complete/complete_test.go` | `submit` を含む期待値を更新 |
 | `fixtures/run.sh` | `submit` smoke を `test --submit --no-open` に変換 (pass=0 / fail=1)。`submit` 削除 (exit 2) を追加 |
-| `docs/tools/atcoder-test-usage.md` | `--submit`/`--no-open` の節を追記 |
-| `docs/tools/atcoder-completion-usage.md` | サブコマンド一覧から `submit` (および既に削除済みの `run`) を除去 |
+| `docs/tools/usage/test.md` | `--submit`/`--no-open` の節を追記 |
+| `docs/tools/usage/completion.md` | サブコマンド一覧から `submit` (および既に削除済みの `run`) を除去 |
 | 新規 `docs/tools/decisions/0006-fold-submit-into-test.md` | 決定記録 (ADR) |
 
 ### `prepareSubmission` の素描
@@ -134,4 +134,4 @@ func prepareSubmission(contest, task string, lay layout.Layout, noOpen bool) (in
 
 - [ADR 0006](../decisions/0006-fold-submit-into-test.md) (本決定)
 - [013-unify-test-run.md](./013-unify-test-run.md) / [ADR 0005](../decisions/0005-unify-test-run-into-test.md) (run を test に畳んだ前例)
-- `docs/tools/atcoder-test-usage.md` (統一後の test 利用手引)
+- `docs/tools/usage/test.md` (統一後の test 利用手引)

@@ -98,7 +98,7 @@ chat (`test --interactive` 単体 / `atcoder start` 分割画面の下ペイン)
 | `internal/ui/chat_casebuilder.go` | `updateCommand` に `tea.KeyTab` 分岐を追加 (補完を適用し候補を `m.cmdCandidates` に格納)。default (タイプ) で候補をクリア。command モードのレンダリングを `renderCommandLine()` に集約し候補行を足す |
 | `internal/ui/chat.go` | `chatModel` に `cmdCandidates []string` を追加。command モードの View (`m.cmdInput.View()`) を `m.renderCommandLine()` に差し替え |
 | `internal/ui/command_complete_test.go` (新規) | `completeCommandLine` のテーブルテスト (第 1/第 2 トークン・一意/複数/0 件・NavEnabled 出し分け・末尾空白付与・共通プレフィックス) |
-| `docs/tools/atcoder-test-usage.md` / `atcoder-start-usage.md` | コマンドモード節に「`Tab` で補完」を追記 |
+| `docs/tools/usage/test.md` / `docs/tools/usage/start.md` | コマンドモード節に「`Tab` で補完」を追記 |
 | `docs/tools/todo.md` | 該当項目に補完の節を足し、本要件へ相互リンク |
 
 ### API 素描
@@ -150,4 +150,4 @@ func completeCommandLine(line string, navEnabled bool) (replacement string, cand
 - `docs/tools/requirements/024-interactive-case-builder.md` (vim 風コマンドモードの土台・`parseCommand`)
 - `docs/tools/requirements/027-start-problem-navigation.md` (`:task`/`:contest`/`:e` と `NavEnabled`)
 - `docs/tools/decisions/0007-interactive-command-mode-trigger.md` (`Esc` トリガ・受信不能キーの罠)
-- `docs/tools/atcoder-test-usage.md` / `atcoder-start-usage.md` (利用手引・実装時に Tab 補完を追記)
+- `docs/tools/usage/test.md` / `docs/tools/usage/start.md` (利用手引・実装時に Tab 補完を追記)

@@ -82,7 +82,7 @@ mid-session で子を kill して再 spawn すると、**旧セッションの s
 | `internal/runexec/runexec.go` | `ChatHeader` に `WatchPath string` を追加。`runChatMode` で `solutionPath` をセット |
 | `cmd/atcoder/adhoc.go` | `runChat` で `runexec.ChatHeader.WatchPath` を `ui.ChatHeader.WatchPath` に渡す |
 | `internal/ui/chat_test.go` | epoch による stale メッセージ破棄、`fileChangedMsg` でのリロード経路 (注入) のユニットテスト |
-| `docs/tools/atcoder-test-usage.md` / `-architecture.md` | interactive の説明に「保存でリロードされる」旨を追記 |
+| `docs/tools/usage/test.md` / `-architecture.md` | interactive の説明に「保存でリロードされる」旨を追記 |
 | `docs/tools/todo.md` | 項目 S として記載し、本要件へ相互リンク |
 
 ### chat.go の追加点 (素描)
@@ -150,5 +150,5 @@ func (m *chatModel) pollWatchCmd() tea.Cmd
 - `docs/tools/requirements/013-unify-test-run.md` (interactive / chat TUI / spawner の導入元)
 - `docs/tools/requirements/019-interactive-output-timing.md` (出力行の経過時間表示。共存する)
 - `docs/tools/requirements/018-start-command.md` 系 (`start` の外側 watch ループ)
-- `docs/tools/atcoder-test-usage.md` / `atcoder-test-architecture.md` (interactive の手引・内部設計)
+- `docs/tools/usage/test.md` / `atcoder-test-architecture.md` (interactive の手引・内部設計)
 - `docs/tools/todo.md` (上位ロードマップ。項目 S)

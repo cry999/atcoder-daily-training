@@ -2,7 +2,7 @@
 
 `atcoder` の各サブコマンドの**利用頻度・所要時間**をローカルに記録し、`atcoder usage` で集計して見るためのコマンド。「どのコマンド/フラグが実際によく使われ、どれが使われていないか」を定量データで把握し、コマンド設計 (フラグの要否・廃止候補・既定値の見直し) に役立てるのが目的。
 
-> 要件詳細: [requirements/037-usage-telemetry.md](./requirements/037-usage-telemetry.md)
+> 要件詳細: [requirements/037-usage-telemetry.md](../requirements/037-usage-telemetry.md)
 
 ## 仕組み
 
@@ -87,5 +87,5 @@ export ATCODER_NO_USAGE=1   # 以降、利用イベントを記録しない
 
 ## 関連
 
-- [requirements/037-usage-telemetry.md](./requirements/037-usage-telemetry.md) — 要件定義
-- [atcoder-stats-usage.md](./atcoder-stats-usage.md) — 練習解答の集計 (`stats`。本コマンドとは責務が別)
+- [requirements/037-usage-telemetry.md](../requirements/037-usage-telemetry.md) — 要件定義
+- [docs/tools/usage/stats.md](stats.md) — 練習解答の集計 (`stats`。本コマンドとは責務が別)

@@ -104,7 +104,7 @@
 | `internal/ui/chat_sample_test.go` | **新規**。`normalizeSampleRef`/`resolveSampleCase`/`listSampleCases` を一時ディレクトリの `tests/`・`tests-extra/` で検証 (公式/追加の表示 ID、`1`→`01`・`x1`→`x01` 正規化、欠落時 `ok=false`、空 `.out` 許容) |
 | `internal/ui/chattest_test.go` | **新規/回帰**。`execTest` の各分岐を fake spawner で検証: 指定実行が `restart` 後に `.in` を順送し `record=false` で `sessionInputs` を汚さないこと、ライブ検証が有効化されること、引数省略で一覧 info を積むこと、未知ケース/`TaskDir` 空で子を起動しないこと |
 | `internal/ui/command_complete_test.go` | 候補一覧の期待値に `test` を反映。`:te`→`test ` (空白付き) 確定のケースを追加 |
-| `docs/tools/atcoder-test-usage.md` / `atcoder-start-usage.md` | command モードのコマンド表に `:test [case]` を追記 |
+| `docs/tools/usage/test.md` / `docs/tools/usage/start.md` | command モードのコマンド表に `:test [case]` を追記 |
 | `docs/tools/atcoder-test-architecture.md` | chat の command モード節に `:test` (サンプル実行 + ライブ検証) を追記 |
 | `docs/tools/todo.md` | ロードマップ項目 (AK) を追記し本要件へ相互リンク |
 
@@ -166,7 +166,7 @@ func normalizeSampleRef(ref string) (dir, name string)
 - command モード基盤: [024](024-interactive-case-builder.md) (ケースビルダー・ライブ検証・`tests-extra`)
 - 子リスタート + 入力順送の前例: [039](039-chat-replay-previous-session.md) (`:replay`・`submitLines(record=false)`)
 - コマンド追加の前例: [030](030-chat-debug-cheat-commands.md) / 補完: [031](031-command-mode-completion.md)
-- 利用手引: `docs/tools/atcoder-test-usage.md` / `docs/tools/atcoder-start-usage.md`
+- 利用手引: `docs/tools/usage/test.md` / `docs/tools/usage/start.md`
 - アーキテクチャ: `docs/tools/atcoder-test-architecture.md`
 - ロードマップ: `docs/tools/todo.md`
 </content>

@@ -129,7 +129,7 @@ $ atcoder update --check          # リポジトリ外で実行
 | `internal/selfupdate/selfupdate_test.go` | `LocalUpdate` / `ClassifyRemote` のユニットテストを追加 |
 | `cmd/atcoder/update.go` | `--check` 分岐を 3 基準点 + 2 判定の表示に書き換え。`describeLocal` ヘルパ追加。`--local` / 既定 `update` の分岐は不変 |
 | `fixtures/run.sh` | 既存の `update --check (proxy off → exit 1)` がローカル判定経路も通る (exit 1 のまま)。追加 fixture は不要 |
-| `docs/tools/atcoder-update-usage.md` | `--check` の新しい出力 (installed/local/remote + 2 判定) を反映 |
+| `docs/tools/usage/update.md` | `--check` の新しい出力 (installed/local/remote + 2 判定) を反映 |
 | `docs/tools/requirements/050-atcoder-self-update.md` | 本要件への相互リンクを追記 |
 | `docs/tools/todo.md` | 項目を本要件にリンク |
 
@@ -198,5 +198,5 @@ func ClassifyRemote(cur Current, latest Latest) RemoteState
 ## 関連ドキュメント
 
 - `docs/tools/requirements/050-atcoder-self-update.md` — 親要件 (`update`/`version` 本体)
-- `docs/tools/atcoder-update-usage.md` — 利用手引 (本要件で `--check` 出力を更新)
+- `docs/tools/usage/update.md` — 利用手引 (本要件で `--check` 出力を更新)
 - `docs/tools/todo.md` — 上位ロードマップ

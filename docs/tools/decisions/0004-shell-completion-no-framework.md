@@ -3,7 +3,7 @@
 - ステータス: Accepted
 - 日付: 2026-06-09
 - 実装: `8118b4d` (`feat(completion): add atcoder completion <shell> with dynamic completion`)
-- 関連: [requirements/008-atcoder-completion.md](../requirements/008-atcoder-completion.md) / [atcoder-completion-usage.md](../atcoder-completion-usage.md)
+- 関連: [requirements/008-atcoder-completion.md](../requirements/008-atcoder-completion.md) / [docs/tools/usage/completion.md](../usage/completion.md)
 - 後続: [requirements/012-completion-descriptions.md](../requirements/012-completion-descriptions.md) (候補に説明文を付与し zsh/fish で表示)
 
 ## コンテキスト

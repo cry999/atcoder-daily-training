@@ -3,7 +3,7 @@
 - ステータス: Accepted
 - 日付: 2026-06-09
 - 実装: `1105a67` (`feat(test): add --watch mode to re-run on solution file changes`)
-- 関連: [requirements/004-exercise-test-watch.md](../requirements/004-exercise-test-watch.md) / [atcoder-test-usage.md](../atcoder-test-usage.md) の watch 節
+- 関連: [requirements/004-exercise-test-watch.md](../requirements/004-exercise-test-watch.md) / [docs/tools/usage/test.md](../usage/test.md) の watch 節
 
 ## コンテキスト
 

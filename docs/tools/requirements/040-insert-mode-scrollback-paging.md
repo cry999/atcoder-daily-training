@@ -64,7 +64,7 @@ chat の **insert モード (通常のチャット入力時)** でも、`PageUp`
 | `internal/ui/chat.go` | `cmdScrolled` → `scrolled` に改名 (宣言・`refreshViewport` の参照)。`scrollUp()`/`scrollDown()` ヘルパ追加。insert ハンドラに `KeyPgUp`/`KeyCtrlB`→`scrollUp`、`KeyPgDown`/`KeyCtrlF`→`scrollDown` を追加。`submitLines`・`restart` で `scrolled = false` |
 | `internal/ui/chat_casebuilder.go` | command モードの `KeyPgUp`/`KeyPgDown` を `scrollUp`/`scrollDown` 呼び出しに置換 (挙動不変)。`cmdScrolled` 参照を `scrolled` に改名 |
 | `internal/ui/chatscroll_test.go` | `cmdScrolled` → `scrolled` に追従。insert モードで `PageUp`/`Ctrl+B` がスクロールし出力で引き戻さない・`PageDown`/`Ctrl+F` で追従再開・`Enter` 送信で最下部復帰、を固定。command モードの既存テストは挙動不変のまま維持 |
-| `docs/tools/atcoder-start-usage.md` | チャットキーの説明に insert モードのスクロール (`PageUp`/`PageDown`/`Ctrl+B`/`Ctrl+F`) を追記。command モード限定の記述を更新 |
+| `docs/tools/usage/start.md` | チャットキーの説明に insert モードのスクロール (`PageUp`/`PageDown`/`Ctrl+B`/`Ctrl+F`) を追記。command モード限定の記述を更新 |
 | `docs/tools/todo.md` | 本項目を追加し ✅ DONE。033 と相互リンク |
 
 ## エラーハンドリング
@@ -96,4 +96,4 @@ chat の **insert モード (通常のチャット入力時)** でも、`PageUp`
 
 - `docs/tools/requirements/033-command-mode-scrollback-paging.md` (command モードのスクロール。本件はその insert 版・機構を共有)
 - `docs/tools/requirements/051-interactive-ctrl-d-reset-then-quit.md` (insert モードのキー割当の前例)
-- `docs/tools/atcoder-start-usage.md` (チャットキーの説明の更新先)
+- `docs/tools/usage/start.md` (チャットキーの説明の更新先)

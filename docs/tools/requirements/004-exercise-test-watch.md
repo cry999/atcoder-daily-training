@@ -114,7 +114,7 @@ watching abc/457/d.py — save to re-run, Ctrl+C to quit
 | 新規 `internal/watch/` | 単一ファイルの mtime ポーリング監視。`Ctrl+C` (context) で抜けられる `WaitForChange` を提供 |
 | `internal/ui/` | 画面クリア・watch ヘッダ / フッタの描画ヘルパーを追加 (既存 style に合わせる) |
 | `fixtures/run.sh` | 非 TTY での `--watch` 拒否 (exit 2) を smoke。watch ループ自体はブロックするため fixture では回さない (下記) |
-| `docs/tools/atcoder-test-usage.md` | `--watch` の説明・サンプル出力を追記 |
+| `docs/tools/usage/test.md` | `--watch` の説明・サンプル出力を追記 |
 | `docs/tools/atcoder-test-architecture.md` | watch ループと `internal/watch` の位置づけを追記 |
 | `docs/tools/todo.md` | 「I. `test` watch モード」を `✅ DONE` でマーク |
 
@@ -177,5 +177,5 @@ func (w *Watcher) WaitForChange(ctx context.Context) bool
 
 - `docs/tools/decisions/0001-test-watch-mtime-polling.md` (決定記録。完了に伴い todo.md の「I. `test` watch モード」から移動)
 - `docs/tools/requirements/001-exercise-test.md` (test サブコマンドの基盤要件)
-- `docs/tools/atcoder-test-usage.md` (利用手引。`--watch` を追記)
+- `docs/tools/usage/test.md` (利用手引。`--watch` を追記)
 - `docs/tools/atcoder-test-architecture.md` (内部設計。watch ループの位置づけを追記)

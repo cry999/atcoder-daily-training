@@ -309,4 +309,4 @@ func Save(path string, r *Raw) error
 - fetch / cache / meta の基盤: [要件 001](001-exercise-test.md) / [要件 046](046-meta-command.md)
 - chat command モードと非同期 fetch: [ADR 0007](../decisions/0007-interactive-command-mode-trigger.md) / [要件 057](057-chat-meta-fetch.md)
 - ロードマップ: [`todo.md`](../todo.md) の **AU. 制約・入力形式からのランダム入力生成**
-- 利用手引: `docs/tools/atcoder-gen-usage.md` (実装時に新規作成 — feature フェーズ)
+- 利用手引: `docs/tools/usage/gen.md` (実装時に新規作成 — feature フェーズ)

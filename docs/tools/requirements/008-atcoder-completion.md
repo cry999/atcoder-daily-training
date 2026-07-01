@@ -125,7 +125,7 @@ $ atcoder test abc457 --task <Tab># → a b c d e f g
 | 新規 `internal/complete/` | 候補列挙ロジックを集約 (`cmd` から分離してテスト可能に)。サブコマンド表・フラグ表・contest/task 列挙・`Complete` 本体 |
 | `internal/complete/complete_test.go` | `Complete` のトークン列 → 候補のテーブルテスト (cwd を一時 dir に差し替えて contest 列挙を検証) |
 | `fixtures/run.sh` | `completion bash\|zsh\|fish` が exit 0、未対応シェル/欠落が exit 2、`__complete` がサブコマンド/contest 候補を返す smoke を追加 |
-| `docs/tools/atcoder-completion-usage.md` | 利用手引 (3 シェルのインストール手順 + 補完対象の一覧) |
+| `docs/tools/usage/completion.md` | 利用手引 (3 シェルのインストール手順 + 補完対象の一覧) |
 | `docs/tools/todo.md` | 項目 L として追記し、本要件へ相互リンク |
 
 ### 新規 `internal/complete/` パッケージの責務
@@ -195,4 +195,4 @@ func Complete(root string, words []string) []string
 - `docs/tools/requirements/006-rename-cli-to-atcoder.md` (CLI 名 `atcoder` 化)
 - `docs/tools/decisions/0004-shell-completion-no-framework.md` (決定記録。完了に伴い todo.md の項目 L から移動)
 - `docs/tools/atcoder-test-testing.md` (fixture 追加手順)
-- `docs/tools/atcoder-completion-usage.md` (利用手引。本機能で新設)
+- `docs/tools/usage/completion.md` (利用手引。本機能で新設)

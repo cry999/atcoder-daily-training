@@ -86,7 +86,7 @@ created: abc/457/d.py
 | `internal/complete/complete.go` | `subcommandCands` に `start`、`subFlags["start"]`、`takesContest`・位置引数判定に `start` を追加 |
 | `internal/complete/complete_test.go` | start の期待値を追加 |
 | `fixtures/run.sh` | start のスケルトン生成 + 非 TTY 拒否 (exit 2)・`--task` 欠落 (exit 2) の smoke |
-| `docs/tools/atcoder-start-usage.md` | 利用手引 (新規) |
+| `docs/tools/usage/start.md` | 利用手引 (新規) |
 | `docs/tools/todo.md` | ロードマップ P に記載 |
 
 ### ヘルパの素描
@@ -136,4 +136,4 @@ func runTestWatch(contest, task string, lay layout.Layout, refresh bool, buildOp
 - `docs/tools/requirements/004-exercise-test-watch.md` (watch モード)
 - `docs/tools/requirements/002-exercise-abc-layout.md` / `017-config-layout-default.md` (レイアウト解決)
 - `docs/tools/requirements/003-exercise-abc-contest-meta.md` (スケルトン生成方針)
-- `docs/tools/atcoder-start-usage.md` (利用手引)
+- `docs/tools/usage/start.md` (利用手引)

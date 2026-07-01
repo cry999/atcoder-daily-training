@@ -74,7 +74,7 @@ insert モードは `Enter` 送信・`↑`/`↓` 入力履歴・`Ctrl+C`/`Ctrl+D
 | `internal/ui/chat.go` | `chatModel` に `scrolled bool` を追加。`refreshViewport` の末尾 `GotoBottom()` を「`scrolled` 中は `YOffset` 保存→復元、それ以外は `GotoBottom`」に変更 |
 | `internal/ui/chat_casebuilder.go` | `updateCommand` に `PageUp`/`PageDown` の case を追加 (`ViewUp`/`ViewDown` + `scrolled` 更新)。`Esc` case で `scrolled=false` + `GotoBottom`。`execCommand` 先頭で `scrolled=false` (末尾 refresh が最下部に戻す) |
 | `internal/ui/chatscroll_test.go` (新規) | command モードで `PageUp` が `YOffset` を上げる・`scrolled` が立つ、`refreshViewport` がスクロール中は最下部に引き戻さない、`PageDown` で最下部に戻ると追従再開、`Esc` で最下部に戻る、を viewport offset で固定 |
-| `docs/tools/atcoder-test-usage.md` | command モード節に `PageUp`/`PageDown` でのページ移動を追記 |
+| `docs/tools/usage/test.md` | command モード節に `PageUp`/`PageDown` でのページ移動を追記 |
 | `docs/tools/todo.md` | 本項目を追加し ✅ DONE。要件 024 と相互リンク |
 
 ### 状態フィールド (`internal/ui/chat.go`)
@@ -127,4 +127,4 @@ if m.scrolled {
 
 - `docs/tools/requirements/024-interactive-case-builder.md` (command モードの導入。本機能はそのモード中のキーを増やす)
 - `docs/tools/requirements/031-*` (command モードの Tab 補完。同じ `updateCommand` を触る)
-- `docs/tools/atcoder-test-usage.md` (command モードのキー説明の更新先)
+- `docs/tools/usage/test.md` (command モードのキー説明の更新先)

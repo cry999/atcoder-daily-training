@@ -136,7 +136,7 @@ unset alias.upd-lo  (/Users/.../config.toml)
 | `internal/alias/alias_test.go` | 展開・連結・再帰・ループ検出・組み込み優先のユニットテスト |
 | `internal/config/keys_test.go` | `alias.*` の set/get/unset・名前バリデーションのテスト |
 | `fixtures/run.sh` | alias の set→展開実行、unset、不正名 (exit 2)、組み込み優先、ループ (exit 2) を smoke |
-| `docs/tools/atcoder-config-usage.md` | 利用手引 (新規。config 全般 + alias + unset) |
+| `docs/tools/usage/config.md` | 利用手引 (新規。config 全般 + alias + unset) |
 | `docs/tools/todo.md` | 項目 N として記載し、本要件へ相互リンク |
 
 ### 新規 `internal/alias` パッケージの責務 (素描)
@@ -219,5 +219,5 @@ func Unset(key string) error
 - `docs/tools/requirements/007-atcoder-config.md` / `docs/tools/decisions/0003-user-config-xdg-toml.md` (config の基盤・XDG/TOML)
 - `docs/tools/requirements/008-atcoder-completion.md` / `012-completion-descriptions.md` (alias を補完候補に足す)
 - `docs/tools/requirements/050-atcoder-self-update.md` (alias の主目的の 1 つ `update --local`)
-- `docs/tools/atcoder-config-usage.md` (利用手引。本機能で新設)
+- `docs/tools/usage/config.md` (利用手引。本機能で新設)
 - `docs/tools/todo.md` (上位ロードマップ。項目 N)

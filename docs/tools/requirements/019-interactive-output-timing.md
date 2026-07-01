@@ -91,7 +91,7 @@ $ atcoder test ahc_interactive --task a --interactive
 |---|---|
 | `internal/ui/chat.go` | `chatLineMsg` に受信時刻 `at` を追加 (`readLineCmd` で `time.Now()` を記録)。`chatModel` に `lastEventAt` を追加。`chatLine` に経過 `dur` (と有無フラグ) を追加。Update の入力送信時・出力受信時に `lastEventAt` を更新し出力行に `dur` を載せる。`refreshViewport` で出力行の頭に dim な経過を描画。restart / 初期化で `lastEventAt` をリセット。書式化 `formatDur` と dim スタイル `chatTimeStyle` を追加 |
 | 新規 `internal/ui/chat_test.go` | `formatDur` の書式テスト、経過算出 (注入時刻) の単体テスト |
-| `docs/tools/atcoder-test-usage.md` | interactive モードの説明に「出力行に経過時間が出る」旨を追記 |
+| `docs/tools/usage/test.md` | interactive モードの説明に「出力行に経過時間が出る」旨を追記 |
 | `docs/tools/atcoder-test-architecture.md` | chat TUI のイベント/時刻追跡の記述を追記 |
 | `docs/tools/todo.md` | 項目 Q として記載し、本要件へ相互リンク |
 
@@ -155,5 +155,5 @@ func formatDur(d time.Duration) string
 ## 関連ドキュメント
 
 - `docs/tools/requirements/013-unify-test-run.md` (interactive モード = `--interactive` の導入元)
-- `docs/tools/atcoder-test-usage.md` / `atcoder-test-architecture.md` (interactive の利用手引・内部設計)
+- `docs/tools/usage/test.md` / `atcoder-test-architecture.md` (interactive の利用手引・内部設計)
 - `docs/tools/todo.md` (上位ロードマップ。項目 Q)

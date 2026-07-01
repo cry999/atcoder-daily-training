@@ -3,7 +3,7 @@
 - ステータス: Accepted
 - 日付: 2026-06-09
 - 実装: `8108a82` (`feat(test): apply diff side-by-side default from a user config file`)
-- 関連: [requirements/007-atcoder-config.md](../requirements/007-atcoder-config.md) / [atcoder-test-usage.md](../atcoder-test-usage.md) の設定ファイル節
+- 関連: [requirements/007-atcoder-config.md](../requirements/007-atcoder-config.md) / [docs/tools/usage/test.md](../usage/test.md) の設定ファイル節
 
 ## コンテキスト
 

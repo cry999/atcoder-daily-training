@@ -88,7 +88,7 @@ watch  exercise/2026/06/11/abc999_a.py  [debug]
 | `cmd/atcoder/start.go` | `runSamples` を `func(debug bool) ui.SampleSummary` に変更し、`buildOpts` の `Debug` を引数 `debug` から取る（`c.debug` の焼き付けをやめる）。`StartTarget.RunSamples` への代入もシグネチャ更新 |
 | `internal/ui/startsplit_test.go` | `DebugMsg` で `m.debug` が変わり再判定が起きる（epoch 進行・新 Debug で `runSamples` が呼ばれる）テスト、`renderWatchPane` のバッジ表示テストを追加。`RunSamples` のシグネチャ変更に伴う既存テストの更新 |
 | `internal/ui/chat_casebuilder_test.go` | `setDebug`/`toggleDebug`/`applySet` が `DebugMsg` を発火する Cmd を返すテストを追加・更新 |
-| `docs/tools/atcoder-start-usage.md` | watch ペインの説明に「chat の `:debug` が watch 判定にも反映される・`[debug]` バッジ」を追記 |
+| `docs/tools/usage/start.md` | watch ペインの説明に「chat の `:debug` が watch 判定にも反映される・`[debug]` バッジ」を追記 |
 | `docs/tools/requirements/030-chat-debug-cheat-commands.md` | `:debug` が watch ペインにも波及する旨を追記（本要件へ相互リンク） |
 | `docs/tools/todo.md` | 本項目を記載し本要件へ相互リンク |
 
@@ -146,5 +146,5 @@ type StartTarget struct {
 
 - `:debug` コマンドの定義元：[030](030-chat-debug-cheat-commands.md)
 - watch ペイン per-case verdict：[028](028-start-watch-per-case.md) / 分割画面：[023](023-start-split-screen.md) / 親通知パターン：[027](027-start-problem-navigation.md)
-- 利用手引：`docs/tools/atcoder-start-usage.md`
+- 利用手引：`docs/tools/usage/start.md`
 - ロードマップ：`docs/tools/todo.md`
