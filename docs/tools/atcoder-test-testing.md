@@ -87,9 +87,20 @@
 
 `meta.toml` の `url` は空文字でよい (フィクスチャは AtCoder にアクセスしない)。
 
+## fetch (HTTP 取得) のオフラインテスト
+
+サンプル・時間制限・コンテストメタの取得 (`internal/testexec/fetch.go` の `fetchProblem`、`internal/contestmeta/fetch.go` の `Fetch` / `fetchDoc`) は実 AtCoder を叩くコードなので、スモークテスト (`fixtures/run.sh`) では回さない。代わりに **実ページ相当の HTML を `testdata/` に保存し、`httptest.Server` から配って** 取得〜HTML 解析の結線をユニットテストで固定する。実ネットワークには一切触れない。
+
+- `internal/testexec/testdata/problem_abc457_a.html` — 問題ページ。`fetch_network_test.go` が `fetchProblem` に食わせ、`?lang=ja` 付与・HTTP ステータス判定・時間制限/サンプル/入力形式/制約の抽出を検証する。
+- `internal/contestmeta/testdata/contest_top.html` / `contest_tasks.html` — コンテストトップ + タスク一覧。`fetch_test.go` が `baseURL` を httptest サーバへ向け替えて `Fetch` を丸ごと検証する (タイトル・タスク列・開始/終了時刻・所要時間、および空タスク/非 200 のエラー化)。
+
+`fetchProblem` / `fetchDoc` は URL を引数で受け取るため直接 httptest に向けられる。`contestmeta.Fetch` だけは取得元オリジンをハードコードしていたので、テストが差し替えられるよう `var baseURL` の seam を 1 つ設けている (本番は AtCoder 固定)。解析ロジック単体 (`extractSamples` 等) のテストは従来どおり in-memory HTML で継続する。
+
+AtCoder の DOM が変わって testdata が古くなったら、実ページを 1 度取得して該当 HTML を差し替える (以後は再びオフライン)。
+
 ## 制約と非対象
 
 - 表示の見た目 (色や配置) はスモークテストで検証できない。`CLICOLOR_FORCE=1` で手動目視を推奨。
 - `atcoder test --interactive` の **chat TUI** は TTY を要するため `fixtures/run.sh` ではカバーされない (スクリプト内の interactive ケースは非TTY passthrough のみ試験する)。手動確認は端末から `atcoder test fixture --task interactive --interactive` を直接叩く。
-- 並列実行や HTTP fetch の挙動は対象外 (fixtures は事前生成済みのキャッシュを使う想定)。
+- スモークテスト (`fixtures/run.sh`) は事前生成済みキャッシュを使い、HTTP fetch は踏まない。fetch そのものは上記「fetch (HTTP 取得) のオフラインテスト」で `httptest` + `testdata` により別途固定する。並列実行の挙動は対象外。
 - Python 以外の言語の Runner はまだ存在しないので未対象。追加されたら言語ごとの fixture を増やす。

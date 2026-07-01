@@ -13,6 +13,10 @@ import (
 
 const userAgent = "atcoder-test/0.1 (+https://github.com/cry999/atcoder-daily-training)"
 
+// baseURL は取得元オリジン。本番は AtCoder 固定だが、テストが httptest サーバへ
+// 向け替えできるよう変数にしている (実ネットワークを踏まずに Fetch を結線検証する)。
+var baseURL = "https://atcoder.jp"
+
 // fixtime のフォーマット例: "2024-06-15 21:00:00+0900"
 const fixtimeLayout = "2006-01-02 15:04:05-0700"
 
@@ -20,7 +24,7 @@ const fixtimeLayout = "2006-01-02 15:04:05-0700"
 // 開始 / 終了時刻が取れなくても、タスクリストが取れていれば成功扱いとする
 // (時刻はゼロ値のまま。サンプル取得を妨げないための割り切り)。
 func Fetch(contest string) (*Meta, error) {
-	base := "https://atcoder.jp/contests/" + contest
+	base := baseURL + "/contests/" + contest
 
 	topDoc, err := fetchDoc(base)
 	if err != nil {
