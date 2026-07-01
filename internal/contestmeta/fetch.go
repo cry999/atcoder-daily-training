@@ -116,6 +116,14 @@ func parseFixtime(s string) time.Time {
 	return t
 }
 
+// ExtractTaskIDs は /contests/<contest>/tasks ページの DOM から task ID を出現順
+// (= letter 順) に集める公開ラッパー。testexec が URL 解決のフォールバック
+// (要件 065) でタスク一覧ページを自前で fetch し、そのパースにこれを再利用する
+// (一覧ページのリンク書式を 1 箇所に集約するため)。
+func ExtractTaskIDs(doc *html.Node, contest string) []string {
+	return extractTasks(doc, contest)
+}
+
 // extractTasks は /contests/<contest>/tasks ページから task ID を出現順に集める。
 // 各タスク行には同じ task への <a> が複数あるため、重複は除いて順序を保つ。
 func extractTasks(doc *html.Node, contest string) []string {

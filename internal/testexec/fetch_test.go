@@ -25,6 +25,32 @@ func TestResolveFetchURL(t *testing.T) {
 	}
 }
 
+// letterIndex は <contest>_<letter> の末尾 letter を 0 始まりの序数に直す。
+// 一覧ページ解決 (要件 065) で letter → 出現順 index の対応に使うため、
+// 単一英小文字だけを受け付け、それ以外は解決を諦める (ok=false) ことを固定する。
+func TestLetterIndex(t *testing.T) {
+	cases := []struct {
+		task    string
+		wantIdx int
+		wantOK  bool
+	}{
+		{"abc111_a", 0, true},
+		{"abc111_d", 3, true},
+		{"abc457_h", 7, true},
+		{"arc103_b", 1, true},
+		{"abc111_ex", 0, false}, // 複数文字の letter は非対応
+		{"abc111_A", 0, false},  // 大文字は非対応
+		{"abc111_1", 0, false},  // 数字は非対応
+		{"abc111", 0, false},    // アンダースコア無し
+	}
+	for _, c := range cases {
+		idx, ok := letterIndex(c.task)
+		if ok != c.wantOK || (ok && idx != c.wantIdx) {
+			t.Errorf("letterIndex(%q) = (%d, %v), want (%d, %v)", c.task, idx, ok, c.wantIdx, c.wantOK)
+		}
+	}
+}
+
 // extractSamples が末尾の空行 (有意な空入力行) を保持することを確認する。
 // abc185_d の入力例 4 (`1 0` の後に空の A 行) のように、空行を落とすと
 // 解答側の input() が EOF エラーになるため、pre の内容をそのまま残す必要がある。

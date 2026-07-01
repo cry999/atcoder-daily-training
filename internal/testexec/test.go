@@ -236,10 +236,9 @@ func ensureTests(reporter Reporter, contest, task, taskDir, testsDir, metaPath s
 	if m, err := loadMeta(metaPath); err == nil {
 		override = m.URL
 	}
-	url := resolveFetchURL(contest, task, override)
 
 	reporter.Fetching(contest, task)
-	prob, err := fetchProblem(url)
+	prob, err := resolveAndFetch(contest, task, override)
 	if err != nil {
 		return nil, false, fmt.Errorf("AtCoder から取得できませんでした: %w", err)
 	}

@@ -1,6 +1,7 @@
 package testexec
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -8,8 +9,13 @@ import (
 	"strings"
 
 	"github.com/antchfx/htmlquery"
+	"github.com/cry999/atcoder-daily-training/internal/contestmeta"
 	"golang.org/x/net/html"
 )
+
+// baseURL は取得元オリジン。本番は AtCoder 固定だが、テストが httptest サーバへ
+// 向け替えできるよう変数にしている (実ネットワークを踏まずに fetch を結線検証する)。
+var baseURL = "https://atcoder.jp"
 
 type sample struct {
 	Input  string
@@ -31,7 +37,7 @@ type problem struct {
 // contest と食い違う問題 (例: abc111 の D = arc103_b) では URL を導出できないので、
 // その場合は meta.toml の url override (`atcoder meta set --url`) を使う。
 func DefaultTaskURL(contest, task string) string {
-	return fmt.Sprintf("https://atcoder.jp/contests/%s/tasks/%s", contest, task)
+	return fmt.Sprintf("%s/contests/%s/tasks/%s", baseURL, contest, task)
 }
 
 // resolveFetchURL は取得元 URL を決める。override (meta.toml の url) が空でなければ
@@ -41,6 +47,104 @@ func resolveFetchURL(contest, task, override string) string {
 		return override
 	}
 	return DefaultTaskURL(contest, task)
+}
+
+// httpStatusError は fetch 先が 200 以外を返したことを表す型付きエラー。
+// 呼び出し側 (resolveAndFetch) が 404 を識別してフォールバックを起動するために使う。
+type httpStatusError struct {
+	Code int
+	URL  string
+}
+
+func (e *httpStatusError) Error() string {
+	return fmt.Sprintf("HTTP %d for %s", e.Code, e.URL)
+}
+
+// resolveAndFetch は override → 機械生成 URL → (404 なら) タスク一覧ページ解決、の順で
+// 問題ページを取得する (要件 065)。override があればそれを尊重し、無い場合に機械生成
+// URL が 404 のときだけ一覧ページから実 task_id を解決して再取得する。返す
+// problem.URL は実際に取得できた URL なので、呼び出し側はそれを meta.toml に記録すれば
+// 次回以降は override 経路で直行できる。
+func resolveAndFetch(contest, task, override string) (*problem, error) {
+	url := resolveFetchURL(contest, task, override)
+	prob, err := fetchProblem(url)
+	if err == nil {
+		return prob, nil
+	}
+	// override があるとき (人が明示した URL) や 404 以外は、そのままエラーを返す。
+	var se *httpStatusError
+	if override != "" || !errors.As(err, &se) || se.Code != http.StatusNotFound {
+		return nil, err
+	}
+	// 機械生成 URL が 404。task_id が contest と食い違う共催問題の可能性が高いので、
+	// タスク一覧ページから該当 letter の実 task_id を引いて再取得する。解決できなければ
+	// 元の 404 を覆い隠さずそのまま返す。
+	realURL, ok := resolveURLFromTasksList(contest, task)
+	if !ok {
+		return nil, err
+	}
+	return fetchProblem(realURL)
+}
+
+// resolveURLFromTasksList は task (= <contest>_<letter>) の letter 位置を使って
+// タスク一覧ページから実 task_id を引き、その URL を返す。解決できなければ ok=false。
+func resolveURLFromTasksList(contest, task string) (string, bool) {
+	idx, ok := letterIndex(task)
+	if !ok {
+		return "", false
+	}
+	tasks, err := fetchTaskIDs(contest)
+	if err != nil || idx >= len(tasks) {
+		return "", false
+	}
+	real := tasks[idx]
+	// 推定 task_id と同じなら別 URL にならない (既に 404 だった)。解決失敗扱い。
+	if real == task {
+		return "", false
+	}
+	return DefaultTaskURL(contest, real), true
+}
+
+// fetchTaskIDs はタスク一覧ページ (/contests/<contest>/tasks) を取得し、出現順
+// (= letter 順) の task_id 配列を返す。取得は testexec の baseURL を使う (fetchProblem
+// と同じオリジンなので httptest で一括して差し替えられる)。パースは一覧ページの
+// リンク書式を集約している contestmeta.ExtractTaskIDs に委譲する。
+func fetchTaskIDs(contest string) ([]string, error) {
+	url := baseURL + "/contests/" + contest + "/tasks"
+	req, err := http.NewRequest("GET", url+"?lang=ja", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept-Language", "ja,en-US;q=0.9,en;q=0.8")
+	req.Header.Set("User-Agent", "atcoder-test/0.1 (+https://github.com/cry999/atcoder-daily-training)")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, &httpStatusError{Code: resp.StatusCode, URL: url}
+	}
+	doc, err := htmlquery.Parse(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	return contestmeta.ExtractTaskIDs(doc, contest), nil
+}
+
+// letterIndex は <contest>_<letter> 形式の末尾 letter を 0 始まりの序数に変換する。
+// letter が単一の英小文字 (a–z) でなければ ok=false (index 解決を諦める)。
+func letterIndex(task string) (int, bool) {
+	i := strings.LastIndex(task, "_")
+	if i < 0 {
+		return 0, false
+	}
+	letter := task[i+1:]
+	if len(letter) != 1 || letter[0] < 'a' || letter[0] > 'z' {
+		return 0, false
+	}
+	return int(letter[0] - 'a'), true
 }
 
 func fetchProblem(url string) (*problem, error) {
@@ -58,7 +162,7 @@ func fetchProblem(url string) (*problem, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("HTTP %d for %s", resp.StatusCode, url)
+		return nil, &httpStatusError{Code: resp.StatusCode, URL: url}
 	}
 
 	doc, err := htmlquery.Parse(resp.Body)
