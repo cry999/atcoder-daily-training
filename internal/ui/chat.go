@@ -274,6 +274,9 @@ type chatModel struct {
 	awaitSince    time.Time      // 待機開始時刻 (経過時間の基準)
 	spinnerFrame  int            // スピナーのコマ index
 	spinGen       int            // スピナー tick の世代。Enter/restart で更新し旧 tick を無効化
+	recording     bool           // :record start 中 (:record stop で解除)。ヘッダに ● REC + 経過を出す (要件 064)
+	recordStart   time.Time      // 記録開始時刻 (ヘッダ経過時間の基準)
+	recordGen     int            // record tick の世代。start/stop で更新し旧 tick を無効化 (spinGen と同型)
 	width         int
 	height        int
 	ready         bool
@@ -361,6 +364,18 @@ func (m *chatModel) pollWatchCmd() tea.Cmd {
 func (m *chatModel) spinnerTickCmd() tea.Cmd {
 	gen := m.spinGen
 	return tea.Tick(spinnerInterval, func(time.Time) tea.Msg { return spinnerTickMsg{gen: gen} })
+}
+
+// recordTickInterval は :record 中のヘッダ経過時間の更新間隔 (1 秒)。
+const recordTickInterval = time.Second
+
+// recordTickMsg は :record 中のヘッダ経過時間表示の tick。gen が現行 recordGen と不一致なら破棄。
+type recordTickMsg struct{ gen int }
+
+// recordTickCmd は recordTickInterval 後に世代タグ付きの recordTickMsg を返す tea.Cmd。
+func (m *chatModel) recordTickCmd() tea.Cmd {
+	gen := m.recordGen
+	return tea.Tick(recordTickInterval, func(time.Time) tea.Msg { return recordTickMsg{gen: gen} })
 }
 
 // startAwaiting は出力待ちを開始し、スピナー tick を 1 本起動する Cmd を返す。
@@ -815,6 +830,14 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.refreshViewport() // 最後尾のスピナー行をアニメ更新
 		return m, m.spinnerTickCmd()
 
+	case recordTickMsg:
+		if msg.gen != m.recordGen || !m.recording {
+			break // 古い世代 or 記録停止済み → 止める (再アームしない)
+		}
+		// ヘッダの ● REC 経過表示を毎秒更新する。ヘッダは viewport 外なので
+		// refreshViewport は不要 — Update 後に View が呼ばれて再計算される。
+		return m, m.recordTickCmd()
+
 	case streamEndMsg:
 		if msg.epoch != m.sessionN {
 			break // リロードで kill した旧セッションの stream 終了 → 破棄
@@ -908,7 +931,32 @@ func (m *chatModel) renderHeader() string {
 		keyStyle.Render("time_limit=") + valueStyle.Render(fmt.Sprintf("%dms", m.header.TimeLimitMs)),
 		infoStyle.Render("(interactive)"),
 	}
+	// :record start 中は記録マーカー "● REC mm:ss" をヘッダ末尾に赤で出す (要件 064)。
+	// 経過は recordTickCmd の毎秒 tick で再描画される。
+	if m.recording {
+		parts = append(parts, recordIndicator(time.Since(m.recordStart)))
+	}
 	return strings.Join(parts, "  ")
+}
+
+// recordIndicator は :record 中に出す記録マーカー "● REC mm:ss" を返す (赤 = mochaRed)。
+func recordIndicator(elapsed time.Duration) string {
+	return chatRecordStyle.Render("● REC " + formatRecElapsed(elapsed))
+}
+
+// formatRecElapsed は記録経過を mm:ss (1 時間以上は h:mm:ss) に整形する純粋関数。
+func formatRecElapsed(d time.Duration) string {
+	if d < 0 {
+		d = 0
+	}
+	total := int(d / time.Second)
+	h := total / 3600
+	m := (total % 3600) / 60
+	s := total % 60
+	if h > 0 {
+		return fmt.Sprintf("%d:%02d:%02d", h, m, s)
+	}
+	return fmt.Sprintf("%02d:%02d", m, s)
 }
 
 func (m *chatModel) renderInputLine() string {
@@ -1254,6 +1302,8 @@ var (
 	chatWrapStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay0))
 	// 出力待ちスピナー + 経過時間。注意を引きつつ主張しすぎない sapphire 系。
 	chatWaitStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaSapphire))
+	// :record 中の記録マーカー (● REC 経過)。「録画中」を示す赤で bold (要件 064)。
+	chatRecordStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaRed)).Bold(true)
 	// scrollback 右端のスクロールバー (要件 056)。track はレールなので最も dim な
 	// surface1、thumb は現在地なので一段明るい overlay1 にして本文を邪魔しない。
 	chatScrollTrackStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaSurface1))

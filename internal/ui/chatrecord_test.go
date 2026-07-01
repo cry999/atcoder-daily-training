@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 // :record は parseCommand で name="record" になり、サブコマンド + フラグは arg に載る (要件 064)。
@@ -96,5 +97,84 @@ func TestExecRecordUnavailable(t *testing.T) {
 
 	if last := m.msgs[len(m.msgs)-1]; last.kind != kindInfo || !strings.Contains(last.text, "使えません") {
 		t.Fatalf("text=%q", last.text)
+	}
+}
+
+// formatRecElapsed は経過を mm:ss (1h 以上は h:mm:ss)、負値は 00:00 に整形する。
+func TestFormatRecElapsed(t *testing.T) {
+	cases := []struct {
+		d    time.Duration
+		want string
+	}{
+		{-5 * time.Second, "00:00"},
+		{0, "00:00"},
+		{9 * time.Second, "00:09"},
+		{75 * time.Second, "01:15"},
+		{59*time.Minute + 59*time.Second, "59:59"},
+		{time.Hour + 2*time.Minute + 3*time.Second, "1:02:03"},
+	}
+	for _, c := range cases {
+		if got := formatRecElapsed(c.d); got != c.want {
+			t.Errorf("formatRecElapsed(%v) = %q, want %q", c.d, got, c.want)
+		}
+	}
+}
+
+// :record start で記録インジケーターが点灯し (ヘッダに ● REC が出る)、tick Cmd を返す。
+// :record stop で消灯し、以降ヘッダにマーカーが出ない。
+func TestExecRecordTogglesIndicator(t *testing.T) {
+	m := &chatModel{header: ChatHeader{
+		Task: "d.py", Contest: "abc457", TimeLimitMs: 2000,
+		Record: func([]string) ([]string, error) { return []string{"計測を開始しました: abc/457/d.py"}, nil },
+	}}
+
+	// start: recording が立ち、tick Cmd が返り、ヘッダにマーカーが出る。
+	cmd := m.execRecord("start")
+	if !m.recording {
+		t.Fatal("start 後に recording が false")
+	}
+	if cmd == nil {
+		t.Fatal("start は毎秒 tick の Cmd を返すべき")
+	}
+	if h := m.renderHeader(); !strings.Contains(h, "REC") || !strings.Contains(h, "●") {
+		t.Fatalf("ヘッダに記録マーカーが無い: %q", h)
+	}
+	genAfterStart := m.recordGen
+
+	// stop: recording が下り、世代が進み (走っている tick を止める)、ヘッダにマーカーが出ない。
+	if cmd := m.execRecord("stop"); cmd != nil {
+		t.Fatal("stop は tick Cmd を返さない")
+	}
+	if m.recording {
+		t.Fatal("stop 後に recording が true")
+	}
+	if m.recordGen == genAfterStart {
+		t.Fatal("stop で recordGen が進んでいない (旧 tick を止められない)")
+	}
+	if h := m.renderHeader(); strings.Contains(h, "REC") {
+		t.Fatalf("stop 後もヘッダに記録マーカーが残る: %q", h)
+	}
+}
+
+// 記録中に届いた recordTickMsg は、世代が一致すれば再 tick の Cmd を返して継続する。
+// 世代不一致 (stop 後の残響) や停止済みなら再アームしない。
+func TestRecordTickMsgReArmsOnlyWhileRecording(t *testing.T) {
+	m := &chatModel{header: ChatHeader{
+		Record: func([]string) ([]string, error) { return []string{"計測を開始しました"}, nil },
+	}}
+	m.execRecord("start")
+
+	// 現行世代の tick → 継続 (Cmd 非 nil)。
+	if _, cmd := m.Update(recordTickMsg{gen: m.recordGen}); cmd == nil {
+		t.Fatal("記録中の tick は再 tick すべき")
+	}
+	// 旧世代の tick → 破棄 (Cmd nil)。
+	if _, cmd := m.Update(recordTickMsg{gen: m.recordGen - 1}); cmd != nil {
+		t.Fatal("旧世代の tick は破棄すべき")
+	}
+	// stop 後の tick → 破棄。
+	m.execRecord("stop")
+	if _, cmd := m.Update(recordTickMsg{gen: m.recordGen}); cmd != nil {
+		t.Fatal("停止後の tick は破棄すべき")
 	}
 }

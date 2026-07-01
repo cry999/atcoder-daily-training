@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -291,8 +292,7 @@ func (m *chatModel) execCommand(cmd command) (tea.Model, tea.Cmd) {
 	case "gen":
 		return m, m.execGen()
 	case "record":
-		m.execRecord(cmd.arg)
-		return m, nil
+		return m, m.execRecord(cmd.arg)
 	case "task", "contest", "e":
 		return m.execNav(cmd)
 	default: // unknown
@@ -432,23 +432,43 @@ func (m *chatModel) applyGenDone(msg genDoneMsg) {
 // solve-stat の読み書き・計測・検証・layout 解決は composition root (cmd/atcoder) に
 // 委譲する (internal/ui は solvestat/layout を知らない層境界。:meta/:gen と同じ)。
 // ローカル I/O のみなので同期実行する (:gen/:meta fetch のような非同期化はしない)。
-func (m *chatModel) execRecord(arg string) {
+// :record start/stop が成功したら記録インジケーター (ヘッダの ● REC + 経過) を切り替え、
+// start では毎秒 tick する tea.Cmd を返す (失敗・その他は nil)。
+func (m *chatModel) execRecord(arg string) tea.Cmd {
 	m.returnFromCommand()
 	if m.header.Record == nil {
 		m.addInfoLine("(記録はこの画面では使えません)")
 		m.refreshViewport()
-		return
+		return nil
 	}
-	lines, err := m.header.Record(strings.Fields(arg))
+	args := strings.Fields(arg)
+	lines, err := m.header.Record(args)
 	if err != nil {
 		m.addErrLine("(" + err.Error() + ")")
 		m.refreshViewport()
-		return
+		return nil
 	}
 	for _, l := range lines {
 		m.addInfoLine(l)
 	}
+	// :record start で記録中インジケーターを点灯し、start した時点を経過の基準にする。
+	// :record stop で消灯 (recordGen を進めて走っている tick を世代不一致で止める)。
+	// スピナー tick と同型で、重複 tick を防ぐため世代 (recordGen) を都度更新する。
+	var cmd tea.Cmd
+	if len(args) >= 1 {
+		switch args[0] {
+		case "start":
+			m.recording = true
+			m.recordStart = time.Now()
+			m.recordGen++
+			cmd = m.recordTickCmd()
+		case "stop":
+			m.recording = false
+			m.recordGen++
+		}
+	}
 	m.refreshViewport()
+	return cmd
 }
 
 // metaShow は MetaShow フックを呼び、返ってきた行を info 行で積む。失敗は err 行で 1 本。
