@@ -15,7 +15,7 @@
 | [0005](0005-unify-test-run-into-test.md) | `test` / `run` を `test` 1 コマンドに統一する | Accepted | `4a9f4e9` |
 | [0006](0006-fold-submit-into-test.md) | `submit` を `test --submit` に畳む (実提出は auth 安定まで保留) | Accepted | `bcd5a9b` |
 | [0007](0007-interactive-command-mode-trigger.md) | インタラクティブ chat の vim 風 command モードは `Esc` で開く (`Ctrl+:` 不採用) | Accepted | 設計のみ ([024](../requirements/024-interactive-case-builder.md)) |
-| [0008](0008-gen-best-effort-raw-cache.md) | ランダム入力生成はベストエフォート解析 + 生セクションキャッシュで行う | Accepted | 設計のみ ([060](../requirements/060-gen-random-input.md)) |
+| [0008](0008-gen-best-effort-raw-cache.md) | ランダム入力生成はベストエフォート解析 + 生セクションキャッシュで行う | Accepted | `32e6004` ([060](../requirements/060-gen-random-input.md)) |
 
 ## 書き方
 
