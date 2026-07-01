@@ -208,6 +208,12 @@ var (
 ## 非機能要件
 
 - **秘匿情報の扱い**: `revel_session` の生値を出力・ログ・エラーに出さない。`session.toml` は `0600`、親 dir は `0700`。usagelog はフラグ名のみ記録する既存仕様に依拠し cookie 値を残さない。
+- **at-rest 暗号化はしない (方針)**: `session.toml` は平文 + `0600` で保存し、アプリ層での暗号化は本要件では入れない。理由は 3 点:
+  1. **threat model 上 `0600` と等価**: 復号鍵を同じマシンに置けば「ファイルが読めれば鍵も読める」ので難読化にしかならない。`0600` + 親 dir `0700` が守るべき現実的な脅威 (同一マシンの別ユーザからの読み取り) をちょうどカバーし、ディスク盗難・root 奪取はフルディスク暗号化 (FileVault 等) の領分でアプリ層の責務ではない。
+  2. **移植性を壊す**: 本物の at-rest 暗号化は OS キーチェーン連携 (macOS Keychain / Linux Secret Service / Windows DPAPI) が要り、「cookie は手貼りで OS・ブラウザ非依存」「移植性」という本要件の非機能目標や、CI・ヘッドレス・cron 実行と矛盾する。パスフレーズ方式は「毎回入力が重い」を受け入れた本要件の UX 方針とさらに衝突する。
+  3. **業界標準が平文 + 制限パーミッション**: 範に取る aclogin (online-judge-tools) は cookie を平文の cookie.jar に置き、atcoder-cli・AtCoder Tools も同様。REVEL_SESSION 取り込み方式を採る既存ツール群が揃ってこの立場。
+  - 保存側の at-rest 暗号化を検討するとしても、同じく OS キーチェーンに触る `--from-browser` (ブラウザ cookie 自動抽出) を入れる将来要件とセットで扱う (下記「将来の拡張ポイント」)。
+- **cookie を環境変数経由で渡さない**: `NewRequest` が組む `Cookie:` ヘッダの値が `/proc/<pid>/environ` や `ps` 出力に漏れないよう、cookie は環境変数ではなくメモリ内で受け渡す (実装 feature で確認する)。
 - **既存非破壊**: `login`/`logout` は新サブコマンドで、既存コマンド・キャッシュ・設定・解答ファイルに触れない。問題ページ fetch は従来どおり無認証のまま。
 - **ネットワーク礼儀**: 検証は 1 回の GET のみ。自動ポーリングや連投をしない。
 - **exit code 規約**: 引数・フラグ誤り = 2 / 実行時失敗 (検証失敗・ネットワーク・I/O) = 1 / 成功 (未ログイン表示を含む) = 0。
@@ -219,7 +225,7 @@ var (
 
 - **実提出 (submit POST)**: 取り込んだセッションで `test --submit` を実 POST へ格上げする ([ADR 0006](../decisions/0006-fold-submit-into-test.md) の案 A)。csrf 取得・数値 LanguageId 選択・提出前ゲート ([要件 044](044-submit-precheck-confirm.md)) との接続・誤提出防止・ToS 配慮を別要件で設計する。`internal/atcoder.NewRequest` を入口にする。
 - **提出 verdict 取得 (status)**: submit と同じセッションで `/submissions/me` を取得。live 判定は AtCoder Problems API の遅延で不可なので、認証 cookie 経路とセットで検討。
-- **ブラウザ cookie 自動抽出** (`--from-browser`): aclogin 流に手貼りの手間を消す。OS/ブラウザ依存・Chrome の OS キーチェーン暗号化解除が要るため後回し。
+- **ブラウザ cookie 自動抽出** (`--from-browser`): aclogin 流に手貼りの手間を消す。OS/ブラウザ依存・Chrome の OS キーチェーン暗号化解除が要るため後回し。保存側の **at-rest 暗号化** (session.toml を OS キーチェーンで保護) を検討するなら、同じくキーチェーンに触るこの要件とセットで扱う (単独では threat model 上 `0600` と等価で移植性を壊すため見送り。上記「非機能要件」参照)。
 - **`--cookie-file <path>`**: スクリプト連携用にファイルからも読む。
 
 ## 用語
