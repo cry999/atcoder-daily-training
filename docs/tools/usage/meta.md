@@ -105,9 +105,17 @@ ABC のいくつかの問題は、コンテストページの URL とタスク I
 `https://atcoder.jp/contests/abc111/tasks/arc103_b` で、タスク ID は `arc103_b` です。
 この場合、既定の取得は `.../tasks/abc111_d` を組み立てて **404** になります。
 
-`set --url` でスロット `abc111/d`（= キャッシュキー `abc111_d`、解答ファイル `abc111_d.py` /
-`abc/111/d.py`）に正しい URL を記録すれば、**スロットはそのまま**で取得元だけ差し替えられます。
-記録した URL は `meta fetch` だけでなく `test` / `start` の取得経路でも尊重されます。
+**多くの場合これは自動で解決されます** (要件 065): `test` / `gen` / `meta fetch` は機械生成 URL が
+404 になると、**タスク一覧ページ (`/contests/<contest>/tasks`) から該当 letter の実 task_id
+(`arc103_b`) を引いて取得し直し**、解決できた URL をこのスロットの `url` に記録します。以降は
+その URL で直行するので、`meta set --url` を手打ちしなくても `atcoder test abc111 --task d` が
+そのまま通ります。
+
+`set --url` は、この自動フォールバックが効かないとき (letter が単一英小文字でない・一覧ページ
+から辿れない等) や、取得元を明示的に固定したいときの手段です。スロット `abc111/d`（= キャッシュ
+キー `abc111_d`、解答ファイル `abc111_d.py` / `abc/111/d.py`）に正しい URL を記録すれば、
+**スロットはそのまま**で取得元だけ差し替えられます。記録した URL は `meta fetch` だけでなく
+`test` / `start` の取得経路でも尊重されます (override があるときは自動フォールバックしません)。
 
 ```console
 $ atcoder meta set abc111 --task d --url https://atcoder.jp/contests/abc111/tasks/arc103_b

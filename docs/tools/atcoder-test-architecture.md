@@ -296,7 +296,7 @@ testexec.Run
   │
   ├─ ensureTests
   │   ├─ <task>/tests/ と <task>/meta.toml が両方ある & !refresh → 使う
-  │   └─ それ以外 → reporter.Fetching() → fetchProblem(contest, task) → meta.toml + tests/NN.{in,out} を書き出し
+  │   └─ それ以外 → reporter.Fetching() → resolveAndFetch(contest, task, override) → meta.toml + tests/NN.{in,out} を書き出し
   │       (ensureTests / --refresh は tests/ のみ対象。tests-extra/ には触れない)
   │
   ├─ selectExecutor(solutionPath) → Executor を取得
@@ -314,6 +314,16 @@ testexec.Run
 ```
 
 > ユーザ追加ケース (`tests-extra/`) は chat のケースビルダー (`:w`) が `extracase.Save` で書き、判定時は `collectCases` が公式サンプルの後ろに連結する (表示 id は接頭辞 `x`)。`--refresh` は公式サンプル (`tests/`) だけを取り直すので追加ケースは消えない (要件 024)。
+
+### 取得元 URL の解決 (`resolveAndFetch`, 要件 065)
+
+`ensureTests` / `EnsureGenSource` は取得元 URL を `resolveAndFetch(contest, task, override)` で次の優先順に決める:
+
+1. **override** — meta.toml の `url` が非空ならそれ (`atcoder meta set --url` 済み、または過去のフォールバック解決結果)。
+2. **機械生成** — `DefaultTaskURL(contest, task)` = `.../contests/<contest>/tasks/<推定 task_id>`。まずこれを fetch する。
+3. **タスク一覧ページ解決 (フォールバック)** — override 無しで 2 が **HTTP 404** のときだけ発火。`letter` の出現順 index で一覧ページ (`/contests/<contest>/tasks`) から実 task_id を引き、その URL で再取得する。共催などで task_id が contest と食い違う問題 (例: abc111 D = `arc103_b`) を、人手の `meta set --url` 無しで取得できる。
+
+> 404 の識別は `fetchProblem` が返す型付きエラー `*httpStatusError` を `errors.As` で見て行う。403 (rate limit) / 5xx ではフォールバックせず実エラーとして表面化する。フォールバックで解決した URL は `problem.URL` として meta.toml に保存されるので、追加の一覧ページ fetch は初回 1 回きり。一覧ページのリンク書式のパースは `contestmeta.ExtractTaskIDs` に集約している (`new abc` の一覧取得と共通)。
 
 ## なぜこの設計か
 
