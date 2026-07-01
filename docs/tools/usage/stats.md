@@ -3,7 +3,8 @@
 日々の練習 (`exercise/YYYY/MM/DD/<task>.py`) の積み上がりを 1 コマンドで振り返る。解答数・連続練習日数 (ストリーク)・コンテスト種別/問題レター別の内訳・最近の推移をテーブル表示する。読み取り専用で、リポジトリには一切書き込まない。
 
 > 要件詳細: `docs/tools/requirements/005-exercise-stats.md`,
-> `docs/tools/requirements/010-stats-rolling-window.md` (ローリング期間)
+> `docs/tools/requirements/010-stats-rolling-window.md` (ローリング期間),
+> `docs/tools/requirements/061-solve-record-stats.md` (solve-stat 集計)
 
 ## コマンド
 
@@ -109,6 +110,13 @@ by day
 ```
 
 データが 0 件のときは "no solves found ..." を 1 行出して正常終了する。
+
+## solve-stat の集計 (`recorded` / `score`)
+
+解答ファイル冒頭に solve-stat コメントブロック (`# >>> atcoder-stat >>>` … `# <<< atcoder-stat <<<`) が記録されていると、出力に 2 つのセクションが増える。この記録は [`atcoder record`](record.md) が書き、solve-stat が 1 件も無ければ以下のセクションは出ない (従来どおりの total/streak/内訳/時系列だけが出る = 後方互換)。期間フラグ (`--week`/`--month`/`--year`/`--last`) は record 集計にもそのまま効き、窓内の solve だけを対象にする。
+
+- `recorded (<N> solves, <M> with stats)`: solve-stat を持つ solve の集計。`ac rate` / `self-solved` (AC かつ解説なし) / `editorial rate` / `median time` (記録があるときだけ、min/max/n 付き) / `target hit rate` (目標を設定した solve があるときだけ、実装 ≤ 目標)。各レートは**そのキーが記録されている solve だけ**を母集団にする (欠損キーは個別に除外)。見出しの `<N>` は窓内の全 solve 数、`<M>` は solve-stat を持つ数で、差でカバレッジが分かる。
+- `score (avg 0–3)`: 5 軸 (knowledge / translation / complexity / impl / verify) の平均を簡易バーで表示する。軸ごとに記録があるものだけで平均する。
 
 ## 草表示 (`--graph`)
 

@@ -40,6 +40,8 @@
 > `atcoder config` サブコマンドも smoke する。`config show`/`path` の出力検証、未知サブコマンド・未知キー・型不一致・引数不足の `exit 2`、書き込み専用 dir での `set` → `get` 往復、および `set` した値が `atcoder test` の diff に波及する (出力に `side-by-side` が出る) 経路を確認する。
 >
 > 利用テレメトリ (`atcoder usage`, 要件 037) も smoke する。`run.sh` は `XDG_DATA_HOME` を一時 dir に固定して実ユーザの `~/.local/share/atcoder-tools/usage/` を汚さず、(1) 上の各ケースの実行が `events.jsonl` に記録されること (`test` イベントを grep) (2) `atcoder usage` / `--flags` / `--json` が `exit 0` (3) `ATCODER_NO_USAGE=1` でログを書かないこと、を確認する。記録は dispatch のラップで全コマンドに透過挿入されるため、専用 fixture (`.py`) は不要。
+>
+> `atcoder record` (solve-stat 記録, 要件 061) も smoke する。ネットワーク不要で、stdin が非 TTY のとき record は対話プロンプトを出さないため、非対話フラグ経路だけで決定論的に検証できる。`config set/get/show target.<category>.<letter>` (目標実装時間, 例 `target.fixture.d 30m`) と不正値 (duration でない / letter が 2 文字) の `exit 2` / `record start` が解答ファイルを作り `started_at` を刻む (冪等な再 start) / `record stop --no-ac --time 25m` が `solved_at`・`duration_ms`・(config に目標があるとき) `target_ms` を刻む / `record --score --ac --no-editorial` が 5 軸スコアと ac/editorial を部分更新し既存 duration を温存 / 個別軸フラグ `--impl` が `--score` を上書き / エラー系 (`--task` 欠落・`--score` の値数/範囲・`--ac`+`--no-ac` 併用・不正 `--time`・`record edit` 未実装・`record stop` で解答ファイル不在) の `exit 2`/`1` / solve-stat を書いた後 `stats` に `recorded (` と `score (avg` セクションが出ること、を確認する。record は既存の解答ファイル (ここでは `record start` が作る `exercise/YYYY/MM/DD/fixture_d.py`) の先頭コメントブロックを読み書きするだけで judge しないため、専用 `.py` fixture は不要。
 
 ## ディレクトリ構造
 

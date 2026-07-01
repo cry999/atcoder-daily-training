@@ -58,6 +58,8 @@
 
 > `atcoder gen` (要件 060) も `run.sh` で smoke する。プリポピュレートされた `fixture/fixture_gen/gen.toml` (小さい制約) を解析して生成する経路 — `--show-spec` の内容 (`scalar : N M` / `coverage: full`)・`--seed` 生成・`--size max|min`・`-n 2 -o <dir>` の `NN.in`・`--save` の `tests-extra/` 追加、および引数誤り (`--task` 欠落 / `--show-spec` × `--seed` / 不正 `--size`) の exit 2 — を固定する。`fetch` はネットワークに触れるため回さない (生成は入力のみで judge しないため `.py` fixture は不要)。
 
+> `atcoder record` (solve-stat 記録, 要件 061) も `run.sh` で smoke する。ネットワーク不要・非 TTY では対話プロンプトを出さないので、非対話フラグ経路だけで決定論的に検証する。`config set/get/show target.<category>.<letter>` (目標実装時間) と不正値の `exit 2` / `record start` が解答ファイルを作り `started_at` を刻む (冪等な再 start) / `record stop --no-ac --time 25m` が `solved_at`・`duration_ms`・(目標があれば) `target_ms` を刻む / `record --score`・個別軸 (`--impl`)・`--ac`/`--no-editorial` の部分更新と既存 duration の温存 / エラー系 (`--task` 欠落・`--score` の値数/範囲・`--ac`+`--no-ac` 併用・不正 `--time`・`record edit` 未実装・解答ファイル不在) の `exit 2`/`1` / solve-stat を書いた後 `stats` に `recorded (`・`score (avg` セクションが出ること、を確認する。record は `record start` が作る解答ファイル先頭のコメントブロックを読み書きするだけで judge しないため、専用 `.py` fixture は不要。
+
 ## 実行すべきタイミング
 
 リファクタリングや機能追加で以下を触ったときに走らせる:

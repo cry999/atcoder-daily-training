@@ -7,7 +7,7 @@
 ## コマンド
 
 ```
-atcoder start <contest> --task <task> [--until-pass] [--refresh] [-d] [-s] [-j <n>] [--timeout <dur>] [--tolerance <eps>] [--layout <auto|abc|exercise>]
+atcoder start <contest> --task <task> [--until-pass] [--refresh] [--restart] [-d] [-s] [-j <n>] [--timeout <dur>] [--tolerance <eps>] [--layout <auto|abc|exercise>]
 ```
 
 > 位置引数 (`<contest>`) とフラグの順序は自由 (`atcoder start --task d abc457` も可)。
@@ -18,6 +18,7 @@ atcoder start <contest> --task <task> [--until-pass] [--refresh] [-d] [-s] [-j <
 | `--task <task>` | タスク ID または短縮形 (`d` → `<contest>_d`)。必須 |
 | `--until-pass` | **サンプルが全通過したら watch を終了** (exit 0)。未指定なら `Ctrl+C` まで継続 |
 | `--refresh` | 初回のみサンプルを再取得 |
+| `--restart` | 完了記録がある問題をやり直す。`started_at` を今にリセットし完了記録 (`solved_at` / duration / スコア) をクリア |
 | `-d` / `-s` / `-j` / `--timeout` / `--tolerance` | `test` と同じ。各 watch 実行にそのまま渡す |
 | `--layout <auto\|abc\|exercise>` | 解答ファイル配置。既定は `--layout` > `ATCODER_LAYOUT` > config > auto |
 
@@ -32,6 +33,8 @@ atcoder start <contest> --task <task> [--until-pass] [--refresh] [-d] [-s] [-j <
 5. 終了:
    - `Ctrl+D` を **2 回連続**で押すと全体を終了 (exit 0)。1 回目はプログラムのリセット (子を再起動)、2 回目で終了。`Ctrl+C` は終了ではなくプログラムの中断・再起動 (chat に留まる)。
    - `--until-pass` 指定時は、**上ペインのサンプルが全通過した回**で自動終了 (exit 0)。
+
+着手 (実際に分割画面フローへ進む TTY のとき) には、解答ファイル先頭の solve-stat に `started_at` を刻んで計測を開始する。冪等なので再実行しても巻き戻さないが、既に `solved_at` がある問題を start すると warning を出し、`--restart` を付けると `started_at` を今にリセットし完了記録をクリアしてやり直せる。記録の全体像 (solve-stat の書式・`atcoder record` での完了記録・`atcoder stats` での集計) は [record.md](record.md) を参照。
 
 ### キー操作
 
