@@ -117,7 +117,7 @@ func (m *recordEditModel) setWidth(w int) {
 }
 
 // handleKey はフォームの 1 打鍵を処理する (standalone / chat 埋め込みで共有)。
-// カーソル移動 (↑↓ / j/k)・値の変更・保存 (Enter / Ctrl+S)・取消 (Esc/Ctrl+C) をここで完結させる。
+// カーソル移動 (↑↓ / j/k)・値の変更 (h/l)・保存 (Enter / Ctrl+S)・取消 (Esc/Ctrl+C) をここで完結させる。
 func (m *recordEditModel) handleKey(msg tea.KeyMsg) {
 	switch msg.Type {
 	case tea.KeyUp:
@@ -133,14 +133,13 @@ func (m *recordEditModel) handleKey(msg tea.KeyMsg) {
 	case tea.KeyEsc, tea.KeyCtrlC:
 		m.saved = false
 		m.done = true
-	case tea.KeyLeft:
-		m.cur().cycle(-1)
-	case tea.KeyRight, tea.KeySpace:
+	case tea.KeySpace:
 		m.cur().cycle(+1)
 	case tea.KeyBackspace:
 		m.cur().backspace()
 	case tea.KeyRunes:
-		// j/k は上下移動 (vim 風)。それ以外の文字は現在フィールドへ入力する。
+		// j/k は上下移動、h/l は値の変更 (vim 風)。それ以外の文字は現在フィールドへ入力する。
+		// ただし duration フィールドでは 'h' が時間単位の入力文字なので、そちらを優先する。
 		for _, r := range msg.Runes {
 			switch r {
 			case 'j':
@@ -151,6 +150,14 @@ func (m *recordEditModel) handleKey(msg tea.KeyMsg) {
 				if m.cursor > 0 {
 					m.cursor--
 				}
+			case 'h':
+				if m.cur().kind == recFieldDuration {
+					m.cur().typeRune(r)
+				} else {
+					m.cur().cycle(-1)
+				}
+			case 'l':
+				m.cur().cycle(+1)
 			default:
 				m.cur().typeRune(r)
 			}
@@ -327,7 +334,7 @@ func (m *recordEditModel) View() string {
 	if m.errMsg != "" {
 		b.WriteString(recEditErrStyle.Render(m.errMsg) + "\n")
 	}
-	b.WriteString(recEditHintStyle.Render("j/k 移動   ←→/space 変更   0-3・y/n 入力   Backspace 未記録   Enter 保存   Esc 取消"))
+	b.WriteString(recEditHintStyle.Render("j/k 移動   h/l 変更   0-3・y/n 入力   Backspace 未記録   Enter 保存   Esc 取消"))
 	return b.String()
 }
 
