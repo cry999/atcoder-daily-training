@@ -236,6 +236,16 @@ type fileChangedMsg struct{ changed bool }
 // spinnerTickMsg は出力待ちスピナーのアニメ tick。gen が現行 spinGen と不一致なら破棄。
 type spinnerTickMsg struct{ gen int }
 
+// submitCheckMsg は非同期で走らせた提出前チェック (SubmitCheck) の完了を運ぶ。
+// SubmitCheck は testexec を回すため重い — Update ループを塞がないよう tea.Cmd の
+// goroutine 側で実行し、結果だけをこの msg で受け取る (実行中はスピナーを出す)。
+// epoch は発行時の sessionN。チェック中に restart (watch-reload 等) が入るとファイル
+// 状態が変わるので、届いた結果が古いセッションのものなら破棄する。
+type submitCheckMsg struct {
+	check SubmitCheck
+	epoch int
+}
+
 // spinnerFrames は待機スピナーのコマ (braille)。spinnerInterval ごとに 1 コマ進める。
 var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 
@@ -248,6 +258,13 @@ func waitStatus(frame int, elapsed time.Duration) string {
 	return f + " " + formatDur(elapsed)
 }
 
+// submitCheckStatus は提出前準備中のスピナー行 (例 "⠹ 提出前準備中 0.4s")。
+// 出力待ちの waitStatus と同じコマ + 経過表記に、準備中である旨のラベルを添える。
+func submitCheckStatus(frame int, elapsed time.Duration) string {
+	f := spinnerFrames[((frame%len(spinnerFrames))+len(spinnerFrames))%len(spinnerFrames)]
+	return f + " 提出前準備中 " + formatDur(elapsed)
+}
+
 type chatLine struct {
 	kind       string
 	text       string
@@ -258,38 +275,40 @@ type chatLine struct {
 }
 
 type chatModel struct {
-	handle        *runner.ChatHandle
-	spawn         Spawner // 再起動時に呼ぶ。nil なら再起動不可
-	header        ChatHeader
-	input         textinput.Model
-	viewport      viewport.Model
-	msgs          []chatLine
-	history       []string
-	historyPos    int // history[historyPos] = 次に Up で出す候補。len(history) なら未編集状態。
-	outScanner    *bufio.Scanner
-	errScanner    *bufio.Scanner
-	endedOut      bool
-	endedErr      bool
-	inTraceback   bool           // 統合ストリーム上で Python traceback (= stderr 由来) ブロックの途中か。kindErr 色を復元するための状態 (セッションごとに restart でリセット)
-	running       bool           // 子プロセスが生きているか。遅延起動 / 入力での再実行を制御する
-	ctrlDArmed    bool           // 直前のキーが Ctrl+D (= 次の Ctrl+D で chat 終了)。KeyMsg ごとに先頭でクリアし Ctrl+D 1 回目だけ立て直す (要件 030)
-	scrolled      bool           // scrollback を上にスクロール中 (= 出力到着で最下部に引き戻さない)。command/insert 双方で使う。最下部復帰で false (要件 033/040)
-	submitConfirm bool           // 提出前チェックでリスクが見つかり y/N 確認待ち (要件 044)。次の打鍵を回答として消費する
-	autoRestart   bool           // sticky モード。起動フラグ (--auto-restart) で初期化。子終了後は「入力で再実行」になる
-	autoHintShown bool           // auto-restart ヒント表示済みフラグ
-	watcher       *watch.Watcher // 非 nil なら解答ファイルを監視 (保存検知で reload)。nil なら watch-reload 無効
-	sessionN      int            // 1 始まり。restart で incr して区切りに番号を出す (epoch も兼ねる)
-	lastEventAt   time.Time      // 最後の入力送信 or 出力受信の時刻 (出力行の経過時間の基準)
-	awaiting      bool           // 送信後・次の出力待ちなら true (スピナー + 経過時間を出す)
-	awaitSince    time.Time      // 待機開始時刻 (経過時間の基準)
-	spinnerFrame  int            // スピナーのコマ index
-	spinGen       int            // スピナー tick の世代。Enter/restart で更新し旧 tick を無効化
-	recording     bool           // :record start 中 (:record stop で解除)。ヘッダに ● REC + 経過を出す (要件 064)
-	recordStart   time.Time      // 記録開始時刻 (ヘッダ経過時間の基準)
-	recordGen     int            // record tick の世代。start/stop で更新し旧 tick を無効化 (spinGen と同型)
-	width         int
-	height        int
-	ready         bool
+	handle           *runner.ChatHandle
+	spawn            Spawner // 再起動時に呼ぶ。nil なら再起動不可
+	header           ChatHeader
+	input            textinput.Model
+	viewport         viewport.Model
+	msgs             []chatLine
+	history          []string
+	historyPos       int // history[historyPos] = 次に Up で出す候補。len(history) なら未編集状態。
+	outScanner       *bufio.Scanner
+	errScanner       *bufio.Scanner
+	endedOut         bool
+	endedErr         bool
+	inTraceback      bool           // 統合ストリーム上で Python traceback (= stderr 由来) ブロックの途中か。kindErr 色を復元するための状態 (セッションごとに restart でリセット)
+	running          bool           // 子プロセスが生きているか。遅延起動 / 入力での再実行を制御する
+	ctrlDArmed       bool           // 直前のキーが Ctrl+D (= 次の Ctrl+D で chat 終了)。KeyMsg ごとに先頭でクリアし Ctrl+D 1 回目だけ立て直す (要件 030)
+	scrolled         bool           // scrollback を上にスクロール中 (= 出力到着で最下部に引き戻さない)。command/insert 双方で使う。最下部復帰で false (要件 033/040)
+	submitConfirm    bool           // 提出前チェックでリスクが見つかり y/N 確認待ち (要件 044)。次の打鍵を回答として消費する
+	submitChecking   bool           // 提出前チェック (SubmitCheck) を非同期実行中。スピナーを出し、完了 (submitCheckMsg) まで再入を弾く
+	submitCheckSince time.Time      // 提出前チェック開始時刻 (スピナーの経過時間の基準)
+	autoRestart      bool           // sticky モード。起動フラグ (--auto-restart) で初期化。子終了後は「入力で再実行」になる
+	autoHintShown    bool           // auto-restart ヒント表示済みフラグ
+	watcher          *watch.Watcher // 非 nil なら解答ファイルを監視 (保存検知で reload)。nil なら watch-reload 無効
+	sessionN         int            // 1 始まり。restart で incr して区切りに番号を出す (epoch も兼ねる)
+	lastEventAt      time.Time      // 最後の入力送信 or 出力受信の時刻 (出力行の経過時間の基準)
+	awaiting         bool           // 送信後・次の出力待ちなら true (スピナー + 経過時間を出す)
+	awaitSince       time.Time      // 待機開始時刻 (経過時間の基準)
+	spinnerFrame     int            // スピナーのコマ index
+	spinGen          int            // スピナー tick の世代。Enter/restart で更新し旧 tick を無効化
+	recording        bool           // :record start 中 (:record stop で解除)。ヘッダに ● REC + 経過を出す (要件 064)
+	recordStart      time.Time      // 記録開始時刻 (ヘッダ経過時間の基準)
+	recordGen        int            // record tick の世代。start/stop で更新し旧 tick を無効化 (spinGen と同型)
+	width            int
+	height           int
+	ready            bool
 
 	// ケース作成 + ライブ検証 (要件 024)。
 	mode              chatMode        // insert (既定) / command / builder
@@ -432,6 +451,7 @@ func (m *chatModel) restart() tea.Cmd {
 	m.endedErr = false
 	m.inTraceback = false      // 新セッションは traceback 検出状態を頭からやり直す
 	m.stopAwaiting()           // 新セッションでは出力待ちをリセット (旧 tick は世代不一致で止まる)
+	m.submitChecking = false   // チェック中に reload が入ったらスピナーを消す (in-flight の結果は epoch 不一致で破棄)
 	m.lastEventAt = time.Now() // 新セッション開始を経過時間の基準にリセット
 	m.beginNewSession()        // 直前セッションの入力を prevSessionInputs に退避し sessionInputs をリセット
 	if m.verify != nil {       // 新セッションは expected を頭から照合し直す
@@ -455,24 +475,54 @@ func (m *chatModel) restart() tea.Cmd {
 }
 
 // submitPrep は Ctrl+S の提出準備。SubmitCheck が注入されていれば先にサンプルを
-// 実行してチェックし (要件 044)、リスクがあれば理由を出して確認モード (submitConfirm)
-// に入る。クリーン or チェック未注入なら doSubmit で即提出する。フック未注入なら利用
-// 不可を伝える。stdout には書かない (TUI を壊さないため)。
-func (m *chatModel) submitPrep() {
+// 実行してチェックする (要件 044)。チェックは testexec を回すため重く、Update ループ
+// 内で同期実行すると TUI が固まって「準備中」がわからないので、スピナーを出しつつ
+// tea.Cmd の goroutine で走らせ、完了を submitCheckMsg で受けて finishSubmitCheck に
+// 委ねる。チェック未注入なら doSubmit で即提出する。フック未注入なら利用不可を伝える。
+// stdout には書かない (TUI を壊さないため)。返した tea.Cmd は呼び出し側が発行する。
+func (m *chatModel) submitPrep() tea.Cmd {
 	if m.header.Submit == nil {
 		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(提出準備は利用できません)"})
-		return
+		return nil
+	}
+	if m.submitChecking {
+		return nil // 既にチェック中なら再入を弾く (二重起動しない)
 	}
 	if m.header.SubmitCheck != nil {
-		check := m.header.SubmitCheck()
-		if !check.Clean {
-			for _, r := range check.Reasons {
-				m.msgs = append(m.msgs, chatLine{kind: kindErr, text: "提出前チェック: " + r})
-			}
-			m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "このまま提出準備しますか? [y/N]"})
-			m.submitConfirm = true
-			return
+		return m.startSubmitChecking()
+	}
+	m.doSubmit()
+	return nil
+}
+
+// startSubmitChecking は提出前チェックを非同期で開始する。スピナー tick を 1 本
+// アームし (出力待ちと同じ spinGen 世代管理を使う)、チェック本体を goroutine で
+// 走らせる tea.Cmd を同時に発行する (bubbletea が Cmd を別 goroutine で回すので
+// 重い SubmitCheck が Update ループを塞がない)。
+func (m *chatModel) startSubmitChecking() tea.Cmd {
+	m.submitChecking = true
+	m.submitCheckSince = time.Now()
+	m.spinnerFrame = 0
+	m.spinGen++
+	check := m.header.SubmitCheck
+	epoch := m.sessionN
+	return tea.Batch(
+		m.spinnerTickCmd(),
+		func() tea.Msg { return submitCheckMsg{check: check(), epoch: epoch} },
+	)
+}
+
+// finishSubmitCheck は非同期チェックの結果を反映する。リスクがあれば理由を出して
+// 確認モード (submitConfirm) に入り、クリーンなら doSubmit で提出準備する。
+func (m *chatModel) finishSubmitCheck(check SubmitCheck) {
+	m.submitChecking = false
+	if !check.Clean {
+		for _, r := range check.Reasons {
+			m.msgs = append(m.msgs, chatLine{kind: kindErr, text: "提出前チェック: " + r})
 		}
+		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "このまま提出準備しますか? [y/N]"})
+		m.submitConfirm = true
+		return
 	}
 	m.doSubmit()
 }
@@ -735,8 +785,12 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyCtrlS:
 			// Ctrl+S = 提出準備 (test --submit 相当: 解答コピー + 提出ページ起動)。
 			// 子は kill せず chat に留まる。結果は画面内の 1 行で示す (stdout には書かない)。
-			m.submitPrep()
+			// 提出前チェックがあると submitPrep は非同期実行用の tea.Cmd を返すので発行する。
+			scmd := m.submitPrep()
 			m.refreshViewport()
+			if scmd != nil {
+				return m, scmd
+			}
 		case tea.KeyCtrlE:
 			// Ctrl+E = 解答ファイルをエディタで開く (要件 038)。nvim 内なら親へ remote 送信
 			// (端末を奪わない)、外なら tea.ExecProcess で起動。子は kill せず chat に留まる。
@@ -840,12 +894,23 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case spinnerTickMsg:
-		if msg.gen != m.spinGen || !m.awaiting {
-			break // 古い世代 or 待機解除済み → 止める (再アームしない)
+		if msg.gen != m.spinGen || (!m.awaiting && !m.submitChecking) {
+			break // 古い世代 or 待機/チェック解除済み → 止める (再アームしない)
 		}
 		m.spinnerFrame++
 		m.refreshViewport() // 最後尾のスピナー行をアニメ更新
 		return m, m.spinnerTickCmd()
+
+	case submitCheckMsg:
+		// 非同期の提出前チェック完了。チェック中に restart が入っていたら (epoch 不一致)
+		// ファイル状態が変わっているので結果を破棄する (restart 側で submitChecking は
+		// 既に false に戻している)。現行セッションのものならスピナーを止めて反映する。
+		if msg.epoch != m.sessionN {
+			break
+		}
+		m.finishSubmitCheck(msg.check)
+		m.refreshViewport()
+		return m, nil
 
 	case recordTickMsg:
 		if msg.gen != m.recordGen || !m.recording {
@@ -1020,6 +1085,16 @@ func (m *chatModel) refreshViewport() {
 	// (入力ボックスの下ではなく scrollback の末尾に「次の出力をロード中」を出す)。
 	if m.awaiting {
 		spin := chatWaitStyle.Render(waitStatus(m.spinnerFrame, time.Since(m.awaitSince)))
+		if content != "" {
+			content += "\n" + spin
+		} else {
+			content = spin
+		}
+	}
+	// 提出前チェック中は「提出前準備中」スピナーを出力末尾に足す (処理が固まって
+	// 見えないのを防ぐ)。出力待ちと同時になることは通常ないが、両方立っても各行に出す。
+	if m.submitChecking {
+		spin := chatWaitStyle.Render(submitCheckStatus(m.spinnerFrame, time.Since(m.submitCheckSince)))
 		if content != "" {
 			content += "\n" + spin
 		} else {
