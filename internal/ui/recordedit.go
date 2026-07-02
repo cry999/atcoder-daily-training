@@ -223,10 +223,9 @@ func (m *recordEditModel) handleKey(msg tea.KeyMsg) {
 	case tea.KeyEsc, tea.KeyCtrlC:
 		m.saved = false
 		m.done = true
-	case tea.KeyTab:
-		// Tab はカーソル位置に関係なく計測状態を 1 段前進させる (要件 068 の要望キー)。
-		m.toggleState()
-	case tea.KeySpace:
+	case tea.KeyTab, tea.KeySpace:
+		// Tab / space はカーソル位置のフィールド値を前方へトグルする (要件 068)。
+		// state 行では状態を 1 段前進、他は cycle(+1)。duration はトグル対象がなく無操作。
 		if m.cur().kind == recFieldState {
 			m.toggleState()
 		} else {
@@ -450,7 +449,7 @@ func (m *recordEditModel) View() string {
 	if m.errMsg != "" {
 		b.WriteString(recEditErrStyle.Render(m.errMsg) + "\n")
 	}
-	b.WriteString(recEditHintStyle.Render("j/k 移動   Tab/space 状態切替   h/l 変更   0-3・y/n 入力   Backspace 未記録   Enter 保存   Esc 取消"))
+	b.WriteString(recEditHintStyle.Render("j/k 移動   Tab/space トグル   h/l 変更   0-3・y/n 入力   Backspace 未記録   Enter 保存   Esc 取消"))
 	return b.String()
 }
 

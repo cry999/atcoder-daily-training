@@ -90,14 +90,14 @@ atcoder record edit  <contest> --task <task> [--layout ...]
   knowledge   [ 2 ]
   ...
 目標 35m
-j/k 移動   Tab/space 状態切替   h/l 変更   0-3・y/n 入力   Backspace 未記録   Enter 保存   Esc 取消
+j/k 移動   Tab/space トグル   h/l 変更   0-3・y/n 入力   Backspace 未記録   Enter 保存   Esc 取消
 ```
 
 | キー | 動作 |
 |---|---|
 | `j` / `k` (`↑` / `↓`) | フィールド間を移動 |
-| `Tab` | どのフィールドにいても**計測状態を 1 段前進** (`未計測 → 計測中 → 停止 → 未計測`) |
-| `h` / `l` / space | `ac`/`editorial` は `未記録 ↔ true ↔ false` を循環、5 軸は `未記録 ↔ 0..3` を移動 (`duration` では `h` は時間入力)。`state` 行では前方トグル |
+| `Tab` / space | **カーソル位置のフィールド値を前方トグル**。`state` 行は計測状態を 1 段前進 (`未計測 → 計測中 → 停止 → 未計測`)、`ac`/`editorial`・5 軸はその場で 1 段回す (`duration` は無操作) |
+| `h` / `l` | `ac`/`editorial` は `未記録 ↔ true ↔ false` を循環、5 軸は `未記録 ↔ 0..3` を移動 (`duration` では `h` は時間入力)。`state` 行では前方トグル |
 | `y` / `n` | `ac`/`editorial` を true / false に |
 | `0`–`3` | 5 軸の値を直接入力 |
 | `Backspace` | 選択フィールドを未記録へ (duration は 1 文字削除、`state` 行は未計測へリセット) |

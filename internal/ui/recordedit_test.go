@@ -333,18 +333,43 @@ func TestRecordEditState_ResetClearsEverything(t *testing.T) {
 	}
 }
 
-// Tab はカーソルがどこにあっても状態を前進させる (要件 068 の要望キー)。
-func TestRecordEditState_TabGlobal(t *testing.T) {
+// Tab は state 行では状態を前進させる (要件 068)。
+func TestRecordEditState_TabOnStateAdvances(t *testing.T) {
 	m := newRecordEditModel("t", solvestat.Empty(), 0, false)
-	for i := 0; i < 7; i++ { // state 行から離す (impl へ)
-		m.handleKey(runeKey('j'))
-	}
-	if m.cur().kind == recFieldState {
-		t.Fatalf("cursor should be off state row")
+	if m.cur().kind != recFieldState {
+		t.Fatalf("cursor should start on state row")
 	}
 	m.handleKey(key(tea.KeyTab))
 	if m.state() != stRunning {
 		t.Fatalf("Tab from idle should start, got %d", m.state())
+	}
+}
+
+// Tab は state 以外のフィールドでは、その場の値をトグルし state は動かさない (要件 068 の挙動変更)。
+func TestRecordEditState_TabTogglesFocusedField(t *testing.T) {
+	m := newRecordEditModel("t", solvestat.Empty(), 0, false)
+	m.handleKey(key(tea.KeyDown)) // state(0) → ac(1)
+	if m.cur().label != "ac" || m.cur().boolVal != nil {
+		t.Fatalf("cursor=%q ac=%v want ac/nil", m.cur().label, m.cur().boolVal)
+	}
+	m.handleKey(key(tea.KeyTab)) // ac をトグル (nil → true)
+	if m.cur().boolVal == nil || !*m.cur().boolVal {
+		t.Fatalf("Tab on ac want true got %v", m.cur().boolVal)
+	}
+	if m.state() != stIdle {
+		t.Fatalf("Tab off state row should not advance state, got %d", m.state())
+	}
+
+	// score 行でも前方 cycle (-1 → 0)。
+	for i := 0; i < 3; i++ {
+		m.handleKey(key(tea.KeyDown)) // ac(1) → knowledge(4)
+	}
+	if m.cur().label != "knowledge" {
+		t.Fatalf("cursor=%q want knowledge", m.cur().label)
+	}
+	m.handleKey(key(tea.KeyTab))
+	if m.cur().scoreVal != 0 {
+		t.Fatalf("Tab on knowledge want 0 got %d", m.cur().scoreVal)
 	}
 }
 
