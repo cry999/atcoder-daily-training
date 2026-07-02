@@ -532,6 +532,7 @@ func (m *chatModel) updateRecordEdit(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	result := m.editForm.resultStat()
 	m.editForm = nil
 	m.returnFromCommand() // builder が開いていれば編集へ、なければ insert へ戻す
+	var cmd tea.Cmd
 	if saved {
 		lines, err := m.header.RecordEditSave(result)
 		if err != nil {
@@ -540,12 +541,23 @@ func (m *chatModel) updateRecordEdit(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			for _, l := range lines {
 				m.addInfoLine(l)
 			}
+			// state トグルを保存したら ● REC を保存内容へ同期する (要件 068)。started_at あり・
+			// solved_at 空なら点灯し started_at 基準で経過表示 + tick 再開、それ以外は消灯。
+			// recordGen を進めて走行中の tick を世代不一致で止める (:record start/stop と同型)。
+			m.recordGen++
+			if !result.StartedAt.IsZero() && result.SolvedAt.IsZero() {
+				m.recording = true
+				m.recordStart = result.StartedAt
+				cmd = m.recordTickCmd()
+			} else {
+				m.recording = false
+			}
 		}
 	} else {
 		m.addInfoLine("(編集を取消しました)")
 	}
 	m.refreshViewport()
-	return m, nil
+	return m, cmd
 }
 
 // metaShow は MetaShow フックを呼び、返ってきた行を info 行で積む。失敗は err 行で 1 本。

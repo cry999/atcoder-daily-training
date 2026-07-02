@@ -78,30 +78,43 @@ atcoder record edit  <contest> --task <task> [--layout ...]
 
 既に記録済みの solve-stat を**全画面フォーム**で一覧表示し、任意フィールドを訂正・クリアする (要件 [066](../requirements/066-record-edit.md))。`record` 再実行のフラグ訂正と違い、現在値を見ながら直せて「一度 true にした値を未記録へ戻す」クリアも素直にできる。
 
-- 編集対象は `ac` / `editorial` / `duration` / 5 軸のみ。`started_at` / `solved_at` / `target_ms` は表示も編集もせず保存時に元値を温存する。
+- 編集対象は `state` (計測状態) / `ac` / `editorial` / `duration` / 5 軸。`started_at` / `solved_at` / `target_ms` は個別編集しないが、**`state` 行のトグルで start / stop / reset として書き換わる** (下記。要件 [068](../requirements/068-record-edit-state-toggle.md))。トグルしなければ元値を温存する。
 - 既存記録が前提。記録・solve-stat ブロックが無ければ案内して exit 1。全画面フォームは**対話端末が必要**で、非対話 (パイプ・CI) では exit 1 でフラグ経路 (`atcoder record ...`) を案内する。
 - 保存 (Enter) は `OverwriteFile` で全置換 (クリアしたキーは落ちる)。取消 (Esc) はファイルを書き換えない。
 
 ```
-> ac          [ true ]
+> state       [ 計測中 ]  開始 16:00
+  ac          [ true ]
   editorial   [ false ]
   duration    [ 23m ]
   knowledge   [ 2 ]
   ...
 目標 35m
-j/k 移動   h/l 変更   0-3・y/n 入力   Backspace 未記録   Enter 保存   Esc 取消
+j/k 移動   Tab/space 状態切替   h/l 変更   0-3・y/n 入力   Backspace 未記録   Enter 保存   Esc 取消
 ```
 
 | キー | 動作 |
 |---|---|
 | `j` / `k` (`↑` / `↓`) | フィールド間を移動 |
-| `h` / `l` / space | `ac`/`editorial` は `未記録 ↔ true ↔ false` を循環、5 軸は `未記録 ↔ 0..3` を移動 (`duration` では `h` は時間入力) |
+| `Tab` | どのフィールドにいても**計測状態を 1 段前進** (`未計測 → 計測中 → 停止 → 未計測`) |
+| `h` / `l` / space | `ac`/`editorial` は `未記録 ↔ true ↔ false` を循環、5 軸は `未記録 ↔ 0..3` を移動 (`duration` では `h` は時間入力)。`state` 行では前方トグル |
 | `y` / `n` | `ac`/`editorial` を true / false に |
 | `0`–`3` | 5 軸の値を直接入力 |
-| `Backspace` | 選択フィールドを未記録へ (duration は 1 文字削除) |
+| `Backspace` | 選択フィールドを未記録へ (duration は 1 文字削除、`state` 行は未計測へリセット) |
 | `duration` 入力 | 数字と `h`/`m`/`s` を打って実装時間を編集 (空で未計測)。未編集なら元の値を桁落ちなく温存 |
 | `Enter` (`Ctrl+S`) | 保存して終了 | 
 | `Esc` / `Ctrl+C` | 取消して終了 |
+
+**計測状態 (`state`) のトグル** — フォームを離れずに計測ライフサイクルを進める (要件 068)。状態は `started_at` / `solved_at` から導出する:
+
+| 現在 | トグル | 次 | 作用 (実時刻 now を刻む。`:record start`/`stop` と同義) |
+|---|---|---|---|
+| `未計測` | start | `計測中` | `started_at = now`、`duration` クリア |
+| `計測中` | stop | `停止` | `solved_at = now`、`duration = now − started_at`、`target_ms` を config 目標でスナップショット |
+| `停止` | reset | `未計測` | **全クリア** (`started_at`/`solved_at`/`duration`/`target_ms`/`ac`/`editorial`/5 軸すべて。`:record start restart` 相当) |
+
+- chat の `:record edit` では、保存後にヘッダの ● REC インジケーターを保存内容へ同期する (`計測中` を保存すると `started_at` 基準で点灯・毎秒経過、`停止`/`未計測` は消灯)。
+- `started_at`/`solved_at` を**任意の時刻値**へ直接編集するのは将来拡張 (state トグルは now を刻むライフサイクル操作)。
 
 ## 目標実装時間 (`config`)
 
@@ -148,11 +161,12 @@ $ atcoder record abc457 --task d --score 2,3,2,3,1 --no-editorial
 | `:record stop` | `solved_at`/`duration_ms` を確定 (`:record stop ac` / `:record stop time=25m` も可) |
 | `:record` | solve-stat の現在値を表示する (**書き込まない**) |
 | `:record ac ed score=2,3,2,3,1 time=25m` | AC/解説/5 軸/実装時間を非対話フラグで一括記録 |
-| `:record edit` | 既存記録を**全画面フォーム**で訂正する (要件 066)。Enter 保存 / Esc 取消 |
+| `:record edit` | 既存記録を**全画面フォーム**で訂正する (要件 066)。`state` 行で start/stop/reset のトグルも可 (要件 068)。Enter 保存 / Esc 取消 |
 
 - bool フラグは bare 語 (`ac`/`noac`、`ed`/`noed`)、値フラグは `key=value` (`score=k,t,c,i,v`、`time=<dur>`)。相反 bool の併用・`score`/`time` の不正値は err 行で伝えて chat は継続する。
 - 実装時間が異常値 (負値 / 12h 超) のとき、chat では確認を挟めないので警告行を添えてそのまま記録する (CLI 非対話経路と同じ)。
 - `:record edit` は chat を離れずに CLI `record edit` と同じ全画面フォームを開く (`:case` の作成画面と同様に子プロセスは裏で生かしたまま画面を占有)。記録が無ければ「(まだ記録がありません)」と案内する。保存すると更新結果を info 行で積んで会話へ戻る。
+- フォーム内の `state` 行を `Tab` で切り替えれば `:record start`/`stop`/`start restart` と同じ操作をフォームから完結できる (要件 068)。保存後はヘッダの ● REC インジケーターが保存内容に同期する (`計測中` → 点灯・経過表示、`停止`/`未計測` → 消灯)。
 
 ```
 :record start
@@ -175,12 +189,12 @@ $ atcoder record abc457 --task d --score 2,3,2,3,1 --no-editorial
 ## 制約 (現時点 = MVP)
 
 - 対象言語は Python (`#` コメント) のみ。
-- `atcoder record edit` / `:record edit` (既存記録の全画面編集フォーム) は実装済み (要件 066)。`started_at` / `solved_at` の時刻直接編集は将来拡張。
+- `atcoder record edit` / `:record edit` (既存記録の全画面編集フォーム) は実装済み (要件 066)。`state` 行のトグルで start/stop/reset の計測ライフサイクルもフォームから操作できる (要件 068)。`started_at` / `solved_at` を**任意の時刻値**へ直接編集するのは将来拡張。
 - chat からは `:record` で計測・記録、`:record edit` で訂正できる (上記)。Ctrl+S 提出後の AC プロンプト・`review` への per-cell 表示は将来拡張。
 
 ## 関連
 
-- 要件: [requirements/061-solve-record-stats.md](../requirements/061-solve-record-stats.md) / chat 統合 [requirements/064-chat-record.md](../requirements/064-chat-record.md) / 編集フォーム [requirements/066-record-edit.md](../requirements/066-record-edit.md)
+- 要件: [requirements/061-solve-record-stats.md](../requirements/061-solve-record-stats.md) / chat 統合 [requirements/064-chat-record.md](../requirements/064-chat-record.md) / 編集フォーム [requirements/066-record-edit.md](../requirements/066-record-edit.md) / state トグル [requirements/068-record-edit-state-toggle.md](../requirements/068-record-edit-state-toggle.md)
 - 集計: [`stats.md`](stats.md) / [requirements/005-exercise-stats.md](../requirements/005-exercise-stats.md)
 - 着手: [`start.md`](start.md) / 提出フロー: [`test.md`](test.md)
 - 決定記録: [ADR 0002](../decisions/0002-stats-readonly-exercise-tree.md) (stats read-only) / [ADR 0006](../decisions/0006-fold-submit-into-test.md) (実提出/AC 取得が不可な理由)

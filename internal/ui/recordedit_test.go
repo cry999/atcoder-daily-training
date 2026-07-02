@@ -60,12 +60,17 @@ func TestRecordEdit_EditFields(t *testing.T) {
 	st := baseStat()
 	m := newRecordEditModel("abc457_d", st, st.TargetMs, false)
 
-	// ac (row 0): 'n' で false。
+	// state(0) → ac(1): 1 つ下げる (要件 068 で state 行が先頭に増えた)。
+	m.handleKey(key(tea.KeyDown))
+	if m.cur().label != "ac" {
+		t.Fatalf("cursor=%q want ac", m.cur().label)
+	}
+	// ac (row 1): 'n' で false。
 	m.handleKey(runeKey('n'))
-	// editorial (row 1): Backspace で未記録。
+	// editorial (row 2): Backspace で未記録。
 	m.handleKey(key(tea.KeyDown))
 	m.handleKey(key(tea.KeyBackspace))
-	// impl (row 6): 数字 1。ac(0)→ed(1) から下へ 5 つ (dur,knowledge,translation,complexity,impl)。
+	// impl (row 7): 数字 1。ed(2) から下へ 5 つ (dur,knowledge,translation,complexity,impl)。
 	for i := 0; i < 5; i++ {
 		m.handleKey(key(tea.KeyDown))
 	}
@@ -96,8 +101,8 @@ func TestRecordEdit_CycleAndClamp(t *testing.T) {
 	st := baseStat()
 	m := newRecordEditModel("abc457_d", st, st.TargetMs, false)
 
-	// ac=true から Right → false → 未記録 → true。
-	f := &m.fields[0]
+	// ac=true から Right → false → 未記録 → true (ac は state 行の下、row 1)。
+	f := &m.fields[1]
 	f.cycle(+1)
 	if f.boolVal == nil || *f.boolVal {
 		t.Fatalf("cycle+1 from true want false")
@@ -111,8 +116,8 @@ func TestRecordEdit_CycleAndClamp(t *testing.T) {
 		t.Fatalf("cycle+1 from 未記録 want true")
 	}
 
-	// score=2 (knowledge, row 3) を Right 連打で 3 に張り付く。
-	s := &m.fields[3]
+	// score=2 (knowledge, row 4) を Right 連打で 3 に張り付く。
+	s := &m.fields[4]
 	s.cycle(+1) // 3
 	s.cycle(+1) // 3 のまま
 	if s.scoreVal != 3 {
@@ -130,7 +135,8 @@ func TestRecordEdit_CycleAndClamp(t *testing.T) {
 func TestRecordEdit_DurationEditAndValidate(t *testing.T) {
 	st := baseStat()
 	m := newRecordEditModel("abc457_d", st, st.TargetMs, false)
-	// duration は row 2。
+	// duration は row 3 (state 行の分だけ下がった)。
+	m.handleKey(key(tea.KeyDown))
 	m.handleKey(key(tea.KeyDown))
 	m.handleKey(key(tea.KeyDown))
 	if m.cur().label != "duration" {
@@ -155,6 +161,7 @@ func TestRecordEdit_DurationEditAndValidate(t *testing.T) {
 	m2 := newRecordEditModel("abc457_d", st, st.TargetMs, false)
 	m2.handleKey(key(tea.KeyDown))
 	m2.handleKey(key(tea.KeyDown))
+	m2.handleKey(key(tea.KeyDown))
 	for i := 0; i < 12; i++ {
 		m2.handleKey(key(tea.KeyBackspace))
 	}
@@ -175,18 +182,19 @@ func TestRecordEdit_JKMoveEnterSave(t *testing.T) {
 	st := baseStat()
 	m := newRecordEditModel("abc457_d", st, st.TargetMs, false)
 
-	// j 連打で impl (row 6) まで下げ、k で 1 つ戻して complexity (row 5) に置く。
-	for i := 0; i < 6; i++ {
+	// j 連打で impl (row 7) まで下げ、k で 1 つ戻して complexity (row 6) に置く
+	// (state 行が先頭に増えて各行が 1 つ下がった)。
+	for i := 0; i < 7; i++ {
 		m.handleKey(runeKey('j'))
 	}
 	if m.cur().label != "impl" {
-		t.Fatalf("after j*6 cursor=%q want impl", m.cur().label)
+		t.Fatalf("after j*7 cursor=%q want impl", m.cur().label)
 	}
 	m.handleKey(runeKey('k'))
 	if m.cur().label != "complexity" {
 		t.Fatalf("after k cursor=%q want complexity", m.cur().label)
 	}
-	// 端 (row 0) を越えて k しても止まる。
+	// 端 (row 0 = state) を越えて k しても止まる。
 	for i := 0; i < 10; i++ {
 		m.handleKey(runeKey('k'))
 	}
@@ -216,7 +224,8 @@ func TestRecordEdit_Cancel(t *testing.T) {
 func TestRecordEdit_ClearDropsKeys(t *testing.T) {
 	st := baseStat()
 	m := newRecordEditModel("abc457_d", st, st.TargetMs, false)
-	// ac(0) と knowledge(3) を未記録へ。
+	// ac(1) と knowledge(4) を未記録へ (state 行の分だけ下がった)。
+	m.handleKey(key(tea.KeyDown))      // state(0) → ac(1)
 	m.handleKey(key(tea.KeyBackspace)) // ac 未記録
 	for i := 0; i < 3; i++ {
 		m.handleKey(key(tea.KeyDown))
@@ -238,5 +247,173 @@ func TestRecordEdit_ClearDropsKeys(t *testing.T) {
 	// editorial は残る (false のまま)。
 	if !strings.Contains(s, "editorial") {
 		t.Errorf("editorial キーが落ちている:\n%s", s)
+	}
+}
+
+// state 行は started_at/solved_at から状態を導出する (要件 068)。
+func TestRecordEditState_Derive(t *testing.T) {
+	if got := newRecordEditModel("t", baseStat(), 0, false).state(); got != stStopped {
+		t.Errorf("started+solved want stStopped got %d", got)
+	}
+	run := solvestat.Empty()
+	run.StartedAt = time.Now()
+	if got := newRecordEditModel("t", run, 0, false).state(); got != stRunning {
+		t.Errorf("started only want stRunning got %d", got)
+	}
+	if got := newRecordEditModel("t", solvestat.Empty(), 0, false).state(); got != stIdle {
+		t.Errorf("empty want stIdle got %d", got)
+	}
+}
+
+// トグルは 未計測 → 計測中(start) → 停止(stop) → 未計測(reset) の 1 方向サイクル。
+// start で started_at、stop で solved_at + target スナップショット、reset で全クリア。
+func TestRecordEditState_ToggleCycle(t *testing.T) {
+	m := newRecordEditModel("t", solvestat.Empty(), 2100000, false)
+
+	m.toggleState() // idle → running
+	if m.state() != stRunning || m.startedAt.IsZero() {
+		t.Fatalf("start: state=%d started=%v", m.state(), m.startedAt)
+	}
+	if !m.solvedAt.IsZero() {
+		t.Fatalf("start should clear solved_at")
+	}
+
+	m.toggleState() // running → stopped
+	if m.state() != stStopped || m.solvedAt.IsZero() {
+		t.Fatalf("stop: state=%d solved=%v", m.state(), m.solvedAt)
+	}
+	if m.recordTargetMs != 2100000 {
+		t.Fatalf("stop should snapshot target want 2100000 got %d", m.recordTargetMs)
+	}
+
+	m.toggleState() // stopped → idle (reset)
+	if m.state() != stIdle || !m.startedAt.IsZero() || !m.solvedAt.IsZero() || m.recordTargetMs != 0 {
+		t.Fatalf("reset: state=%d started=%v solved=%v target=%d", m.state(), m.startedAt, m.solvedAt, m.recordTargetMs)
+	}
+}
+
+// stop は now - started_at で duration を確定し、resultStat に反映する。
+func TestRecordEditState_StopComputesDuration(t *testing.T) {
+	run := solvestat.Empty()
+	run.StartedAt = time.Now().Add(-10 * time.Minute)
+	m := newRecordEditModel("t", run, 2100000, false)
+	if m.state() != stRunning {
+		t.Fatalf("want running got %d", m.state())
+	}
+	m.toggleState() // stop
+	got := m.resultStat()
+	if got.SolvedAt.IsZero() {
+		t.Fatalf("solved_at should be set")
+	}
+	if got.DurationMs < int64(9*time.Minute/time.Millisecond) {
+		t.Errorf("duration want ~10m got %d", got.DurationMs)
+	}
+	if got.TargetMs != 2100000 {
+		t.Errorf("target snapshot want 2100000 got %d", got.TargetMs)
+	}
+}
+
+// reset (停止 → 未計測) は時刻・duration・target・ac/editorial・5 軸すべてを空へ落とす。
+func TestRecordEditState_ResetClearsEverything(t *testing.T) {
+	m := newRecordEditModel("t", baseStat(), 2100000, false) // stopped から
+	m.toggleState()                                          // stopped → idle (reset)
+	got := m.resultStat()
+	if !got.StartedAt.IsZero() || !got.SolvedAt.IsZero() {
+		t.Errorf("times not cleared: started=%v solved=%v", got.StartedAt, got.SolvedAt)
+	}
+	if got.DurationMs != 0 || got.TargetMs != 0 {
+		t.Errorf("dur/target not cleared: dur=%d target=%d", got.DurationMs, got.TargetMs)
+	}
+	if got.AC != nil || got.Editorial != nil {
+		t.Errorf("ac/editorial not cleared: ac=%v ed=%v", got.AC, got.Editorial)
+	}
+	want := solvestat.Score{Knowledge: -1, Translation: -1, Complexity: -1, Impl: -1, Verify: -1}
+	if got.Score != want {
+		t.Errorf("score not cleared: %+v", got.Score)
+	}
+}
+
+// Tab はカーソルがどこにあっても状態を前進させる (要件 068 の要望キー)。
+func TestRecordEditState_TabGlobal(t *testing.T) {
+	m := newRecordEditModel("t", solvestat.Empty(), 0, false)
+	for i := 0; i < 7; i++ { // state 行から離す (impl へ)
+		m.handleKey(runeKey('j'))
+	}
+	if m.cur().kind == recFieldState {
+		t.Fatalf("cursor should be off state row")
+	}
+	m.handleKey(key(tea.KeyTab))
+	if m.state() != stRunning {
+		t.Fatalf("Tab from idle should start, got %d", m.state())
+	}
+}
+
+// state 行では space で前進、Backspace で未計測へリセットできる。
+func TestRecordEditState_SpaceAndBackspaceOnRow(t *testing.T) {
+	m := newRecordEditModel("t", solvestat.Empty(), 0, false)
+	if m.cur().kind != recFieldState {
+		t.Fatalf("cursor should start on state row")
+	}
+	m.handleKey(key(tea.KeySpace)) // idle → running
+	if m.state() != stRunning {
+		t.Fatalf("space on state should start, got %d", m.state())
+	}
+	m.handleKey(key(tea.KeyBackspace)) // running → idle (reset)
+	if m.state() != stIdle {
+		t.Fatalf("backspace on state should reset to idle, got %d", m.state())
+	}
+}
+
+// chat の :record edit で計測中を保存すると ● REC が点灯し tick Cmd が返る (要件 068)。
+func TestRecordEditChatSyncsRecordingOn(t *testing.T) {
+	var saved solvestat.Stat
+	m := &chatModel{
+		mode: modeRecordEdit,
+		header: ChatHeader{
+			Task: "abc457_d",
+			RecordEditSave: func(st solvestat.Stat) ([]string, error) {
+				saved = st
+				return []string{"記録を更新しました"}, nil
+			},
+		},
+	}
+	m.editForm = newRecordEditModel("abc457_d", solvestat.Empty(), 0, true)
+
+	m.updateRecordEdit(key(tea.KeySpace))           // state 行 (row 0) で idle → running
+	_, cmd := m.updateRecordEdit(key(tea.KeyEnter)) // 保存
+	if !m.recording {
+		t.Fatal("running を保存したら REC 点灯すべき")
+	}
+	if cmd == nil {
+		t.Fatal("running 保存で毎秒 tick の Cmd を返すべき")
+	}
+	if saved.StartedAt.IsZero() || !saved.SolvedAt.IsZero() {
+		t.Fatalf("保存 Stat が running でない: %+v", saved)
+	}
+	if !m.recordStart.Equal(saved.StartedAt) {
+		t.Errorf("recordStart は started_at 基準にすべき: %v != %v", m.recordStart, saved.StartedAt)
+	}
+}
+
+// 計測中の記録を停止して保存すると ● REC が消灯する (要件 068)。
+func TestRecordEditChatSyncsRecordingOff(t *testing.T) {
+	run := solvestat.Empty()
+	run.StartedAt = time.Now()
+	m := &chatModel{
+		mode:      modeRecordEdit,
+		recording: true, // 点灯中から始める
+		header: ChatHeader{
+			RecordEditSave: func(st solvestat.Stat) ([]string, error) { return nil, nil },
+		},
+	}
+	m.editForm = newRecordEditModel("t", run, 0, true) // running
+
+	m.updateRecordEdit(key(tea.KeySpace))           // running → stopped
+	_, cmd := m.updateRecordEdit(key(tea.KeyEnter)) // 保存
+	if m.recording {
+		t.Fatal("stopped を保存したら REC 消灯すべき")
+	}
+	if cmd != nil {
+		t.Fatal("stopped 保存では tick Cmd を返さない")
 	}
 }

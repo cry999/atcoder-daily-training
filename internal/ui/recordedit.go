@@ -24,6 +24,16 @@ const (
 	recFieldTriBool  recEditKind = iota // ac / editorial (未記録 / true / false)
 	recFieldScore                       // 5 軸 (未記録 / 0..3)
 	recFieldDuration                    // 実装時間 (テキスト編集)
+	recFieldState                       // 計測状態 (未計測 / 計測中 / 停止 のトグル。要件 068)
+)
+
+// recState は started_at / solved_at から導出する計測状態 (要件 068)。
+type recState int
+
+const (
+	stIdle    recState = iota // 未計測: started_at 空
+	stRunning                 // 計測中: started_at あり・solved_at 空
+	stStopped                 // 停止: started_at あり・solved_at あり
 )
 
 // recordEditField はフォームの 1 行。kind ごとに boolVal / scoreVal / dur* を使い分ける。
@@ -49,9 +59,16 @@ type RecordEditResult struct {
 // tea.NewProgram で回し、chat では embedded=true で埋め込みモードとして駆動する
 // (done を見て親が閉じる。tea.Quit は standalone のときだけ返す)。
 type recordEditModel struct {
-	title    string
-	targetMs int64
-	orig     solvestat.Stat // started_at / solved_at / target_ms を保全するための元 Stat
+	title string
+	orig  solvestat.Stat // ac/editorial/score の元値ベース (時刻/目標は下記の可変値で上書き)
+
+	// 計測状態 (要件 068)。state トグルで書き換わる可変の時刻・目標。初期値は orig から取り、
+	// トグルされたときだけ動く (未トグルなら従来どおり元値が保全される)。
+	startedAt      time.Time // 可変: start で now、reset で空
+	solvedAt       time.Time // 可変: stop で now、start/reset で空
+	recordTargetMs int64     // 保存する target_ms (stop で configTargetMs をスナップショット)
+	configTargetMs int64     // 目標ヒント表示 + stop スナップショット元 (不変)
+
 	fields   []recordEditField
 	cursor   int
 	embedded bool
@@ -62,9 +79,10 @@ type recordEditModel struct {
 	height   int
 }
 
-// newRecordEditModel は st から編集対象 8 フィールドを組んだフォームを作る。
+// newRecordEditModel は st から state 行 + 編集対象 8 フィールドを組んだフォームを作る。
 func newRecordEditModel(title string, st solvestat.Stat, targetMs int64, embedded bool) *recordEditModel {
 	fields := []recordEditField{
+		{label: "state", kind: recFieldState, scoreVal: -1},
 		{label: "ac", kind: recFieldTriBool, boolVal: st.AC, scoreVal: -1},
 		{label: "editorial", kind: recFieldTriBool, boolVal: st.Editorial, scoreVal: -1},
 		{label: "duration", kind: recFieldDuration, durMs: st.DurationMs, durBuf: seedDurBuf(st.DurationMs), scoreVal: -1},
@@ -75,11 +93,83 @@ func newRecordEditModel(title string, st solvestat.Stat, targetMs int64, embedde
 		{label: "verify", kind: recFieldScore, scoreVal: st.Score.Verify},
 	}
 	return &recordEditModel{
-		title:    title,
-		targetMs: targetMs,
-		orig:     st,
-		fields:   fields,
-		embedded: embedded,
+		title:          title,
+		orig:           st,
+		startedAt:      st.StartedAt,
+		solvedAt:       st.SolvedAt,
+		recordTargetMs: st.TargetMs,
+		configTargetMs: targetMs,
+		fields:         fields,
+		embedded:       embedded,
+	}
+}
+
+// state は現在の可変時刻から計測状態を導出する (要件 068)。started_at 空 → 未計測。
+func (m *recordEditModel) state() recState {
+	if m.startedAt.IsZero() {
+		return stIdle
+	}
+	if m.solvedAt.IsZero() {
+		return stRunning
+	}
+	return stStopped
+}
+
+// toggleState は now を刻んで計測状態を 1 段前進させ、duration など他フィールドへ波及させる
+// (未計測 →start→ 計測中 →stop→ 停止 →reset→ 未計測)。時刻は :record start/stop と同義。
+func (m *recordEditModel) toggleState() {
+	now := time.Now()
+	switch m.state() {
+	case stIdle: // → 計測中: start
+		m.startedAt = now
+		m.solvedAt = time.Time{}
+		m.setDurationField(0)
+	case stRunning: // → 停止: stop
+		m.solvedAt = now
+		var durMs int64
+		if !m.startedAt.IsZero() {
+			if d := now.Sub(m.startedAt).Milliseconds(); d > 0 {
+				durMs = d // 破損由来の負値は書かず 0 に落とす (フォームでは確認を挟めない)
+			}
+		}
+		m.setDurationField(durMs)
+		if m.configTargetMs > 0 {
+			m.recordTargetMs = m.configTargetMs
+		}
+	case stStopped: // → 未計測: reset (全クリア)
+		m.resetState()
+	}
+}
+
+// resetState は計測状態を未計測へ戻し、完了系・スコアも含め全クリアする (:record start restart 相当)。
+func (m *recordEditModel) resetState() {
+	m.startedAt = time.Time{}
+	m.solvedAt = time.Time{}
+	m.recordTargetMs = 0
+	m.setDurationField(0)
+	for i := range m.fields {
+		f := &m.fields[i]
+		switch f.kind {
+		case recFieldTriBool:
+			f.boolVal = nil
+		case recFieldScore:
+			f.scoreVal = -1
+		}
+	}
+}
+
+// setDurationField は duration 行を ms に合わせて更新する。durEdited は立てず durMs を正 (exact) と
+// して扱い、resultStat が桁落ちなく保存する (以後ユーザが手編集すれば durEdited が立って上書き)。
+func (m *recordEditModel) setDurationField(ms int64) {
+	for i := range m.fields {
+		f := &m.fields[i]
+		if f.kind != recFieldDuration {
+			continue
+		}
+		f.durMs = ms
+		f.durBuf = seedDurBuf(ms)
+		f.durEdited = false
+		return
 	}
 }
 
@@ -133,13 +223,25 @@ func (m *recordEditModel) handleKey(msg tea.KeyMsg) {
 	case tea.KeyEsc, tea.KeyCtrlC:
 		m.saved = false
 		m.done = true
+	case tea.KeyTab:
+		// Tab はカーソル位置に関係なく計測状態を 1 段前進させる (要件 068 の要望キー)。
+		m.toggleState()
 	case tea.KeySpace:
-		m.cur().cycle(+1)
+		if m.cur().kind == recFieldState {
+			m.toggleState()
+		} else {
+			m.cur().cycle(+1)
+		}
 	case tea.KeyBackspace:
-		m.cur().backspace()
+		if m.cur().kind == recFieldState {
+			m.resetState() // state 行の Backspace は未計測へ即リセット
+		} else {
+			m.cur().backspace()
+		}
 	case tea.KeyRunes:
 		// j/k は上下移動、h/l は値の変更 (vim 風)。それ以外の文字は現在フィールドへ入力する。
 		// ただし duration フィールドでは 'h' が時間単位の入力文字なので、そちらを優先する。
+		// state 行では h/l とも前方トグル (状態は 1 方向サイクルなので前進で統一する)。
 		for _, r := range msg.Runes {
 			switch r {
 			case 'j':
@@ -151,13 +253,20 @@ func (m *recordEditModel) handleKey(msg tea.KeyMsg) {
 					m.cursor--
 				}
 			case 'h':
-				if m.cur().kind == recFieldDuration {
+				switch m.cur().kind {
+				case recFieldState:
+					m.toggleState()
+				case recFieldDuration:
 					m.cur().typeRune(r)
-				} else {
+				default:
 					m.cur().cycle(-1)
 				}
 			case 'l':
-				m.cur().cycle(+1)
+				if m.cur().kind == recFieldState {
+					m.toggleState()
+				} else {
+					m.cur().cycle(+1)
+				}
 			default:
 				m.cur().typeRune(r)
 			}
@@ -266,10 +375,14 @@ func (m *recordEditModel) save() {
 	m.done = true
 }
 
-// resultStat は編集後の Stat を組む。started_at / solved_at / target_ms は元 Stat から
-// 温存し、8 フィールドだけを上書きする。duration は未編集なら元 ms をそのまま使う。
+// resultStat は編集後の Stat を組む。started_at / solved_at / target_ms は可変値 (state トグルで
+// 書き換わる。未トグルなら元値のまま) を反映し、他 8 フィールドを上書きする。duration は未編集なら
+// 元 ms をそのまま使う。
 func (m *recordEditModel) resultStat() solvestat.Stat {
-	out := m.orig // started_at / solved_at / target_ms を温存
+	out := m.orig
+	out.StartedAt = m.startedAt
+	out.SolvedAt = m.solvedAt
+	out.TargetMs = m.recordTargetMs
 	for i := range m.fields {
 		f := &m.fields[i]
 		switch f.label {
@@ -321,6 +434,9 @@ func (m *recordEditModel) View() string {
 		marker := "  "
 		label := recEditLabelStyle.Render(fmt.Sprintf("%-11s", f.label))
 		val := f.display(i == m.cursor)
+		if f.kind == recFieldState {
+			val = m.stateDisplay()
+		}
 		if i == m.cursor {
 			marker = recEditCursorStyle.Render("> ")
 			label = recEditFocusLabelStyle.Render(fmt.Sprintf("%-11s", f.label))
@@ -328,13 +444,13 @@ func (m *recordEditModel) View() string {
 		b.WriteString(marker + label + "  " + val + "\n")
 	}
 	b.WriteString("\n")
-	if m.targetMs > 0 {
-		b.WriteString(recEditHintStyle.Render("目標 "+fmtDurMsUI(m.targetMs)) + "\n")
+	if m.configTargetMs > 0 {
+		b.WriteString(recEditHintStyle.Render("目標 "+fmtDurMsUI(m.configTargetMs)) + "\n")
 	}
 	if m.errMsg != "" {
 		b.WriteString(recEditErrStyle.Render(m.errMsg) + "\n")
 	}
-	b.WriteString(recEditHintStyle.Render("j/k 移動   h/l 変更   0-3・y/n 入力   Backspace 未記録   Enter 保存   Esc 取消"))
+	b.WriteString(recEditHintStyle.Render("j/k 移動   Tab/space 状態切替   h/l 変更   0-3・y/n 入力   Backspace 未記録   Enter 保存   Esc 取消"))
 	return b.String()
 }
 
@@ -357,6 +473,20 @@ func (f *recordEditField) display(focus bool) string {
 		return recEditValueStyle.Render("[ " + txt + " ]")
 	}
 	return ""
+}
+
+// stateDisplay は state 行の値部分を返す。計測中/停止では開始・完了時刻 (hh:mm) を淡色で添える。
+func (m *recordEditModel) stateDisplay() string {
+	switch m.state() {
+	case stRunning:
+		return recEditValueStyle.Render("[ 計測中 ]") + "  " +
+			recEditHintStyle.Render("開始 "+m.startedAt.Format("15:04"))
+	case stStopped:
+		return recEditValueStyle.Render("[ 停止 ]") + "  " +
+			recEditHintStyle.Render("開始 "+m.startedAt.Format("15:04")+" → 完了 "+m.solvedAt.Format("15:04"))
+	default:
+		return recEditValueStyle.Render("[ 未計測 ]")
+	}
 }
 
 // triBoolStr は *bool を true / false / — で表す。
