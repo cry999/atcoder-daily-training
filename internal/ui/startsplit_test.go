@@ -9,6 +9,8 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/cry999/atcoder-daily-training/internal/solvestat"
 )
 
 func TestFormatSampleSummaryAllPassed(t *testing.T) {
@@ -222,5 +224,93 @@ func TestRenderWatchPaneDebugBadge(t *testing.T) {
 	m.debug = true
 	if got := m.renderWatchPane(); !strings.Contains(got, "[debug]") {
 		t.Errorf("debug on: watch pane should show [debug] badge; got %q", got)
+	}
+}
+
+// navTarget は指定 solve-stat を返す RecordEditLoad を積んだナビ先ターゲットを組む test helper。
+func navTarget(contest, task string, st solvestat.Stat, found bool) StartTarget {
+	return StartTarget{
+		ContestID: contest,
+		Task:      task,
+		Header: ChatHeader{
+			Contest: contest, Task: task, TimeLimitMs: 2000, NavEnabled: true,
+			RecordEditLoad: func() (solvestat.Stat, int64, bool, error) { return st, 0, found, nil },
+		},
+	}
+}
+
+// ナビ移動 (retarget) 後、移動先タスクが計測中 (started_at あり・solved_at 空) なら
+// ● REC を復元し (started_at 基準)、tick を再開する。計測中でない移動先では REC を消す。
+// バグ: retarget が chat を作り直す際に recording 状態を落とし、REC が消えていた。
+func TestRetargetRestoresRecordingFromStat(t *testing.T) {
+	started := time.Now().Add(-3 * time.Minute)
+	// 起点: contest A で計測中 (REC 点灯相当)。
+	m := &startSplitModel{
+		chat:      initialChatModel(ChatHeader{Contest: "abc100", Task: "a", TimeLimitMs: 2000}, nil),
+		contestID: "abc100", task: "a",
+		navigate: func(curID, curTask string, req NavRequest) (StartTarget, error) {
+			// 移動先 B は計測中の記録を持つ (started_at あり・solved_at 空)。
+			return navTarget("abc101", "a", solvestat.Stat{StartedAt: started}, true), nil
+		},
+	}
+	m.chat.recording = true
+	m.chat.recordStart = started
+
+	// :contest next 相当 → 計測中タスクへ移動。REC は点灯を保ち、tick Cmd が返る。
+	_, cmd := m.Update(NavMsg{Req: NavRequest{Kind: NavContestNext}})
+	if !m.chat.recording {
+		t.Fatal("計測中タスクへ移動したら REC は点灯を保つべき")
+	}
+	if !m.chat.recordStart.Equal(started) {
+		t.Errorf("recordStart は移動先の started_at 基準にすべき: got %v want %v", m.chat.recordStart, started)
+	}
+	if h := m.chat.renderHeader(); !strings.Contains(h, "REC") {
+		t.Fatalf("移動後ヘッダに REC が無い: %q", h)
+	}
+	if cmd == nil {
+		t.Fatal("計測中タスクへの retarget は tick Cmd を返すべき")
+	}
+
+	// 次に未計測タスクへ移動 → REC 消灯。
+	m.navigate = func(curID, curTask string, req NavRequest) (StartTarget, error) {
+		return navTarget("abc102", "a", solvestat.Empty(), false), nil
+	}
+	m.Update(NavMsg{Req: NavRequest{Kind: NavContestNext}})
+	if m.chat.recording {
+		t.Fatal("未計測タスクへ移動したら REC は消灯すべき")
+	}
+	if h := m.chat.renderHeader(); strings.Contains(h, "REC") {
+		t.Fatalf("未計測タスクへ移動後もヘッダに REC が残る: %q", h)
+	}
+}
+
+// 計測中タスク間を連続で retarget しても record tick の世代 (recordGen) は単調増加し、
+// 旧 chat の迷子 recordTickMsg (キャンセル不可の tea.Tick 遅延到達) が新 chat の tick と
+// 世代衝突して二重 tick を張らない。retarget が旧 gen を引き継ぐことを固定する。
+func TestRetargetRecordGenMonotonic(t *testing.T) {
+	started := time.Now().Add(-time.Minute)
+	rec := func() (solvestat.Stat, int64, bool, error) { return solvestat.Stat{StartedAt: started}, 0, true, nil }
+	m := &startSplitModel{
+		chat:      initialChatModel(ChatHeader{Contest: "abc100", Task: "a", TimeLimitMs: 2000, RecordEditLoad: rec}, nil),
+		contestID: "abc100", task: "a",
+	}
+	// 起点も計測中 (:record start 相当で gen を 1 に進めておく)。
+	m.chat.recording = true
+	m.chat.recordStart = started
+	m.chat.recordGen = 1
+
+	prevGen := m.chat.recordGen
+	for i := 0; i < 3; i++ {
+		m.navigate = func(curID, curTask string, req NavRequest) (StartTarget, error) {
+			return navTarget("abc101", "a", solvestat.Stat{StartedAt: started}, true), nil
+		}
+		m.Update(NavMsg{Req: NavRequest{Kind: NavContestNext}})
+		if !m.chat.recording {
+			t.Fatalf("retarget %d: 計測中タスクなら REC 点灯を保つべき", i)
+		}
+		if m.chat.recordGen <= prevGen {
+			t.Fatalf("retarget %d: recordGen は単調増加すべき (旧 gen 引き継ぎ), got %d prev %d", i, m.chat.recordGen, prevGen)
+		}
+		prevGen = m.chat.recordGen
 	}
 }

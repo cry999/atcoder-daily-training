@@ -229,7 +229,14 @@ func (m *startSplitModel) retarget(t StartTarget) tea.Cmd {
 	// live Debug (実行中の :debug トグル結果) を引き継ぐ。t.Header.Debug は起動時 -d の
 	// 値なので、上書きして chat 表示と watch 判定の Debug を揃える (要件 034)。
 	t.Header.Debug = m.debug
+	// record tick 世代 (recordGen) を旧 chat から引き継ぐ。新 chat は 0 から始まるため、
+	// 引き継がないと旧 chat が計測中に発行済みの recordTickMsg (キャンセル不可の tea.Tick;
+	// shutdown は子プロセスしか kill しない) が retarget 後に遅延到達し、移動先も計測中だと
+	// 世代一致で二重 tick を張ってしまう。旧 gen を土台にすれば restore の recordGen++ が
+	// 単調増加ガードになり、迷子 tick は常に世代不一致で死ぬ (要件 064)。
+	prevRecordGen := m.chat.recordGen
 	m.chat = initialChatModel(t.Header, t.Spawn)
+	m.chat.recordGen = prevRecordGen
 	var cmds []tea.Cmd
 	if m.ready {
 		// 現在のウィンドウサイズで再レイアウトする (chat を ready にして viewport を作る)。
@@ -238,6 +245,12 @@ func (m *startSplitModel) retarget(t StartTarget) tea.Cmd {
 		cmds = append(cmds, cmd)
 	}
 	cmds = append(cmds, m.chat.Init())
+	// 移動先タスクの計測状態 (solve-stat) を ● REC へ復元する。作り直した chat は recording を
+	// 落とすので、計測中タスク (started_at あり・solved_at 空) へ戻れば REC を点灯し直し、
+	// 未計測タスクなら消灯のまま保つ (要件 064 / バグ: 他 contest へ移動すると REC が消える)。
+	if cmd := m.chat.restoreRecordingFromStat(); cmd != nil {
+		cmds = append(cmds, cmd)
+	}
 	for _, line := range t.InfoLines {
 		m.chat.addInfoLine(line)
 	}

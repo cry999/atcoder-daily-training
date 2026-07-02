@@ -495,6 +495,30 @@ func (m *chatModel) execRecord(arg string) tea.Cmd {
 	return cmd
 }
 
+// restoreRecordingFromStat は現在ターゲットの solve-stat を読み、● REC 表示をディスク上の
+// 計測状態へ同期する。started_at あり・solved_at 空 (計測中) なら点灯し started_at 基準で
+// 経過表示 + tick を再開、それ以外・記録なし・フック未注入・読取失敗は消灯する。
+// recordGen を進めて走っている旧 tick を世代不一致で止める (:record start/stop と同型)。
+// ナビ再ターゲット (要件 027) で chat を作り直すと recording 状態が落ち REC が消えるため、
+// 移動先タスクの計測状態を復元するのに使う (要件 064 / バグ: 移動で REC が消える)。
+func (m *chatModel) restoreRecordingFromStat() tea.Cmd {
+	m.recordGen++
+	m.recording = false
+	if m.header.RecordEditLoad == nil {
+		return nil
+	}
+	st, _, found, err := m.header.RecordEditLoad()
+	if err != nil || !found {
+		return nil
+	}
+	if !st.StartedAt.IsZero() && st.SolvedAt.IsZero() {
+		m.recording = true
+		m.recordStart = st.StartedAt
+		return m.recordTickCmd()
+	}
+	return nil
+}
+
 // enterRecordEdit は :record edit (要件 066) で全画面編集フォームへ入る。RecordEditLoad で
 // 現在の solve-stat を読み込み、記録があればフォームを開いて modeRecordEdit へ遷移する。
 // 記録が無い / フックが未注入なら info 行で案内するだけ (insert に留まる)。solve-stat の
