@@ -1058,6 +1058,35 @@ func (m *chatModel) scrollUp() {
 // scrollDown は scrollback を 1 ページ下へ送る。最下部に達したら追従を再開する。
 func (m *chatModel) scrollDown() {
 	m.viewport.ViewDown()
+	m.followIfAtBottom()
+}
+
+// scrollLineUp / scrollLineDown は scrollback を 1 行、scrollHalfUp / scrollHalfDown は
+// 半ページ動かす (command モードの Ctrl+P/N・Ctrl+U/D。要件 067)。up 系は追従を止め、
+// down 系は最下部に達したら追従を再開する — ページ送り (scrollUp/scrollDown) と同則。
+func (m *chatModel) scrollLineUp() {
+	m.viewport.LineUp(1)
+	m.scrolled = true
+}
+
+func (m *chatModel) scrollLineDown() {
+	m.viewport.LineDown(1)
+	m.followIfAtBottom()
+}
+
+func (m *chatModel) scrollHalfUp() {
+	m.viewport.HalfViewUp()
+	m.scrolled = true
+}
+
+func (m *chatModel) scrollHalfDown() {
+	m.viewport.HalfViewDown()
+	m.followIfAtBottom()
+}
+
+// followIfAtBottom は下スクロールで最下部に達したら追従 (scrolled=false) を再開する。
+// 下方向スクロール系 (scrollDown / scrollLineDown / scrollHalfDown) で共有する。
+func (m *chatModel) followIfAtBottom() {
 	if m.viewport.AtBottom() {
 		m.scrolled = false
 	}

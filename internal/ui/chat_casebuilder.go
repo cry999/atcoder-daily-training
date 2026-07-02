@@ -191,6 +191,23 @@ func (m *chatModel) updateCommand(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// 1 ページ下へ。最下部に達したら追従を再開する。
 		m.scrollDown()
 		return m, nil
+	case tea.KeyCtrlP:
+		// Ctrl+P = 1 行上 (vim/emacs の previous。要件 067)。
+		m.scrollLineUp()
+		return m, nil
+	case tea.KeyCtrlN:
+		// Ctrl+N = 1 行下 (next)。最下部に達したら追従を再開する。
+		m.scrollLineDown()
+		return m, nil
+	case tea.KeyCtrlU:
+		// Ctrl+U = 半ページ上 (vim。要件 067)。
+		m.scrollHalfUp()
+		return m, nil
+	case tea.KeyCtrlD:
+		// Ctrl+D = 半ページ下 (vim)。最下部に達したら追従を再開する。
+		// insert モードの Ctrl+D (リセット→終了、要件 051) とは別で、command モード限定。
+		m.scrollHalfDown()
+		return m, nil
 	case tea.KeyEsc:
 		// キャンセル: builder が開いていれば編集に戻る、なければ insert へ。
 		// command モードを抜けるので上スクロールは解除し最下部 (最新) に戻す (要件 033)。

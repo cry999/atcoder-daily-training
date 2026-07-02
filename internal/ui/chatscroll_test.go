@@ -102,6 +102,53 @@ func TestCmdScroll_ExecResets(t *testing.T) {
 	}
 }
 
+// 要件 067: command モードの Ctrl+P (1 行) / Ctrl+U (半ページ) で上にスクロールし、
+// 出力到着でも最下部に引き戻さない。Ctrl+N / Ctrl+D で最下部に戻ると追従を再開する。
+func TestCmdScroll_LineAndHalfPage(t *testing.T) {
+	cases := []struct {
+		name     string
+		up, down tea.KeyType
+	}{
+		{"line", tea.KeyCtrlP, tea.KeyCtrlN},
+		{"half", tea.KeyCtrlU, tea.KeyCtrlD},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := scrollableCommandModel()
+			if !m.viewport.AtBottom() {
+				t.Fatal("freshly refreshed viewport should follow (be at the bottom)")
+			}
+
+			m.updateCommand(tea.KeyMsg{Type: tc.up})
+			if !m.scrolled {
+				t.Fatalf("%v should set scrolled", tc.up)
+			}
+			if m.viewport.AtBottom() {
+				t.Fatalf("%v should scroll up (no longer at bottom)", tc.up)
+			}
+			off := m.viewport.YOffset
+
+			// 出力が届いて refresh されても最下部に引き戻さない。
+			m.msgs = append(m.msgs, chatLine{kind: kindOut, text: "new output"})
+			m.refreshViewport()
+			if m.viewport.AtBottom() || m.viewport.YOffset != off {
+				t.Fatalf("output must not yank back to bottom while scrolled (off=%d got=%d)", off, m.viewport.YOffset)
+			}
+
+			// Ctrl+N / Ctrl+D で最下部に戻ると追従再開。
+			for i := 0; i < 40 && !m.viewport.AtBottom(); i++ {
+				m.updateCommand(tea.KeyMsg{Type: tc.down})
+			}
+			if !m.viewport.AtBottom() {
+				t.Fatalf("%v should reach the bottom", tc.down)
+			}
+			if m.scrolled {
+				t.Fatalf("reaching the bottom with %v should clear scrolled (resume follow)", tc.down)
+			}
+		})
+	}
+}
+
 // overflow する履歴を積んだ insert モードの model (要件 040 のスクロール検証用)。
 func scrollableInsertModel() *chatModel {
 	m := initialChatModel(ChatHeader{}, nil)
