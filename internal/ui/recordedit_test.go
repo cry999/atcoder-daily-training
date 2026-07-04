@@ -373,7 +373,7 @@ func TestRecordEditState_TabTogglesFocusedField(t *testing.T) {
 	}
 }
 
-// state 行では space で前進、Backspace で未計測へリセットできる。
+// state 行では space で前進、Backspace で未計測へリセットできる (reset は確認を挟む。要件 069)。
 func TestRecordEditState_SpaceAndBackspaceOnRow(t *testing.T) {
 	m := newRecordEditModel("t", solvestat.Empty(), 0, false)
 	if m.cur().kind != recFieldState {
@@ -383,9 +383,90 @@ func TestRecordEditState_SpaceAndBackspaceOnRow(t *testing.T) {
 	if m.state() != stRunning {
 		t.Fatalf("space on state should start, got %d", m.state())
 	}
-	m.handleKey(key(tea.KeyBackspace)) // running → idle (reset)
+	m.handleKey(key(tea.KeyBackspace)) // Backspace は即リセットせず確認待ちへ (要件 069)
+	if !m.pendingReset {
+		t.Fatalf("backspace on state should request reset confirm")
+	}
+	if m.state() != stRunning {
+		t.Fatalf("state should stay until confirmed, got %d", m.state())
+	}
+	m.handleKey(runeKey('y')) // 確認 → reset 実行
+	if m.pendingReset {
+		t.Fatalf("y should clear pending reset")
+	}
 	if m.state() != stIdle {
-		t.Fatalf("backspace on state should reset to idle, got %d", m.state())
+		t.Fatalf("backspace+y on state should reset to idle, got %d", m.state())
+	}
+}
+
+// reset は確認を挟み、y/Y のときだけ全クリアする (要件 069)。停止からのトグル reset も同様。
+func TestRecordEditReset_ConfirmExecutes(t *testing.T) {
+	// 停止 → 未計測 トグル: 停止状態で Tab を押すと即リセットせず確認待ちに入る。
+	m := newRecordEditModel("t", baseStat(), 2100000, false) // stopped から
+	if m.state() != stStopped {
+		t.Fatalf("want stopped got %d", m.state())
+	}
+	m.handleKey(key(tea.KeyTab)) // 停止トグル → 確認待ち (即リセットしない)
+	if !m.pendingReset {
+		t.Fatalf("tab on stopped state should request reset confirm")
+	}
+	if m.state() != stStopped {
+		t.Fatalf("state should stay stopped until confirmed, got %d", m.state())
+	}
+	m.handleKey(runeKey('Y')) // 大文字 Y でも確定
+	if m.pendingReset || m.state() != stIdle {
+		t.Fatalf("Y should confirm reset: pending=%v state=%d", m.pendingReset, m.state())
+	}
+	got := m.resultStat()
+	if !got.StartedAt.IsZero() || !got.SolvedAt.IsZero() || got.DurationMs != 0 || got.AC != nil {
+		t.Errorf("reset should clear everything: %+v", got)
+	}
+}
+
+// 確認待ち中に y 以外のキーを押すと取消され、リセットも本来の操作も起きない (要件 069)。
+func TestRecordEditReset_CancelWithOtherKey(t *testing.T) {
+	m := newRecordEditModel("t", baseStat(), 2100000, false) // stopped
+	m.handleKey(key(tea.KeyBackspace))                       // 確認待ちへ
+	if !m.pendingReset {
+		t.Fatalf("backspace should request reset confirm")
+	}
+	m.handleKey(runeKey('n')) // 'n' で取消
+	if m.pendingReset {
+		t.Fatalf("n should clear pending reset")
+	}
+	if m.state() != stStopped {
+		t.Fatalf("cancel should keep state stopped, got %d", m.state())
+	}
+	// 取消キーは吸収される: カーソルは動かず (Down を押しても確認取消として消費する例)。
+	m.handleKey(key(tea.KeyBackspace)) // もう一度確認待ちへ
+	m.handleKey(key(tea.KeyDown))      // 確認待ち中の Down は取消として吸収 (移動しない)
+	if m.pendingReset {
+		t.Fatalf("down should cancel pending reset")
+	}
+	if m.cursor != 0 {
+		t.Fatalf("cursor should not move while resolving confirm, got %d", m.cursor)
+	}
+	if m.state() != stStopped {
+		t.Fatalf("cancel should keep state stopped, got %d", m.state())
+	}
+}
+
+// start / stop トグルは破壊的でないので確認を挟まず即実行する (要件 069)。
+func TestRecordEditReset_StartStopNoConfirm(t *testing.T) {
+	m := newRecordEditModel("t", solvestat.Empty(), 0, false)
+	m.handleKey(key(tea.KeyTab)) // idle → running (start)
+	if m.pendingReset {
+		t.Fatalf("start should not request confirm")
+	}
+	if m.state() != stRunning {
+		t.Fatalf("start should be immediate, got %d", m.state())
+	}
+	m.handleKey(key(tea.KeyTab)) // running → stopped (stop)
+	if m.pendingReset {
+		t.Fatalf("stop should not request confirm")
+	}
+	if m.state() != stStopped {
+		t.Fatalf("stop should be immediate, got %d", m.state())
 	}
 }
 

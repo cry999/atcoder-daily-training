@@ -75,8 +75,11 @@ type recordEditModel struct {
 	done     bool
 	saved    bool
 	errMsg   string // duration の解釈失敗など、保存を止めた理由
-	width    int
-	height   int
+	// pendingReset は reset (未計測への全クリア) の確認待ち (要件 069)。true の間は次打鍵を
+	// y=実行 / 他=取消 で判定し、破壊的な reset を誤爆させない。純 UI 状態で保存されない。
+	pendingReset bool
+	width        int
+	height       int
 }
 
 // newRecordEditModel は st から state 行 + 編集対象 8 フィールドを組んだフォームを作る。
@@ -158,6 +161,36 @@ func (m *recordEditModel) resetState() {
 	}
 }
 
+// requestStateAdvance は state 行のトグル要求 (Tab/space/h/l)。停止 → 未計測 は破壊的な reset
+// なので確認待ちに落とし、未計測 → 計測中 (start) / 計測中 → 停止 (stop) は非破壊なので即実行する。
+func (m *recordEditModel) requestStateAdvance() {
+	if m.state() == stStopped {
+		m.pendingReset = true // 停止 → 未計測 は reset。確認してから resetState する (要件 069)
+		return
+	}
+	m.toggleState()
+}
+
+// requestReset は state 行の Backspace による即リセット要求。破壊的なので確認待ちに落とす (要件 069)。
+func (m *recordEditModel) requestReset() {
+	m.pendingReset = true
+}
+
+// resolveResetConfirm は reset 確認待ち中の 1 打鍵を判定する (要件 069)。y/Y のときだけ resetState を
+// 実行し、それ以外のキーはすべて取消として吸収する (曖昧なキーで破壊しない安全側デフォルト)。
+func (m *recordEditModel) resolveResetConfirm(msg tea.KeyMsg) {
+	m.pendingReset = false
+	if msg.Type == tea.KeyRunes {
+		for _, r := range msg.Runes {
+			if r == 'y' || r == 'Y' {
+				m.resetState()
+				return
+			}
+		}
+	}
+	// y 以外は取消 (何もしない)。確認待ちは既に解除済み。
+}
+
 // setDurationField は duration 行を ms に合わせて更新する。durEdited は立てず durMs を正 (exact) と
 // して扱い、resultStat が桁落ちなく保存する (以後ユーザが手編集すれば durEdited が立って上書き)。
 func (m *recordEditModel) setDurationField(ms int64) {
@@ -209,6 +242,12 @@ func (m *recordEditModel) setWidth(w int) {
 // handleKey はフォームの 1 打鍵を処理する (standalone / chat 埋め込みで共有)。
 // カーソル移動 (↑↓ / j/k)・値の変更 (h/l)・保存 (Enter / Ctrl+S)・取消 (Esc/Ctrl+C) をここで完結させる。
 func (m *recordEditModel) handleKey(msg tea.KeyMsg) {
+	// reset 確認待ち中は、次打鍵を y=実行 / 他=取消 で判定して吸収する (要件 069)。
+	// 破壊的な reset を誤爆させないため、確認より前に他のキー処理へ進ませない。
+	if m.pendingReset {
+		m.resolveResetConfirm(msg)
+		return
+	}
 	switch msg.Type {
 	case tea.KeyUp:
 		if m.cursor > 0 {
@@ -227,13 +266,13 @@ func (m *recordEditModel) handleKey(msg tea.KeyMsg) {
 		// Tab / space はカーソル位置のフィールド値を前方へトグルする (要件 068)。
 		// state 行では状態を 1 段前進、他は cycle(+1)。duration はトグル対象がなく無操作。
 		if m.cur().kind == recFieldState {
-			m.toggleState()
+			m.requestStateAdvance()
 		} else {
 			m.cur().cycle(+1)
 		}
 	case tea.KeyBackspace:
 		if m.cur().kind == recFieldState {
-			m.resetState() // state 行の Backspace は未計測へ即リセット
+			m.requestReset() // state 行の Backspace は未計測へリセット (確認を挟む。要件 069)
 		} else {
 			m.cur().backspace()
 		}
@@ -254,7 +293,7 @@ func (m *recordEditModel) handleKey(msg tea.KeyMsg) {
 			case 'h':
 				switch m.cur().kind {
 				case recFieldState:
-					m.toggleState()
+					m.requestStateAdvance()
 				case recFieldDuration:
 					m.cur().typeRune(r)
 				default:
@@ -262,7 +301,7 @@ func (m *recordEditModel) handleKey(msg tea.KeyMsg) {
 				}
 			case 'l':
 				if m.cur().kind == recFieldState {
-					m.toggleState()
+					m.requestStateAdvance()
 				} else {
 					m.cur().cycle(+1)
 				}
@@ -448,6 +487,11 @@ func (m *recordEditModel) View() string {
 	}
 	if m.errMsg != "" {
 		b.WriteString(recEditErrStyle.Render(m.errMsg) + "\n")
+	}
+	if m.pendingReset {
+		// 確認待ち中は通常ヒントの代わりに、何が消えるかを明示した確認プロンプトを出す (要件 069)。
+		b.WriteString(recEditErrStyle.Render("state をリセットします (開始/完了時刻・duration・目標・ac/editorial・5 軸を全消去)。 y=実行 / 他キー=取消"))
+		return b.String()
 	}
 	b.WriteString(recEditHintStyle.Render("j/k 移動   Tab/space トグル   h/l 変更   0-3・y/n 入力   Backspace 未記録   Enter 保存   Esc 取消"))
 	return b.String()

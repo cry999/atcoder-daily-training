@@ -100,7 +100,7 @@ j/k 移動   Tab/space トグル   h/l 変更   0-3・y/n 入力   Backspace 未
 | `h` / `l` | `ac`/`editorial` は `未記録 ↔ true ↔ false` を循環、5 軸は `未記録 ↔ 0..3` を移動 (`duration` では `h` は時間入力)。`state` 行では前方トグル |
 | `y` / `n` | `ac`/`editorial` を true / false に |
 | `0`–`3` | 5 軸の値を直接入力 |
-| `Backspace` | 選択フィールドを未記録へ (duration は 1 文字削除、`state` 行は未計測へリセット) |
+| `Backspace` | 選択フィールドを未記録へ (duration は 1 文字削除、`state` 行は未計測へリセット。reset は確認あり。要件 [069](../requirements/069-record-edit-reset-confirm.md)) |
 | `duration` 入力 | 数字と `h`/`m`/`s` を打って実装時間を編集 (空で未計測)。未編集なら元の値を桁落ちなく温存 |
 | `Enter` (`Ctrl+S`) | 保存して終了 | 
 | `Esc` / `Ctrl+C` | 取消して終了 |
@@ -111,8 +111,9 @@ j/k 移動   Tab/space トグル   h/l 変更   0-3・y/n 入力   Backspace 未
 |---|---|---|---|
 | `未計測` | start | `計測中` | `started_at = now`、`duration` クリア |
 | `計測中` | stop | `停止` | `solved_at = now`、`duration = now − started_at`、`target_ms` を config 目標でスナップショット |
-| `停止` | reset | `未計測` | **全クリア** (`started_at`/`solved_at`/`duration`/`target_ms`/`ac`/`editorial`/5 軸すべて。`:record start restart` 相当) |
+| `停止` | reset | `未計測` | **全クリア** (`started_at`/`solved_at`/`duration`/`target_ms`/`ac`/`editorial`/5 軸すべて。`:record start restart` 相当)。破壊的なので**確認あり** |
 
+- **reset は確認を挟む** (要件 [069](../requirements/069-record-edit-reset-confirm.md))。`停止 → 未計測` のトグルや `state` 行の `Backspace` を押すと即クリアせず「リセットしますか」の確認行が出る。`y` / `Y` で実行、それ以外のキーはすべて取消 (誤爆防止)。start / stop トグルは非破壊なので確認なしで即進む。
 - chat の `:record edit` では、保存後にヘッダの ● REC インジケーターを保存内容へ同期する (`計測中` を保存すると `started_at` 基準で点灯・毎秒経過、`停止`/`未計測` は消灯)。
 - `started_at`/`solved_at` を**任意の時刻値**へ直接編集するのは将来拡張 (state トグルは now を刻むライフサイクル操作)。
 
@@ -194,7 +195,7 @@ $ atcoder record abc457 --task d --score 2,3,2,3,1 --no-editorial
 
 ## 関連
 
-- 要件: [requirements/061-solve-record-stats.md](../requirements/061-solve-record-stats.md) / chat 統合 [requirements/064-chat-record.md](../requirements/064-chat-record.md) / 編集フォーム [requirements/066-record-edit.md](../requirements/066-record-edit.md) / state トグル [requirements/068-record-edit-state-toggle.md](../requirements/068-record-edit-state-toggle.md)
+- 要件: [requirements/061-solve-record-stats.md](../requirements/061-solve-record-stats.md) / chat 統合 [requirements/064-chat-record.md](../requirements/064-chat-record.md) / 編集フォーム [requirements/066-record-edit.md](../requirements/066-record-edit.md) / state トグル [requirements/068-record-edit-state-toggle.md](../requirements/068-record-edit-state-toggle.md) / reset 確認 [requirements/069-record-edit-reset-confirm.md](../requirements/069-record-edit-reset-confirm.md)
 - 集計: [`stats.md`](stats.md) / [requirements/005-exercise-stats.md](../requirements/005-exercise-stats.md)
 - 着手: [`start.md`](start.md) / 提出フロー: [`test.md`](test.md)
 - 決定記録: [ADR 0002](../decisions/0002-stats-readonly-exercise-tree.md) (stats read-only) / [ADR 0006](../decisions/0006-fold-submit-into-test.md) (実提出/AC 取得が不可な理由)
