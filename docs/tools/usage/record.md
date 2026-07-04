@@ -114,7 +114,7 @@ j/k 移動   Tab/space トグル   h/l 変更   0-3・y/n 入力   Backspace 未
 | `停止` | reset | `未計測` | **全クリア** (`started_at`/`solved_at`/`duration`/`target_ms`/`ac`/`editorial`/5 軸すべて。`:record start restart` 相当)。破壊的なので**確認あり** |
 
 - **reset は確認を挟む** (要件 [069](../requirements/069-record-edit-reset-confirm.md))。`停止 → 未計測` のトグルや `state` 行の `Backspace` を押すと即クリアせず「リセットしますか」の確認行が出る。`y` / `Y` で実行、それ以外のキーはすべて取消 (誤爆防止)。start / stop トグルは非破壊なので確認なしで即進む。
-- chat の `:record edit` では、保存後にヘッダの ● REC インジケーターを保存内容へ同期する (`計測中` を保存すると `started_at` 基準で点灯・毎秒経過、`停止`/`未計測` は消灯)。
+- chat の `:record edit` では、保存後にヘッダの記録インジケーターを保存内容へ同期する (`計測中` を保存すると `● REC` が `started_at` 基準で点灯・毎秒経過、`停止` は `✓ かかった時間`、`未計測` は `○ REC --:--`)。
 - `started_at`/`solved_at` を**任意の時刻値**へ直接編集するのは将来拡張 (state トグルは now を刻むライフサイクル操作)。
 
 ## 目標実装時間 (`config`)
@@ -167,7 +167,7 @@ $ atcoder record abc457 --task d --score 2,3,2,3,1 --no-editorial
 - bool フラグは bare 語 (`ac`/`noac`、`ed`/`noed`)、値フラグは `key=value` (`score=k,t,c,i,v`、`time=<dur>`)。相反 bool の併用・`score`/`time` の不正値は err 行で伝えて chat は継続する。
 - 実装時間が異常値 (負値 / 12h 超) のとき、chat では確認を挟めないので警告行を添えてそのまま記録する (CLI 非対話経路と同じ)。
 - `:record edit` は chat を離れずに CLI `record edit` と同じ全画面フォームを開く (`:case` の作成画面と同様に子プロセスは裏で生かしたまま画面を占有)。記録が無ければ「(まだ記録がありません)」と案内する。保存すると更新結果を info 行で積んで会話へ戻る。
-- フォーム内の `state` 行を `Tab` で切り替えれば `:record start`/`stop`/`start restart` と同じ操作をフォームから完結できる (要件 068)。保存後はヘッダの ● REC インジケーターが保存内容に同期する (`計測中` → 点灯・経過表示、`停止`/`未計測` → 消灯)。
+- フォーム内の `state` 行を `Tab` で切り替えれば `:record start`/`stop`/`start restart` と同じ操作をフォームから完結できる (要件 068)。保存後はヘッダの記録インジケーターが保存内容に同期する (`計測中` → `● REC` 点灯・経過表示、`停止` → `✓ かかった時間`、`未計測` → `○ REC --:--`)。
 
 ```
 :record start

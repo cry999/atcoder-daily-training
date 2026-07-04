@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/cry999/atcoder-daily-training/internal/extracase"
+	"github.com/cry999/atcoder-daily-training/internal/solvestat"
 )
 
 // chatMode は chat の入力モード (vim 風)。要件 024。
@@ -484,11 +485,16 @@ func (m *chatModel) execRecord(arg string) tea.Cmd {
 		case "start":
 			m.recording = true
 			m.recordStart = time.Now()
+			m.recordDone = false
+			m.recordDuration = 0
 			m.recordGen++
 			cmd = m.recordTickCmd()
 		case "stop":
 			m.recording = false
 			m.recordGen++
+			// stop 直後の solve-stat (solved_at / duration 確定) を読み直して「終了」表示へ
+			// 同期する。フック未注入 or 読取失敗時は開始時刻からの経過で代替する。
+			m.syncRecordDoneFromStat()
 		}
 	}
 	m.refreshViewport()
@@ -504,6 +510,8 @@ func (m *chatModel) execRecord(arg string) tea.Cmd {
 func (m *chatModel) restoreRecordingFromStat() tea.Cmd {
 	m.recordGen++
 	m.recording = false
+	m.recordDone = false
+	m.recordDuration = 0
 	if m.header.RecordEditLoad == nil {
 		return nil
 	}
@@ -516,7 +524,48 @@ func (m *chatModel) restoreRecordingFromStat() tea.Cmd {
 		m.recordStart = st.StartedAt
 		return m.recordTickCmd()
 	}
+	m.applyRecordDoneState(st)
 	return nil
+}
+
+// syncRecordDoneFromStat は :record stop 直後にディスクの solve-stat を読み直し、終了表示
+// (✓ + かかった時間) へ同期する。フックが未注入 or 読取失敗 or 記録なしのときは、開始時刻
+// (recordStart) からの経過を代替の所要時間として表示する。
+func (m *chatModel) syncRecordDoneFromStat() {
+	if m.header.RecordEditLoad != nil {
+		if st, _, found, err := m.header.RecordEditLoad(); err == nil && found {
+			m.applyRecordDoneState(st)
+			return
+		}
+	}
+	if !m.recordStart.IsZero() {
+		m.recordDone = true
+		m.recordDuration = time.Since(m.recordStart)
+	}
+}
+
+// applyRecordDoneState は計測中でない stat を終了/未開始表示へ反映する。solved_at が確定して
+// いれば「終了」(かかった時間を保持) とし、それ以外 (未記録 / started のみ) は「未開始」に落とす。
+func (m *chatModel) applyRecordDoneState(st solvestat.Stat) {
+	if !st.SolvedAt.IsZero() {
+		m.recordDone = true
+		m.recordDuration = recordStatDuration(st)
+		return
+	}
+	m.recordDone = false
+	m.recordDuration = 0
+}
+
+// recordStatDuration は終了済み stat のかかった時間を返す。記録された duration_ms を優先し、
+// 無ければ started_at→solved_at の差で補う (どちらも無ければ 0)。
+func recordStatDuration(st solvestat.Stat) time.Duration {
+	if st.DurationMs > 0 {
+		return time.Duration(st.DurationMs) * time.Millisecond
+	}
+	if !st.StartedAt.IsZero() && !st.SolvedAt.IsZero() {
+		return st.SolvedAt.Sub(st.StartedAt)
+	}
+	return 0
 }
 
 // enterRecordEdit は :record edit (要件 066) で全画面編集フォームへ入る。RecordEditLoad で
@@ -572,9 +621,12 @@ func (m *chatModel) updateRecordEdit(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if !result.StartedAt.IsZero() && result.SolvedAt.IsZero() {
 				m.recording = true
 				m.recordStart = result.StartedAt
+				m.recordDone = false
+				m.recordDuration = 0
 				cmd = m.recordTickCmd()
 			} else {
 				m.recording = false
+				m.applyRecordDoneState(result)
 			}
 		}
 	} else {

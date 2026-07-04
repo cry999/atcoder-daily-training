@@ -306,6 +306,8 @@ type chatModel struct {
 	recording        bool           // :record start 中 (:record stop で解除)。ヘッダに ● REC + 経過を出す (要件 064)
 	recordStart      time.Time      // 記録開始時刻 (ヘッダ経過時間の基準)
 	recordGen        int            // record tick の世代。start/stop で更新し旧 tick を無効化 (spinGen と同型)
+	recordDone       bool           // 計測が終了済み (solved_at 確定)。ヘッダに ✓ + かかった時間を出す
+	recordDuration   time.Duration  // 終了済み計測のかかった時間 (recordDone のときヘッダに表示)
 	width            int
 	height           int
 	ready            bool
@@ -1018,10 +1020,17 @@ func (m *chatModel) renderHeader() string {
 		keyStyle.Render("time_limit=") + valueStyle.Render(fmt.Sprintf("%dms", m.header.TimeLimitMs)),
 		infoStyle.Render("(interactive)"),
 	}
-	// :record start 中は記録マーカー "● REC mm:ss" をヘッダ末尾に赤で出す (要件 064)。
-	// 経過は recordTickCmd の毎秒 tick で再描画される。
-	if m.recording {
+	// 記録状態マーカーをヘッダ末尾に出す (要件 064)。3 状態を出し分ける:
+	//   計測中   → "● REC mm:ss" (赤・毎秒 tick で経過を再描画)
+	//   終了済み → "✓ mm:ss" (緑・かかった時間)
+	//   未開始   → "○ REC --:--" (dim・未計測を示すマーク)
+	switch {
+	case m.recording:
 		parts = append(parts, recordIndicator(time.Since(m.recordStart)))
+	case m.recordDone:
+		parts = append(parts, recordDoneIndicator(m.recordDuration))
+	default:
+		parts = append(parts, recordIdleIndicator())
 	}
 	return strings.Join(parts, "  ")
 }
@@ -1029,6 +1038,16 @@ func (m *chatModel) renderHeader() string {
 // recordIndicator は :record 中に出す記録マーカー "● REC mm:ss" を返す (赤 = mochaRed)。
 func recordIndicator(elapsed time.Duration) string {
 	return chatRecordStyle.Render("● REC " + formatRecElapsed(elapsed))
+}
+
+// recordDoneIndicator は計測終了後に出す "✓ mm:ss" (かかった時間) を返す (緑 = mochaGreen)。
+func recordDoneIndicator(d time.Duration) string {
+	return chatRecordDoneStyle.Render("✓ " + formatRecElapsed(d))
+}
+
+// recordIdleIndicator は未計測 (:record start 前) を示す "○ REC --:--" を返す (dim = mochaOverlay0)。
+func recordIdleIndicator() string {
+	return chatRecordIdleStyle.Render("○ REC --:--")
 }
 
 // formatRecElapsed は記録経過を mm:ss (1 時間以上は h:mm:ss) に整形する純粋関数。
@@ -1430,6 +1449,10 @@ var (
 	chatWaitStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaSapphire))
 	// :record 中の記録マーカー (● REC 経過)。「録画中」を示す赤で bold (要件 064)。
 	chatRecordStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaRed)).Bold(true)
+	// 計測終了後の記録マーカー (✓ かかった時間)。「完了」を示す緑で bold。
+	chatRecordDoneStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaGreen)).Bold(true)
+	// 未計測の記録マーカー (○ REC --:--)。未開始を示す最も dim な overlay 色 (主張しない)。
+	chatRecordIdleStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay0))
 	// scrollback 右端のスクロールバー (要件 056)。track はレールなので最も dim な
 	// surface1、thumb は現在地なので一段明るい overlay1 にして本文を邪魔しない。
 	chatScrollTrackStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaSurface1))

@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/cry999/atcoder-daily-training/internal/solvestat"
 )
 
 // :record は parseCommand で name="record" になり、サブコマンド + フラグは arg に載る (要件 064)。
@@ -121,7 +123,7 @@ func TestFormatRecElapsed(t *testing.T) {
 }
 
 // :record start で記録インジケーターが点灯し (ヘッダに ● REC が出る)、tick Cmd を返す。
-// :record stop で消灯し、以降ヘッダにマーカーが出ない。
+// :record stop で計測中マーカー (● REC) は消え、終了マーカー (✓ かかった時間) へ切り替わる。
 func TestExecRecordTogglesIndicator(t *testing.T) {
 	m := &chatModel{header: ChatHeader{
 		Task: "d.py", Contest: "abc457", TimeLimitMs: 2000,
@@ -136,12 +138,13 @@ func TestExecRecordTogglesIndicator(t *testing.T) {
 	if cmd == nil {
 		t.Fatal("start は毎秒 tick の Cmd を返すべき")
 	}
-	if h := m.renderHeader(); !strings.Contains(h, "REC") || !strings.Contains(h, "●") {
-		t.Fatalf("ヘッダに記録マーカーが無い: %q", h)
+	if h := m.renderHeader(); !strings.Contains(h, "● REC") {
+		t.Fatalf("ヘッダに計測中マーカー (● REC) が無い: %q", h)
 	}
 	genAfterStart := m.recordGen
 
-	// stop: recording が下り、世代が進み (走っている tick を止める)、ヘッダにマーカーが出ない。
+	// stop: recording が下り、世代が進み (走っている tick を止める)、計測中マーカーは消えて
+	// 終了マーカー (✓ かかった時間) へ切り替わる。
 	if cmd := m.execRecord("stop"); cmd != nil {
 		t.Fatal("stop は tick Cmd を返さない")
 	}
@@ -151,8 +154,11 @@ func TestExecRecordTogglesIndicator(t *testing.T) {
 	if m.recordGen == genAfterStart {
 		t.Fatal("stop で recordGen が進んでいない (旧 tick を止められない)")
 	}
-	if h := m.renderHeader(); strings.Contains(h, "REC") {
-		t.Fatalf("stop 後もヘッダに記録マーカーが残る: %q", h)
+	if h := m.renderHeader(); strings.Contains(h, "● REC") {
+		t.Fatalf("stop 後もヘッダに計測中マーカー (● REC) が残る: %q", h)
+	}
+	if h := m.renderHeader(); !m.recordDone || !strings.Contains(h, "✓") {
+		t.Fatalf("stop 後は終了マーカー (✓ かかった時間) を出すべき: %q", h)
 	}
 }
 
@@ -176,5 +182,49 @@ func TestRecordTickMsgReArmsOnlyWhileRecording(t *testing.T) {
 	m.execRecord("stop")
 	if _, cmd := m.Update(recordTickMsg{gen: m.recordGen}); cmd != nil {
 		t.Fatal("停止後の tick は破棄すべき")
+	}
+}
+
+// ヘッダの記録マーカーは 3 状態を出し分ける: 未開始は "○ REC --:--"、計測中は "● REC 経過"、
+// 終了済み (solved_at 確定) は "✓ かかった時間"。restoreRecordingFromStat が solve-stat から
+// これを復元する。
+func TestRecordIndicatorThreeStates(t *testing.T) {
+	// 未開始: 記録なし → ○ REC --:-- (計測中/終了マーカーは出ない)。
+	idle := &chatModel{header: ChatHeader{Task: "d.py", Contest: "abc457", TimeLimitMs: 2000}}
+	if h := idle.renderHeader(); !strings.Contains(h, "○ REC --:--") {
+		t.Fatalf("未開始は ○ REC --:-- を出すべき: %q", h)
+	}
+	if h := idle.renderHeader(); strings.Contains(h, "● REC") || strings.Contains(h, "✓") {
+		t.Fatalf("未開始で計測中/終了マーカーが出ている: %q", h)
+	}
+
+	// 終了済み: started_at・solved_at 確定・duration_ms=125000 (2:05) → ✓ 02:05。
+	started := time.Now().Add(-10 * time.Minute)
+	done := &chatModel{header: ChatHeader{
+		Task: "d.py", Contest: "abc457", TimeLimitMs: 2000,
+		RecordEditLoad: func() (solvestat.Stat, int64, bool, error) {
+			return solvestat.Stat{StartedAt: started, SolvedAt: started.Add(125 * time.Second), DurationMs: 125000}, 0, true, nil
+		},
+	}}
+	done.restoreRecordingFromStat()
+	if done.recording || !done.recordDone {
+		t.Fatalf("終了済み stat は recordDone=true・recording=false にすべき: recording=%v done=%v", done.recording, done.recordDone)
+	}
+	if h := done.renderHeader(); !strings.Contains(h, "✓ 02:05") {
+		t.Fatalf("終了済みは ✓ かかった時間 (02:05) を出すべき: %q", h)
+	}
+	if h := done.renderHeader(); strings.Contains(h, "REC") {
+		t.Fatalf("終了済みで REC マーカーが残っている: %q", h)
+	}
+
+	// duration_ms が無い終了済みは started_at→solved_at 差でかかった時間を補う (3:00)。
+	noDur := &chatModel{header: ChatHeader{
+		RecordEditLoad: func() (solvestat.Stat, int64, bool, error) {
+			return solvestat.Stat{StartedAt: started, SolvedAt: started.Add(3 * time.Minute)}, 0, true, nil
+		},
+	}}
+	noDur.restoreRecordingFromStat()
+	if h := noDur.renderHeader(); !strings.Contains(h, "✓ 03:00") {
+		t.Fatalf("duration_ms 無しは started_at 差 (03:00) で補うべき: %q", h)
 	}
 }

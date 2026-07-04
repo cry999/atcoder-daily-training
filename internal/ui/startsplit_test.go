@@ -264,23 +264,26 @@ func TestRetargetRestoresRecordingFromStat(t *testing.T) {
 	if !m.chat.recordStart.Equal(started) {
 		t.Errorf("recordStart は移動先の started_at 基準にすべき: got %v want %v", m.chat.recordStart, started)
 	}
-	if h := m.chat.renderHeader(); !strings.Contains(h, "REC") {
-		t.Fatalf("移動後ヘッダに REC が無い: %q", h)
+	if h := m.chat.renderHeader(); !strings.Contains(h, "● REC") {
+		t.Fatalf("移動後ヘッダに ● REC が無い: %q", h)
 	}
 	if cmd == nil {
 		t.Fatal("計測中タスクへの retarget は tick Cmd を返すべき")
 	}
 
-	// 次に未計測タスクへ移動 → REC 消灯。
+	// 次に未計測タスクへ移動 → ● REC は消灯し、未計測マーク ○ REC が出る。
 	m.navigate = func(curID, curTask string, req NavRequest) (StartTarget, error) {
 		return navTarget("abc102", "a", solvestat.Empty(), false), nil
 	}
 	m.Update(NavMsg{Req: NavRequest{Kind: NavContestNext}})
 	if m.chat.recording {
-		t.Fatal("未計測タスクへ移動したら REC は消灯すべき")
+		t.Fatal("未計測タスクへ移動したら計測は消灯すべき")
 	}
-	if h := m.chat.renderHeader(); strings.Contains(h, "REC") {
-		t.Fatalf("未計測タスクへ移動後もヘッダに REC が残る: %q", h)
+	if h := m.chat.renderHeader(); strings.Contains(h, "● REC") {
+		t.Fatalf("未計測タスクへ移動後もヘッダに ● REC が残る: %q", h)
+	}
+	if h := m.chat.renderHeader(); !strings.Contains(h, "○ REC") {
+		t.Fatalf("未計測タスクへ移動後は未計測マーク ○ REC を出すべき: %q", h)
 	}
 }
 
