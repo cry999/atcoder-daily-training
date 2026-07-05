@@ -1,45 +1,22 @@
-from atcoder.modint import Modint, ModContext
-
-K = int(input())
+K = input()
+L = len(K)
 D = int(input())
-
 MOD = 10**9 + 7
 
-digit_length = len(str(K))
+# dp[i][r][f] := 上位から i 桁目までを決めて、D で割ったあまりが r で K 以下かどうかが f で管理されている
+dp = [[[0] * 2 for _ in range(D)] for _ in range(L + 1)]
+dp[0][0][0] = 1
 
-with ModContext(MOD):
-    # dp[k][d] := 10^(k+1) 未満の数字で桁の総和を D で割ったあまりが d である数字の個数
-    dp = [[Modint(0) for _ in range(D)] for _ in range(digit_length + 1)]
-    for d in range(10):
-        dp[0][d % D] += Modint(1)
-
-    for k in range(digit_length):
-        for d in range(D):
-            for n in range(10):
-                # 先頭に n を追加する
-                dp[k + 1][d % D] += dp[k][(d - n) % D]
-
-    # 先頭の桁から計算していく
-    k = digit_length - 1
-    offset = 0
-    ans = Modint(0)
-    while k >= 0:
-        # k 桁目の数字を求める。
-        kth_digit = (K // (10**k)) % 10
-        old = ans
-
-        if k == 0:
-            for d in range(kth_digit):
-                ans += (d + offset) % D == 0
-        else:
-            for d in range(kth_digit):
-                ans += dp[k - 1][(D - offset - d) % D]
-
-        offset += kth_digit
-        offset %= D
-        k -= 1
-
-    ans -= 1  # 0 を引く
-    if offset % D == 0:
-        ans += 1
-    print(ans.val())
+for i in range(L):  # 上位から i 桁目まで確定
+    n = int(K[i])
+    for r in range(D):  # D で割ったあまり
+        for less in range(2):  # K 以下かどうかのフラグ
+            # すでに上位が K より小さい場合はなんでも選べる。
+            # まだ、K と同じ場合は K 以下に抑えるために n まで
+            stop = 9 if less else n
+            for d in range(stop + 1):
+                nr = (r + d) % D
+                nless = less or (d < n)
+                dp[i + 1][nr][nless] += dp[i][r][less]
+                dp[i + 1][nr][nless] %= MOD
+print(sum(dp[L][0]) - 1)
