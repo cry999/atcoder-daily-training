@@ -287,6 +287,31 @@ func TestRetargetRestoresRecordingFromStat(t *testing.T) {
 	}
 }
 
+// 初回起動 (Init) 時、着手済み (started_at あり・solved_at 空) の solve-stat があれば
+// ● REC を復元し tick を再開する。バグ: start がファイル作成 + 着手時刻を刻んでも、初回
+// 起動は recording 状態を復元せず REC が消えていた (retarget だけが復元していた。要件 064)。
+func TestInitRestoresRecordingFromStat(t *testing.T) {
+	started := time.Now().Add(-2 * time.Minute)
+	rec := func() (solvestat.Stat, int64, bool, error) { return solvestat.Stat{StartedAt: started}, 0, true, nil }
+	m := &startSplitModel{
+		chat:      initialChatModel(ChatHeader{Contest: "abc100", Task: "abc100_a", TimeLimitMs: 2000, RecordEditLoad: rec}, nil),
+		contestID: "abc100", task: "abc100_a",
+	}
+	cmd := m.Init()
+	if !m.chat.recording {
+		t.Fatal("着手済み stat があれば初回起動で REC を点灯すべき")
+	}
+	if !m.chat.recordStart.Equal(started) {
+		t.Errorf("recordStart は started_at 基準にすべき: got %v want %v", m.chat.recordStart, started)
+	}
+	if h := m.chat.renderHeader(); !strings.Contains(h, "● REC") {
+		t.Fatalf("初回起動後ヘッダに ● REC が無い: %q", h)
+	}
+	if cmd == nil {
+		t.Fatal("初回起動 Init は計測中なら tick を含む Cmd を返すべき")
+	}
+}
+
 // 計測中タスク間を連続で retarget しても record tick の世代 (recordGen) は単調増加し、
 // 旧 chat の迷子 recordTickMsg (キャンセル不可の tea.Tick 遅延到達) が新 chat の tick と
 // 世代衝突して二重 tick を張らない。retarget が旧 gen を引き継ぐことを固定する。

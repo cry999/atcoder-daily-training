@@ -199,7 +199,14 @@ func (m *startSplitModel) resizeChat() tea.Cmd {
 
 func (m *startSplitModel) Init() tea.Cmd {
 	m.sampleInFlight = true // 起動時に 1 回判定する
-	return tea.Batch(m.chat.Init(), m.runSamplesCmd(), m.tickCmd())
+	cmds := []tea.Cmd{m.chat.Init(), m.runSamplesCmd(), m.tickCmd()}
+	// 初回起動時の計測状態 (solve-stat) を ● REC へ復元する。start が着手時刻 (started_at)
+	// を刻んでいれば点灯し tick を再開する。retarget と同じ復元を初回にも効かせる
+	// (バグ: 初回起動は復元せず、着手済みでも REC が消えていた。要件 064)。
+	if cmd := m.chat.restoreRecordingFromStat(); cmd != nil {
+		cmds = append(cmds, cmd)
+	}
+	return tea.Batch(cmds...)
 }
 
 func (m *startSplitModel) tickCmd() tea.Cmd {
