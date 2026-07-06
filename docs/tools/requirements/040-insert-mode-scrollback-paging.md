@@ -1,5 +1,7 @@
 # insert モードの scrollback ページスクロール 要件定義
 
+> **注記 (要件 [071](071-chat-scroll-mode.md) で置換)**: 本要件が定めた insert モードの scrollback スクロール (`PageUp`/`PageDown`/`Ctrl+B`/`Ctrl+F`) は撤去し、専用の**スクロールモード**へ集約した。insert からは `PageUp`/`PageDown` で**スクロールモードに入る**形になり、`Ctrl+B`/`Ctrl+F` は textinput の既定に戻した。追従 (`scrolled`) の仕組みは 071 が引き継いでいる。以下は経緯・設計背景の記録として残す。
+
 ## 概要
 
 chat の **insert モード (通常のチャット入力時)** でも、`PageUp`/`PageDown` (および `Ctrl+B`/`Ctrl+F`) で scrollback (過去の入出力) を 1 ページずつ遡れるようにする。現状スクロールは command モード限定 ([033](033-command-mode-scrollback-paging.md)) で、過去の出力を見るには毎回 `Esc` で command モードに入る必要がある。insert モードでは `PageUp`/`PageDown` が未処理で textinput に流れて実質無視されているので、これをスクロールに割り当てる。追従挙動 (上スクロール中は出力到着で最下部に引き戻さない・最下部に戻したら追従再開) は 033 と同一にする。
