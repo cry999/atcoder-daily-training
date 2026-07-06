@@ -1,5 +1,10 @@
 # `atcoder` ABC レイアウト対応 要件定義
 
+> **⚠️ Superseded by [070](070-contest-exercise-mode.md) ([ADR 0010](../decisions/0010-mode-rename-contest-exercise.md))**:
+> 本要件の `layout {auto,abc,exercise}` は `mode {contest,exercise}` に再設計された。
+> `abc` レイアウト → contest モード (prefix 汎用化)、`exercise` → exercise モード、`auto` は廃止。
+> 以下は歴史的経緯として残す。
+
 ## 概要
 
 `atcoder test` / `atcoder run` の対象パスを、現在の `exercise/YYYY/MM/DD/<task>.py` だけでなく、AtCoder Beginner Contest 用の既存規約 **`abc/<contest_num>/<letter>.py`** にも拡張する。これにより本番中も同じツールで sample fetch・テスト・run 判定が回せるようになる。

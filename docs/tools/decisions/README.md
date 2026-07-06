@@ -17,6 +17,7 @@
 | [0007](0007-interactive-command-mode-trigger.md) | インタラクティブ chat の vim 風 command モードは `Esc` で開く (`Ctrl+:` 不採用) | Accepted | 設計のみ ([024](../requirements/024-interactive-case-builder.md)) |
 | [0008](0008-gen-best-effort-raw-cache.md) | ランダム入力生成はベストエフォート解析 + 生セクションキャッシュで行う | Accepted | `32e6004` ([060](../requirements/060-gen-random-input.md)) |
 | [0009](0009-atcoder-login-revel-session-cookie.md) | AtCoder 認証はブラウザの REVEL_SESSION cookie 取り込みで行う (自動ログインはしない) | Accepted | 設計のみ ([062](../requirements/062-atcoder-login-revel-session.md)) |
+| [0010](0010-mode-rename-contest-exercise.md) | 配置規約を `layout {auto,abc,exercise}` から `mode {contest,exercise}` に再設計する | Accepted | 設計のみ ([070](../requirements/070-contest-exercise-mode.md)) |
 
 ## 書き方
 

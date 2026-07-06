@@ -1,5 +1,10 @@
 # `config` に既定レイアウト (`layout` キー + `ATCODER_LAYOUT`) を取り込む 要件定義
 
+> **⚠️ Superseded by [070](070-contest-exercise-mode.md) ([ADR 0010](../decisions/0010-mode-rename-contest-exercise.md))**:
+> `layout` キー / `ATCODER_LAYOUT` / precedence は `mode` キー / `ATCODER_MODE` に置換され、
+> `auto` 段は廃止 (既定は `exercise`)。precedence の考え方 (flag > env > config > 既定) は踏襲。
+> 以下は歴史的経緯として残す。
+
 ## 概要
 
 解答ファイルのレイアウト (`auto` / `abc` / `exercise`) を **毎回 `--layout` で渡さなくても** 既定値として固定できるようにする。既定値は **環境変数 `ATCODER_LAYOUT`** と **設定ファイル `config.toml`** の 2 段で持つ。設定の確認・変更は専用サブコマンドを足さず、既存の汎用 **`atcoder config`** (要件 009) の枠組みに `layout` キーを 1 つ登録して `atcoder config get/set layout` で行う。

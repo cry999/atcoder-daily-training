@@ -107,7 +107,12 @@
 
 ## Phase 2
 
-### E. 本番 vs 練習モード判定
+### E. 本番 (live) vs 練習 (practice) 判定
+
+> **⚠️ 用語変更**: 「モード」という語は要件 [070](requirements/070-contest-exercise-mode.md) で
+> **解答ファイルの配置軸** (`mode {contest,exercise}`) に確定した。本項の live/practice は
+> **時刻ベースの挙動ガード**という別軸なので、フラグ名を `--mode` ではなく **`--phase live|practice`**
+> (または `--live`) に改める。2 軸は直交する (「exercise 配置で本番中」もあり得る)。
 
 #### 解きたい問題
 
@@ -116,8 +121,8 @@
 #### 決めること
 
 - 判定ルール
-  - 候補: 現在時刻 ∈ `[contest.start_at, contest.end_at]` かつ解答パスが `abc/<contest>/` 配下なら本番モード。
-- フラグで強制切替できるか (`--mode=live` / `--mode=practice`)。CI や後追い AC では `practice` を明示できると便利。
+  - 候補: 現在時刻 ∈ `[contest.start_at, contest.end_at]` かつ解答パスが contest モード (`<prefix>/<num>/`) 配下なら本番 (live)。
+- フラグで強制切替できるか (`--phase live` / `--phase practice`)。CI や後追い AC では `practice` を明示できると便利。
 - 本番モード下で挙動が変わるコマンド一覧
   - `test`: 全 PASS でなければ警告強調 (現状もしているが、本番モードでは特に)
   - `run --out`: judge mode で FAIL したケースを「WA 候補」として F のストアに保存

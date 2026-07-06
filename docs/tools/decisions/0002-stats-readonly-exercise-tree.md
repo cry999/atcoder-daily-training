@@ -5,6 +5,7 @@
 - 実装: `dd3c3a8` (`feat(stats): add daily practice statistics`)
 - 関連: [requirements/005-exercise-stats.md](../requirements/005-exercise-stats.md) / [docs/tools/usage/stats.md](../usage/stats.md)
 - 後続: [requirements/010-stats-rolling-window.md](../requirements/010-stats-rolling-window.md) (ローリング期間 `--last <dur>` の追加)
+- 追補: [ADR 0010](0010-mode-rename-contest-exercise.md) / [requirements/070-contest-exercise-mode.md](../requirements/070-contest-exercise-mode.md) — 下記「## 追補 (要件 070)」で集計母体を両モードへ拡張
 
 ## コンテキスト
 
@@ -30,3 +31,14 @@
 
 - **全ツリー横断集計**: `abc/<contest>/<letter>.py` 等は日付情報を持たず、mtime や git log に頼ると集計がぶれる。パスに日付が明示される `exercise/` に限定する方が信頼でき、まずそこから。
 - **mtime / git ベースの日付**: ファイルを後から触ると集計が動く。パス由来の日付に固定して安定させた。
+
+## 追補 (要件 070)
+
+配置規約を `mode {contest,exercise}` に再設計する ([ADR 0010](0010-mode-rename-contest-exercise.md)) にあたり、record が contest モードの解答ファイルにも solve-stat を書けるようになった。これに合わせて本 ADR の「**集計対象は `exercise/` ツリーのみ**」を次のとおり**見直す**:
+
+- `exercise/YYYY/MM/DD/*.py` は従来どおり**存在で 1 問**と数え、日付はパス由来 (不変)。
+- contest ツリー (`abc/`/`arc/`/`agc/`/…) は **solve-stat ブロックを持つファイルのみ**を集計母体に加える。日付は solve-stat の `solved_at` (無ければ `started_at`) を使う。
+- **無条件全走査はしない**: contest ツリーを存在だけで数えると過去 30+ コンテスト分の未記録解答が混入して集計が壊れるため、solve-stat の有無を母体境界にする (上記「却下した代替案」の全ツリー横断集計を無条件にはしない、という判断は維持したまま、記録済みファイルに限って横断を解禁する)。
+- 依然として**読み取り専用・オフライン**は不変 (contest ツリーも読むだけ)。
+
+詳細は [requirements/070-contest-exercise-mode.md](../requirements/070-contest-exercise-mode.md) の「record / stats の両モード横断」節。
