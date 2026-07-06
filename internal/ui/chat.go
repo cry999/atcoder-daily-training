@@ -313,8 +313,9 @@ type chatModel struct {
 	ready            bool
 
 	// ケース作成 + ライブ検証 (要件 024)。
-	mode              chatMode        // insert (既定) / command / builder
-	cmdInput          textinput.Model // command モードの `:` 行
+	mode              chatMode        // insert (既定) / command / builder / scroll
+	scrollPrompt      bool            // スクロールモード (modeScroll) で `:` プロンプトを開いているか (要件 071)。cmdInput を流用
+	cmdInput          textinput.Model // command / スクロールモードの `:` 行
 	cmdCandidates     []string        // Tab 補完の候補一覧 (複数一致時に `:` 行直下へ表示。要件 031)
 	builder           *caseBuilder    // 非 nil ならケースビルダーを開いている
 	verify            *verifier       // 非 nil ならライブ検証中
@@ -727,7 +728,7 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// command / builder / record-edit モードはキーを横取りする (要件 024/066)。insert は従来どおり。
+		// command / builder / record-edit / scroll モードはキーを横取りする (要件 024/066/071)。insert は従来どおり。
 		switch m.mode {
 		case modeCommand:
 			return m.updateCommand(msg)
@@ -735,6 +736,8 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateBuilder(msg)
 		case modeRecordEdit:
 			return m.updateRecordEdit(msg)
+		case modeScroll:
+			return m.updateScroll(msg)
 		}
 		// 複数行ペースト (bracketed paste): 各改行を Enter 扱いで完全行を逐次送信し、
 		// 末尾の未改行テキストは入力欄に残す (要件 034)。改行を含まない通常ペースト・
@@ -821,12 +824,15 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.historyPos++
 				m.input.SetValue("")
 			}
-		case tea.KeyPgUp, tea.KeyCtrlB:
-			// scrollback を 1 ページ上へ (要件 040)。以降の出力で最下部に引き戻さない。
-			// Ctrl+B は textinput の既定カーソル移動を横取りする (← で代替可)。
+		case tea.KeyPgUp:
+			// scrollback スクロール専用モードへ入り、1 ページ上へ (要件 071)。以降は素キー
+			// (j/k/d/u/f/b/g/G) で動かし :q で抜ける。Ctrl+B/Ctrl+F は insert から撤去し
+			// textinput の既定 (カーソル移動) に戻した。
+			m.enterScrollMode()
 			m.scrollUp()
-		case tea.KeyPgDown, tea.KeyCtrlF:
-			// 1 ページ下へ。最下部に達したら追従を再開する (要件 040)。
+		case tea.KeyPgDown:
+			// スクロールモードへ入り、1 ページ下へ (最下部なら no-op。要件 071)。
+			m.enterScrollMode()
 			m.scrollDown()
 		default:
 			var cmd tea.Cmd
@@ -1004,10 +1010,14 @@ func (m *chatModel) View() string {
 	if len(m.msgs) > 0 || m.awaiting {
 		parts = append(parts, m.renderViewport())
 	}
-	// command モード (builder 無し) は入力ボックスの代わりに `:` 行 (+ 補完候補) を出す。
-	if m.mode == modeCommand {
+	// 下部行はモードで出し分ける: command は `:` 行 (+ 補完候補)、scroll は手引き行
+	// (+ `:` プロンプト。要件 071)、それ以外は通常の入力ボックス。
+	switch m.mode {
+	case modeCommand:
 		parts = append(parts, m.renderCommandLine())
-	} else {
+	case modeScroll:
+		parts = append(parts, m.renderScrollLine())
+	default:
 		parts = append(parts, m.renderInputBox())
 	}
 	return strings.Join(parts, "\n")
@@ -1176,6 +1186,18 @@ func (m *chatModel) scrollHalfUp() {
 func (m *chatModel) scrollHalfDown() {
 	m.viewport.HalfViewDown()
 	m.followIfAtBottom()
+}
+
+// scrollTop / scrollBottom は先頭 / 末尾へジャンプする (スクロールモードの g / G。要件 071)。
+// g は追従を止め、G は最下部 (最新) へ戻して追従を再開する。
+func (m *chatModel) scrollTop() {
+	m.viewport.GotoTop()
+	m.scrolled = true
+}
+
+func (m *chatModel) scrollBottom() {
+	m.viewport.GotoBottom()
+	m.scrolled = false
 }
 
 // followIfAtBottom は下スクロールで最下部に達したら追従 (scrolled=false) を再開する。

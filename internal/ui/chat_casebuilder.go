@@ -21,6 +21,7 @@ import (
 //	command    : ex-command line (`:…`)。コマンドを 1 行打って Enter で実行。
 //	builder    : ケースビルダー (input/expected の textarea 2 ペイン)。
 //	recordEdit : solve-stat の全画面編集フォーム (:record edit。要件 066)。
+//	scroll     : scrollback スクロール専用 (素キー j/k/d/u/f/b/g/G、:q で退出。要件 071)。
 type chatMode int
 
 const (
@@ -28,6 +29,7 @@ const (
 	modeCommand
 	modeBuilder
 	modeRecordEdit
+	modeScroll
 )
 
 // caseBuilder は `:case` で開く入出力ケースの作成画面。input/expected の
@@ -59,7 +61,16 @@ type testReplay struct {
 func newCommandInput() textinput.Model {
 	ti := textinput.New()
 	ti.Prompt = ":"
-	ti.Placeholder = "case | test [case] | w [name] | set verify | meta | debug | replay | cheat | q"
+	ti.Placeholder = "case | test [case] | w [name] | set verify | meta | debug | replay | cheat | scroll | q"
+	return ti
+}
+
+// newScrollCommandInput はスクロールモードの `:` プロンプト用 textinput を作る (要件 071)。
+// ここでの `:q` はスクロールモードからの退出 (chat 終了ではない)。
+func newScrollCommandInput() textinput.Model {
+	ti := textinput.New()
+	ti.Prompt = ":"
+	ti.Placeholder = "q (スクロール終了)"
 	return ti
 }
 
@@ -146,6 +157,9 @@ func parseCommand(s string) command {
 	case "cheat", "help", "?":
 		// :cheat / :help / :? — 利用可能なコマンド一覧を表示。
 		return command{name: "cheat", arg: arg}
+	case "scroll":
+		// :scroll — scrollback スクロール専用モードへ入る (要件 071)。
+		return command{name: "scroll", arg: arg}
 	case "replay":
 		// :replay — 直近の操作 (手入力セッション or 直近の :test ケース) を、子をリスタート
 		// して順送する (要件 039 / 048)。
@@ -184,31 +198,6 @@ func (m *chatModel) updateCommand(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		cmd := parseCommand(m.cmdInput.Value())
 		m.cmdCandidates = nil
 		return m.execCommand(cmd)
-	case tea.KeyPgUp:
-		// scrollback を 1 ページ上へ (要件 033)。以降の出力で最下部に引き戻さない。
-		m.scrollUp()
-		return m, nil
-	case tea.KeyPgDown:
-		// 1 ページ下へ。最下部に達したら追従を再開する。
-		m.scrollDown()
-		return m, nil
-	case tea.KeyCtrlP:
-		// Ctrl+P = 1 行上 (vim/emacs の previous。要件 067)。
-		m.scrollLineUp()
-		return m, nil
-	case tea.KeyCtrlN:
-		// Ctrl+N = 1 行下 (next)。最下部に達したら追従を再開する。
-		m.scrollLineDown()
-		return m, nil
-	case tea.KeyCtrlU:
-		// Ctrl+U = 半ページ上 (vim。要件 067)。
-		m.scrollHalfUp()
-		return m, nil
-	case tea.KeyCtrlD:
-		// Ctrl+D = 半ページ下 (vim)。最下部に達したら追従を再開する。
-		// insert モードの Ctrl+D (リセット→終了、要件 051) とは別で、command モード限定。
-		m.scrollHalfDown()
-		return m, nil
 	case tea.KeyEsc:
 		// キャンセル: builder が開いていれば編集に戻る、なければ insert へ。
 		// command モードを抜けるので上スクロールは解除し最下部 (最新) に戻す (要件 033)。
@@ -248,6 +237,96 @@ func (m *chatModel) renderCommandLine() string {
 		return line
 	}
 	return line + "\n" + caseBuilderHintStyle.Render("  "+strings.Join(m.cmdCandidates, "  "))
+}
+
+// enterScrollMode は insert / command から scrollback スクロール専用モードへ入る (要件 071)。
+// scrollPrompt は畳んでおき、素キー (j/k/d/u/f/b/g/G) の移動から始める。
+func (m *chatModel) enterScrollMode() {
+	m.mode = modeScroll
+	m.scrollPrompt = false
+}
+
+// exitScrollMode はスクロールモードを抜けて insert へ戻る (:q / :quit)。最下部 (最新) へ
+// 戻して追従を再開する (要件 071。040/033 の退出時復帰と同則)。
+func (m *chatModel) exitScrollMode() {
+	m.scrollPrompt = false
+	m.scrolled = false
+	m.viewport.GotoBottom()
+	m.mode = modeInsert
+}
+
+// updateScroll はスクロールモードのキー処理。素キーで scrollback を動かし、`:` で
+// コマンドプロンプトを開く。未定義キーは無視して勝手に抜けない (要件 071)。
+func (m *chatModel) updateScroll(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// `:` プロンプトを開いている間は全キーをそちらへ回す。
+	if m.scrollPrompt {
+		return m.updateScrollPrompt(msg)
+	}
+	switch msg.String() {
+	case "j", "down":
+		m.scrollLineDown() // 1 行下 (最下部で追従再開)
+	case "k", "up":
+		m.scrollLineUp() // 1 行上
+	case "d":
+		m.scrollHalfDown() // 半ページ下
+	case "u":
+		m.scrollHalfUp() // 半ページ上
+	case "f", " ", "pgdown":
+		m.scrollDown() // 1 ページ下
+	case "b", "pgup":
+		m.scrollUp() // 1 ページ上
+	case "g":
+		m.scrollTop() // 先頭へ
+	case "G":
+		m.scrollBottom() // 末尾 (最新) へ
+	case ":":
+		// スクロールモードの `:` プロンプトを開く。command モードとは独立で、
+		// ここでの `:q` は「chat 終了」ではなく「スクロールモードから退出」。
+		m.scrollPrompt = true
+		m.cmdInput = newScrollCommandInput()
+		return m, m.cmdInput.Focus()
+	}
+	return m, nil // 未定義キーは no-op (スクロールモードから抜けない)
+}
+
+// updateScrollPrompt はスクロールモードの `:` プロンプトのキー処理。`:q`/`:quit` で
+// insert へ退出、空 Enter でプロンプトのみ閉じ、Esc でもプロンプトのみキャンセルする
+// (いずれも chat は終了しない。要件 071)。
+func (m *chatModel) updateScrollPrompt(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.Type {
+	case tea.KeyEnter:
+		arg := strings.TrimSpace(m.cmdInput.Value())
+		switch arg {
+		case "q", "quit":
+			m.exitScrollMode()
+		case "":
+			// プロンプトを閉じてスクロールモードに戻る (退出しない)。
+			m.scrollPrompt = false
+		default:
+			m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "E492: unknown command :" + arg})
+			m.scrollPrompt = false
+			m.refreshViewport()
+		}
+		return m, nil
+	case tea.KeyEsc:
+		// プロンプトのみキャンセル。スクロールモードは抜けない (誤爆で退出しないための設計)。
+		m.scrollPrompt = false
+		return m, nil
+	default:
+		var c tea.Cmd
+		m.cmdInput, c = m.cmdInput.Update(msg)
+		return m, c
+	}
+}
+
+// renderScrollLine はスクロールモードの下部行を返す。`:` プロンプト中はその行を、
+// そうでなければモードとキーの手引きを出す (要件 071)。
+func (m *chatModel) renderScrollLine() string {
+	if m.scrollPrompt {
+		return m.cmdInput.View()
+	}
+	return chatScrollHintStyle.Render("-- SCROLL --") + "  " +
+		caseBuilderHintStyle.Render("j/k 行  d/u 半ページ  f/b ページ  g/G 先頭/末尾  : でコマンド (:q 退出)")
 }
 
 // execCommand は確定したコマンドを実行する。実行後のモード遷移もここで決める。
@@ -302,6 +381,11 @@ func (m *chatModel) execCommand(cmd command) (tea.Model, tea.Cmd) {
 		m.showCheat()
 		m.returnFromCommand()
 		m.refreshViewport()
+		return m, nil
+	case "scroll":
+		// scrollback スクロール専用モードへ入る (要件 071)。先頭で scrolled=false に
+		// 戻しているので、最新 (最下部) 追従の状態から j/k 等で遡り始める。
+		m.enterScrollMode()
 		return m, nil
 	case "replay":
 		return m.execReplay()
@@ -765,6 +849,7 @@ func (m *chatModel) showCheat() {
 		"  :meta fetch           url からサンプル + Time Limit を再取得",
 		"  :gen                  制約 / 入力形式からランダム入力を生成し入力欄へ前埋め",
 		"  :record [start|stop|edit|<flags>]  実装時間/AC/5 軸を記録 (:record で現在値表示 / edit で編集フォーム)",
+		"  :scroll               スクロール専用モードへ (j/k d/u f/b g/G、:q で退出)",
 		"  :cheat (:help :?)     このコマンド一覧",
 		"  :q                    chat 終了 (作成画面中は破棄)",
 	}
@@ -1059,6 +1144,7 @@ var (
 	caseBuilderHintStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaOverlay0))
 	chatVerdictOKStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaGreen)).Bold(true)
 	chatVerdictNGStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaRed)).Bold(true)
+	chatScrollHintStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaSky)).Bold(true) // "-- SCROLL --" マーカー (要件 071)
 )
 
 // verdictSuffix は出力行に添える検証インジケーター ("  ✓" / "  ✗ expected 8")。

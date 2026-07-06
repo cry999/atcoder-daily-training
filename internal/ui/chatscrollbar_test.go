@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
 )
 
 // scrollbar 検証用に overflow した model を作る (height を絞って maxViewportHeight を
@@ -82,9 +81,9 @@ func TestScrollbar_ThumbMovesUpOnScroll(t *testing.T) {
 	m := scrollbarModel()
 	bottom := lastRunes(m.renderViewport())
 
-	// PageUp で最上部近くまで遡る。
+	// 最上部近くまで遡る (スクロールバーは viewport の位置に追従する。キー割当とは独立)。
 	for i := 0; i < 20 && !m.viewport.AtTop(); i++ {
-		m.updateCommand(tea.KeyMsg{Type: tea.KeyPgUp})
+		m.scrollUp()
 	}
 	top := lastRunes(m.renderViewport())
 
