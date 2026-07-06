@@ -34,7 +34,7 @@
 - [x] 018. ALDS_4_B - 二分探索
 - [x] 019. JOI 2009 本選 2 - ピザ
 - [x] 020. AtCoder Beginner Contest 077 C - Snuke Festival
-- [ ] 021. AtCoder Beginner Contest 023 D - 射撃王
+- [x] 021. AtCoder Beginner Contest 023 D - 射撃王
 - [ ] 022. AtCoder Regular Contest 054 B - ムーアの法則
 - [ ] 023. JOI 2008 本選 3 - ダーツ
 
