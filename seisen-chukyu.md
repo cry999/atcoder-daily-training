@@ -35,32 +35,32 @@
 - [x] 019. JOI 2009 本選 2 - ピザ
 - [x] 020. AtCoder Beginner Contest 077 C - Snuke Festival
 - [x] 021. AtCoder Beginner Contest 023 D - 射撃王
-- [ ] 022. AtCoder Regular Contest 054 B - ムーアの法則
-- [ ] 023. JOI 2008 本選 3 - ダーツ
+- [x] 022. AtCoder Regular Contest 054 B - ムーアの法則
+- [x] 023. JOI 2008 本選 3 - ダーツ
 
 ## 深さ優先探索
 
-- [ ] 024. ALDS_11_B - 深さ優先探索
-- [ ] 025. AOJ 1160 - 島はいくつある？
-- [ ] 026. AtCoder Beginner Contest 138 D - Ki
-- [ ] 027. JOI 2009 予選 4 - 薄氷渡り
+- [x] 024. ALDS_11_B - 深さ優先探索
+- [x] 025. AOJ 1160 - 島はいくつある？
+- [x] 026. AtCoder Beginner Contest 138 D - Ki
+- [x] 027. JOI 2009 予選 4 - 薄氷渡り
 
 ## 幅優先探索
 
-- [ ] 028. ALDS_11_C - 幅優先探索
-- [ ] 029. AtCoder Beginner Contest 007 C - 幅優先探索
-- [ ] 030. JOI 2011 予選 5 - チーズ
-- [ ] 031. JOI 2012 予選 5 - イルミネーション
-- [ ] 032. AOJ 1166 - 迷図と命ず
-- [ ] 033. AtCoder Beginner Contest 088 D - Grid Repainting
+- [x] 028. ALDS_11_C - 幅優先探索
+- [x] 029. AtCoder Beginner Contest 007 C - 幅優先探索
+- [x] 030. JOI 2011 予選 5 - チーズ
+- [x] 031. JOI 2012 予選 5 - イルミネーション
+- [x] 032. AOJ 1166 - 迷図と命ず
+- [x] 033. AtCoder Beginner Contest 088 D - Grid Repainting
 
 ## 動的計画法：ナップザック DP
 
-- [ ] 034. ALDS_10_A - フィボナッチ数
-- [ ] 035. DPL_1_B - 0,1ナップザック問題
-- [ ] 036. DPL_1_C - ナップザック問題
-- [ ] 037. DPL_1_A - コイン問題
-- [ ] 038. ALDS_10_C - 最長共通部分列
+- [x] 034. ALDS_10_A - フィボナッチ数
+- [x] 035. DPL_1_B - 0,1ナップザック問題
+- [x] 036. DPL_1_C - ナップザック問題
+- [x] 037. DPL_1_A - コイン問題
+- [x] 038. ALDS_10_C - 最長共通部分列
 - [ ] 039. JOI 2011 予選 4 - 1 年生
 - [ ] 040. JOI 2012 予選 4 - パスタ
 - [ ] 041. JOI 2013 予選 4 - 暑い日々
