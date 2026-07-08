@@ -1,7 +1,6 @@
+5
+5
+1
 3
-abcbdab
-bdcaba
-abc
-abc
-abc
-bc
+2
+4
