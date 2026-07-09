@@ -2,6 +2,8 @@
 
 ## 復習
 
+二分探索の境界・bisect_left / bisect_right の使い分けができてない。
+
 区間DP
 - 46
 - 48
@@ -13,6 +15,13 @@ BIT DP
 
 LIS
 - 54
+- 55
+
+Dijkstra
+- 59
+
+Warshal-floyd
+- 63
 
 ## 全探索：全列挙
 
@@ -100,38 +109,38 @@ LIS
 
 - [x] 053. DPL_1_D - 最長増加部分列
 - [x] 054. AtCoder Beginner Contest 006 D - トランプ挿入ソート
-- [ ] 055. AtCoder Beginner Contest 134 E - Sequence Decomposing
+- [x] 055. AtCoder Beginner Contest 134 E - Sequence Decomposing
 
 ## 最短経路問題：ダイクストラ法
 
-- [ ] 056. GRL_1_A - 単一始点最短経路
-- [ ] 057. JOI 2008 予選 6 - 船旅
-- [ ] 058. JOI 2016 予選 5 - ゾンビ島
-- [ ] 059. JOI 2014 予選 5 - タクシー
+- [x] 056. GRL_1_A - 単一始点最短経路
+- [x] 057. JOI 2008 予選 6 - 船旅
+- [x] 058. JOI 2016 予選 5 - ゾンビ島
+- [x] 059. JOI 2014 予選 5 - タクシー
 
 ## 最短経路問題：ワーシャルフロイド法
 
-- [ ] 060. GRL_1_C - 全点対間最短経路
-- [ ] 061. AtCoder Beginner Contest 012 D - バスと避けられない運命
-- [ ] 062. AtCoder Beginner Contest 079 D - Wall
-- [ ] 063. AtCoder Beginner Contest 074 D - Restoring Road Network
+- [x] 060. GRL_1_C - 全点対間最短経路
+- [x] 061. AtCoder Beginner Contest 012 D - バスと避けられない運命
+- [x] 062. AtCoder Beginner Contest 079 D - Wall
+- [x] 063. AtCoder Beginner Contest 074 D - Restoring Road Network
 
 ## 最小全域木問題
 
-- [ ] 064. GRL_2_A - 最小全域木
-- [ ] 065. JOI 2010 春合宿 - Finals
-- [ ] 066. AOJ 1127 - Building a Space Station
-- [ ] 067. AtCoder Beginner Contest 065 D - Built?
+- [x] 064. GRL_2_A - 最小全域木
+- [x] 065. JOI 2010 春合宿 - Finals
+- [x] 066. AOJ 1127 - Building a Space Station
+- [x] 067. AtCoder Beginner Contest 065 D - Built?
 
 ## 高速な素数判定法
 
-- [ ] 068. NTL_1_A - 素因数分解
-- [ ] 069. AtCoder Beginner Contest 084 D - 2017-like Number
+- [x] 068. NTL_1_A - 素因数分
+- [x] 069. AtCoder Beginner Contest 084 D - 2017-like Number
 
 ## 高速なべき乗計算
 
-- [ ] 070. NTL_1_B - べき乗
-- [ ] 071. Square869120Contest #1 E - 散歩
+- [x] 070. NTL_1_B - べき乗
+- [x] 071. Square869120Contest #1 E - 散歩
 
 ## 逆元を使う問題
 
