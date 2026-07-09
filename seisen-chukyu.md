@@ -144,9 +144,9 @@ Warshal-floyd
 
 ## 逆元を使う問題
 
-- [ ] 072. AtCoder Beginner Contest 034 C - 経路
-- [ ] 073. AtCoder Beginner Contest 145 D - Knight
-- [ ] 074. AtCoder Beginner Contest 021 D - 多重ループ
+- [x] 072. AtCoder Beginner Contest 034 C - 経路
+- [x] 073. AtCoder Beginner Contest 145 D - Knight
+- [x] 074. AtCoder Beginner Contest 021 D - 多重ループ
 - [ ] 075. AtCoder Beginner Contest 149 F - Surrounded Nodes
 
 ## 累積和
