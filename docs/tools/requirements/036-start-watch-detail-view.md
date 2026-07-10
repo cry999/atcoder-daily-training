@@ -1,5 +1,7 @@
 # start watch ペインの詳細表示 (失敗ケースの diff) 要件定義
 
+> **表示方式の刷新 ([072](072-start-aoj-layout.md)):** 本要件の `Ctrl+G` **トグルで上ペインを拡張して詳細を出す方式は [072](072-start-aoj-layout.md) が supersede** する (詳細を**右カラムに常時表示**し、左カラムで選択したケースを追従)。詳細に要るデータ (`CaseVerdict` の `Input`/`Expected`/`Actual`/`Stderr`/`Elapsed`) と `renderDiff` の再利用は不変で、`Ctrl+G` は「詳細開閉」から「判定ペインのフォーカス開閉」に役割が移り、`↑`/`↓` が全失敗ケース連結のスクロールから**単一ケースの選択**に変わる。072 では AC ケースにも I/O を載せる (本要件では AC を空にしていた点を緩める)。
+
 ## 概要
 
 `atcoder start` の分割画面で、**専用キー `Ctrl+G`** を押すと、上ペイン (watch) のサンプル判定結果の**詳細 = 失敗ケース (WA/TLE/RE) の diff** を表示する。現状の上ペインは per-case verdict (`01 AC  02 WA  03 TLE`) を 3 行で出すだけで「**どこがどう違って落ちたか**」が分からない。`Ctrl+G` で失敗ケースの期待出力と実際出力の差分 (RE なら stderr) を `test` の FAIL 表示と同じ `renderDiff` で見られるようにする。もう一度 `Ctrl+G` か `Esc` で閉じて通常の分割画面に戻る。判定の入力/期待/実際/stderr は既に `SummaryReporter` が `CaseResult` として捕捉しているので、UI 層へ運んで描画するだけ。
