@@ -23,6 +23,12 @@ Dijkstra
 Warshal-floyd
 - 63
 
+逆元
+- 75
+
+IMOS 法
+- 84
+
 ## 全探索：全列挙
 
 - [x] 001. ITP1_7_B - How Many Ways?
@@ -147,32 +153,32 @@ Warshal-floyd
 - [x] 072. AtCoder Beginner Contest 034 C - 経路
 - [x] 073. AtCoder Beginner Contest 145 D - Knight
 - [x] 074. AtCoder Beginner Contest 021 D - 多重ループ
-- [ ] 075. AtCoder Beginner Contest 149 F - Surrounded Nodes
+- [x] 075. AtCoder Beginner Contest 149 F - Surrounded Nodes
 
 ## 累積和
 
-- [ ] 076. 全国統一プログラミング王決定戦本戦 A - Abundant Resources
-- [ ] 077. JOI 2010 本選 1 - 旅人
-- [ ] 078. JOI 2011 本選 1 - 惑星探査
-- [ ] 079. AtCoder Beginner Contest 106 D - AtCoder Express 2
-- [ ] 080. GigaCode 2019 D - 家の建設
+- [x] 076. 全国統一プログラミング王決定戦本戦 A - Abundant Resources
+- [x] 077. JOI 2010 本選 1 - 旅人
+- [x] 078. JOI 2011 本選 1 - 惑星探査
+- [x] 079. AtCoder Beginner Contest 106 D - AtCoder Express 2
+- [x] 080. GigaCode 2019 D - 家の建設
 
 ## 累積和・いもす法
 
-- [ ] 081. AtCoder Beginner Contest 014 C - AtColor
-- [ ] 082. AOJ 2013 - 大崎
-- [ ] 083. JOI 2015 本選 1 - 鉄道運賃
-- [ ] 084. JOI 2012 本選 4 - 釘
+- [x] 081. AtCoder Beginner Contest 014 C - AtColor
+- [x] 082. AOJ 2013 - 大崎
+- [x] 083. JOI 2015 本選 1 - 鉄道運賃
+- [x] 084. JOI 2012 本選 4 - 釘
 
 ## Union-Find
 
-- [ ] 085. DSL_1_A - 互いに素な集合
-- [ ] 086. AtCoder Beginner Contest 075 C - Bridge
-- [ ] 087. AtCoder Beginner Contest 120 D - Decayed Bridge
+- [x] 085. DSL_1_A - 互いに素な集合
+- [x] 086. AtCoder Beginner Contest 075 C - Bridge
+- [x] 087. AtCoder Beginner Contest 120 D - Decayed Bridge
 
 ## その他のテクニック：圧縮
 
-- [ ] 088. JOI 2008 本選 1 - 碁石ならべ
+- [x] 088. JOI 2008 本選 1 - 碁石ならべ
 - [ ] 089. JOI 2013 本選 1 - 電飾
 
 ## その他のテクニック：単純な幾何計算
