@@ -29,6 +29,10 @@ Warshal-floyd
 IMOS 法
 - 84
 
+数学的考察
+- 97
+- 99
+
 ## 全探索：全列挙
 
 - [x] 001. ITP1_7_B - How Many Ways?
@@ -179,24 +183,24 @@ IMOS 法
 ## その他のテクニック：圧縮
 
 - [x] 088. JOI 2008 本選 1 - 碁石ならべ
-- [ ] 089. JOI 2013 本選 1 - 電飾
+- [x] 089. JOI 2013 本選 1 - 電飾
 
 ## その他のテクニック：単純な幾何計算
 
-- [ ] 090. Square869120Contest #5 B - Emblem
-- [ ] 091. AtCoder Beginner Contest 144 D - Water Bottle
+- [x] 090. Square869120Contest #5 B - Emblem
+- [x] 091. AtCoder Beginner Contest 144 D - Water Bottle
 
 ## 実装問題
 
-- [ ] 092. AOJ 1193 - 連鎖消滅パズル
-- [ ] 093. Square869120Contest #3 B - 石落としゲーム
-- [ ] 094. AOJ 1149 - ケーキカット
+- [x] 092. AOJ 1193 - 連鎖消滅パズル
+- [x] 093. Square869120Contest #3 B - 石落としゲーム
+- [x] 094. AOJ 1149 - ケーキカット
 
 ## 数学的な問題
 
-- [ ] 095. AtCoder Beginner Contest 149 B - Greedy Takahashi
-- [ ] 096. AtCoder Beginner Contest 139 D - ModSum
-- [ ] 097. AtCoder Beginner Contest 150 D - Semi Common Multiple
-- [ ] 098. 三井住友信託銀行プログラミングコンテスト2019 予選 E - Colorful Hats 2
-- [ ] 099. DDCC2020 予選 D - Digit Sum Replace
-- [ ] 100. Tenka1 Programmer Beginner Contest D - Crossing
+- [x] 095. AtCoder Beginner Contest 149 B - Greedy Takahashi
+- [x] 096. AtCoder Beginner Contest 139 D - ModSum
+- [x] 097. AtCoder Beginner Contest 150 D - Semi Common Multiple
+- [x] 098. 三井住友信託銀行プログラミングコンテスト2019 予選 E - Colorful Hats 2
+- [x] 099. DDCC2020 予選 D - Digit Sum Replace
+- [x] 100. Tenka1 Programmer Beginner Contest D - Crossing
