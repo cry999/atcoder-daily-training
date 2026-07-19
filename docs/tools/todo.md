@@ -14,6 +14,14 @@ ABC 本番対応に限定されない、`atcoder` ツール全般の改善 TODO�
 - 選択は `Ctrl+G` で判定ペインにフォーカス→ `↑`/`↓` で移動→ `Esc`/`Ctrl+G` で chat 復帰。既定選択=最初の失敗ケース。
 - 影響範囲: `internal/ui/startsplit.go` (View 2 カラム化・`detail bool`→`focus`+`selected`・左右カラム描画・幅/高さ純粋関数)、`cmd/atcoder/start.go` (AC ケースにも I/O を載せる)、`internal/ui/startsplit_test.go`、`docs/tools/usage/start.md` / `atcoder-test-architecture.md`。API 素描・却下案・エラー/exit 規約は要件 072 に記載済み。
 
+## BB. chat `:open` で現在の問題ページを開く ✅ DONE
+
+> 要件詳細は [`requirements/073-chat-open-problem-page.md`](requirements/073-chat-open-problem-page.md)。利用手引は [`usage/test.md`](usage/test.md) の「ケース作成 + ライブ検証 (vim 風 command モード)」節。
+
+- `test --interactive` / `start` の chat command モードに `:open` を追加し、現在の問題ページを OS 既定ブラウザで開けるようにした。
+- URL は `meta.toml.url` を優先し、未取得なら標準の `/contests/<contest>/tasks/<task>` を使う。ブラウザ起動に失敗しても chat は継続し、手動で開ける URL を表示する。
+- `:cheat` と Tab 補完にも `open` を追加した。
+
 ## AZ. 配置規約を `mode {contest,exercise}` に再設計 (`layout` 廃止) — 優先度: 高
 
 > 設計完了。実装は feature へ。要件 [070](requirements/070-contest-exercise-mode.md) / [ADR 0010](decisions/0010-mode-rename-contest-exercise.md)。

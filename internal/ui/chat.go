@@ -37,6 +37,7 @@ type ChatHeader struct {
 	Tolerance   float64  // ライブ検証の許容誤差 (0 なら既定 1e-6)
 	NavEnabled  bool     // true なら :task next|prev / :contest next|prev / :e で問題ナビ可 (start 分割画面限定。要件 027)
 	Edit        EditFunc // 非 nil なら Ctrl+E で解答ファイルをエディタで開ける。composition root が注入する (要件 038)
+	Open        OpenFunc // 非 nil なら :open で現在の問題ページをブラウザで開ける。composition root が注入する (要件 073)
 
 	// PrevInputs は同じ問題の前回 chat 起動で子へ送った入力行。:replay の cross-run
 	// フォールバック (今回まだ何も打っていない初回起動でのみ使う)。composition root が
@@ -108,6 +109,17 @@ type EditFunc func(path string) EditPlan
 
 // editDoneMsg は tea.ExecProcess (端末を奪うエディタ起動) の完了通知。
 type editDoneMsg struct{ err error }
+
+// OpenResult は :open のブラウザ起動結果。URL は失敗時にも手動 fallback として表示する。
+type OpenResult struct {
+	URL    string
+	Err    error
+	Opened bool
+}
+
+// OpenFunc は chat の :open で呼ばれる問題ページ起動フック。
+// internal/ui は AtCoder URL / OS browser を知らないため、composition root が注入する。
+type OpenFunc func() OpenResult
 
 // metaFetchDoneMsg は :meta fetch (要件 057) の非同期再取得の完了通知。
 // lines は表示する結果行 (fetched/url/time limit/samples)、newTimeLimitMs は

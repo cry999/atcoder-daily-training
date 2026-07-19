@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -21,6 +22,7 @@ func TestParseCommand(t *testing.T) {
 		{"write foo", "w", "foo"},
 		{"set verify", "set", "verify"},
 		{"set noverify", "set", "noverify"},
+		{"open", "open", ""},
 		{"q", "q", ""},
 		{"  case  ", "case", ""},
 		{"", "", ""},
@@ -127,6 +129,48 @@ func TestUnknownCommand(t *testing.T) {
 	}
 	if !hasInfo(m, "E492") {
 		t.Errorf("expected E492 message; msgs=%v", m.msgs)
+	}
+}
+
+func TestOpenCommand(t *testing.T) {
+	called := false
+	m := initialChatModel(ChatHeader{
+		Open: func() OpenResult {
+			called = true
+			return OpenResult{URL: "https://atcoder.jp/contests/abc999/tasks/abc999_a", Opened: true}
+		},
+	}, fakeSpawn())
+	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m.execCommand(parseCommand("open"))
+
+	if !called {
+		t.Fatal(":open should call Open hook")
+	}
+	if m.mode != modeInsert {
+		t.Fatalf(":open should return to insert mode, got %d", m.mode)
+	}
+	if !hasInfo(m, "問題ページを開きました") {
+		t.Fatalf("expected opened message; msgs=%v", m.msgs)
+	}
+}
+
+func TestOpenCommandUnavailable(t *testing.T) {
+	m := initialChatModel(ChatHeader{}, fakeSpawn())
+	m.execCommand(parseCommand("open"))
+	if !hasInfo(m, "問題ページの起動はこの画面では使えません") {
+		t.Fatalf("expected unavailable message; msgs=%v", m.msgs)
+	}
+}
+
+func TestOpenCommandErrorShowsURL(t *testing.T) {
+	m := initialChatModel(ChatHeader{
+		Open: func() OpenResult {
+			return OpenResult{URL: "https://atcoder.jp/contests/abc999/tasks/abc999_a", Err: errors.New("boom")}
+		},
+	}, fakeSpawn())
+	m.execCommand(parseCommand("open"))
+	if !hasInfo(m, "ブラウザを開けませんでした") || !hasInfo(m, "abc999_a") {
+		t.Fatalf("expected error with URL; msgs=%v", m.msgs)
 	}
 }
 
@@ -263,6 +307,9 @@ func TestShowCheatNavGating(t *testing.T) {
 	off.showCheat()
 	if !hasInfo(off, ":case") || !hasInfo(off, ":debug") {
 		t.Error("cheat should always list :case and :debug")
+	}
+	if !hasInfo(off, ":open") {
+		t.Error("cheat should list :open")
 	}
 	if hasInfo(off, ":task") {
 		t.Error("cheat without NavEnabled should not list :task")

@@ -29,9 +29,11 @@ func TestCompleteCommandLine(t *testing.T) {
 		{"t unique to test without nav", "t", false, "test ", nil}, // task は nav 限定なので消える
 		{"meta unique appends space for arg cmd", "me", true, "meta ", nil},
 		{"m prefix unique to meta", "m", true, "meta ", nil},
+		{"open unique (no arg)", "op", true, "open", nil},
+		{"o prefix unique to open", "o", true, "open", nil},
 		{"ambiguous keeps LCP and lists", "c", true, "c", []string{"case", "cheat", "contest"}},
-		{"empty lists all (nav)", "", true, "", []string{"case", "cheat", "contest", "debug", "e", "gen", "meta", "pp", "q", "record", "replay", "scroll", "set", "task", "test", "w"}},
-		{"empty lists base only (no nav)", "", false, "", []string{"case", "cheat", "debug", "gen", "meta", "pp", "q", "record", "replay", "scroll", "set", "test", "w"}},
+		{"empty lists all (nav)", "", true, "", []string{"case", "cheat", "contest", "debug", "e", "gen", "meta", "open", "pp", "q", "record", "replay", "scroll", "set", "task", "test", "w"}},
+		{"empty lists base only (no nav)", "", false, "", []string{"case", "cheat", "debug", "gen", "meta", "open", "pp", "q", "record", "replay", "scroll", "set", "test", "w"}},
 		{"pp unique (no arg)", "pp", true, "pp", nil},
 		{"p prefix unique to pp", "p", true, "pp", nil},
 		{"no match no change", "zzz", true, "zzz", nil},

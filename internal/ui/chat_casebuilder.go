@@ -61,7 +61,7 @@ type testReplay struct {
 func newCommandInput() textinput.Model {
 	ti := textinput.New()
 	ti.Prompt = ":"
-	ti.Placeholder = "case | test [case] | w [name] | set verify | meta | debug | replay | cheat | scroll | q"
+	ti.Placeholder = "case | test [case] | open | w [name] | set verify | meta | debug | replay | cheat | scroll | q"
 	return ti
 }
 
@@ -154,6 +154,9 @@ func parseCommand(s string) command {
 	case "pp":
 		// :pp — valid JSON の [DEBUG] ペイロード整形 (要件 047) をトグル。:debug と直交。
 		return command{name: "pp", arg: arg}
+	case "open":
+		// :open — 現在の問題ページを OS 既定ブラウザで開く (要件 073)。
+		return command{name: "open", arg: arg}
 	case "cheat", "help", "?":
 		// :cheat / :help / :? — 利用可能なコマンド一覧を表示。
 		return command{name: "cheat", arg: arg}
@@ -377,6 +380,11 @@ func (m *chatModel) execCommand(cmd command) (tea.Model, tea.Cmd) {
 		m.returnFromCommand()
 		m.refreshViewport()
 		return m, nil
+	case "open":
+		m.execOpen()
+		m.returnFromCommand()
+		m.refreshViewport()
+		return m, nil
 	case "cheat":
 		m.showCheat()
 		m.returnFromCommand()
@@ -583,6 +591,25 @@ func (m *chatModel) execRecord(arg string) tea.Cmd {
 	}
 	m.refreshViewport()
 	return cmd
+}
+
+// execOpen は :open (要件 073) を処理する。現在の contest/task に対応する問題ページ URL の
+// 解決と OS ブラウザ起動は composition root の Open フックへ委譲する。
+func (m *chatModel) execOpen() {
+	if m.header.Open == nil {
+		m.addInfoLine("(問題ページの起動はこの画面では使えません)")
+		return
+	}
+	out := m.header.Open()
+	if out.Err != nil {
+		m.addErrLine("(ブラウザを開けませんでした: " + out.Err.Error() + " / " + out.URL + ")")
+		return
+	}
+	if out.Opened {
+		m.addInfoLine("(問題ページを開きました: " + out.URL + ")")
+		return
+	}
+	m.addInfoLine("(問題ページ: " + out.URL + ")")
 }
 
 // restoreRecordingFromStat は現在ターゲットの solve-stat を読み、● REC 表示をディスク上の
@@ -844,6 +871,7 @@ func (m *chatModel) showCheat() {
 		"  :set verify|noverify  ライブ検証 on/off",
 		"  :debug                Debug 表示 (-d) を切替 (:set debug|nodebug)",
 		"  :pp                   [DEBUG] の valid JSON を整形表示 (:set pp|nopp)",
+		"  :open                 現在の問題ページをブラウザで開く",
 		"  :replay               直近に流した入力 (手入力 / :test ケース) を再送 + 再検証",
 		"  :meta [url|time_limit [値]]  meta の url / time_limit を表示・編集",
 		"  :meta fetch           url からサンプル + Time Limit を再取得",

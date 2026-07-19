@@ -240,6 +240,7 @@ func (c *startConfig) buildTarget(contestID, task string, refresh bool) (t ui.St
 		Tolerance:      c.tolerance,
 		NavEnabled:     true,
 		Edit:           editFunc(c.editor, c.nvimRemote),
+		Open:           chatOpenFunc(contestID, task),
 		PrevInputs:     prevInputs,
 		RecordInput:    func(line string) { _ = chatlog.Record(contestID, task, sid, line) },
 		MetaShow:       chatMetaShowFunc(contestID, task),            // :meta の表示 (要件 055)

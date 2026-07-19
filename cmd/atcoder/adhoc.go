@@ -72,6 +72,7 @@ func makeChatRunner(contest, task string, lay layout.Layout, tolerance float64, 
 			TaskDir:        cachepath.Task(contest, task),                      // :case/:w の保存先 (tests-extra)
 			Tolerance:      tolerance,
 			Edit:           editFunc(editorOverride, nvimRemote), // Ctrl+E でエディタ起動 (要件 038/041)
+			Open:           chatOpenFunc(contest, task),          // :open で問題ページ起動 (要件 073)
 			PrevInputs:     prev,
 			RecordInput:    func(line string) { _ = chatlog.Record(contest, task, sid, line) },
 			MetaShow:       chatMetaShowFunc(contest, task),            // :meta の表示 (要件 055)
