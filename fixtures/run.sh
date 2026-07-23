@@ -468,6 +468,41 @@ check_output "review undated row shows dash"   0 has "—"      -- review abc
 # 期間フィルタ (--year) では日付なしの abc/999 は必ず落ちる (時刻に依存しない不変則)。
 check_output "review --year drops undated abc999" 0 hasnot "abc999" -- review abc --year
 
+# `atcoder review missed` (要件 074): 指定日の ac=false / editorial=true を復習キューに出し、
+# --check で solve-stat に reviewed_at を刻む。日付を明示して現在日への依存を避ける。
+MISSED_DIR="$STAGE/exercise/2026/07/22"
+mkdir -p "$MISSED_DIR"
+cat > "$MISSED_DIR/abc800_d.py" <<'PY'
+# >>> atcoder-stat >>>
+# ac          = false
+# editorial   = false
+# <<< atcoder-stat <<<
+print(1)
+PY
+cat > "$MISSED_DIR/abc801_e.py" <<'PY'
+# >>> atcoder-stat >>>
+# ac          = true
+# editorial   = true
+# <<< atcoder-stat <<<
+print(1)
+PY
+cat > "$MISSED_DIR/abc802_f.py" <<'PY'
+# >>> atcoder-stat >>>
+# ac          = true
+# editorial   = false
+# <<< atcoder-stat <<<
+print(1)
+PY
+check_output "review missed includes ac=false"      0 has "abc800_d" -- review missed --date 2026-07-22
+check_output "review missed includes editorial=true" 0 has "abc801_e" -- review missed --date 2026-07-22
+check_output "review missed excludes self AC"       0 hasnot "abc802_f" -- review missed --date 2026-07-22
+run_case "review missed --check by stem"            0 review missed --date 2026-07-22 --check abc800_d
+grep -qE "reviewed_at[[:space:]]*=" "$MISSED_DIR/abc800_d.py" \
+    || { echo "  ✗ review missed --check did not stamp reviewed_at"; failures=$((failures + 1)); }
+check_output "review missed shows checked item"      0 has "\\[x\\] abc800_d" -- review missed --date 2026-07-22
+run_case "review missed --date invalid (reject)"     2 review missed --date 2026/07/22
+run_case "review missed --check missing (exit 1)"    1 review missed --date 2026-07-22 --check abc999_z
+run_case "review missed extra positional (reject)"   2 review missed extra --date 2026-07-22
 
 # `atcoder completion` smoke: 各シェルのスクリプト出力と、隠し __complete ヘルパ。
 # completion の引数エラーは exit 2。__complete は常に exit 0 で候補を吐く。

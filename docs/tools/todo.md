@@ -5,6 +5,14 @@ ABC 本番対応に限定されない、`atcoder` ツール全般の改善 TODO�
 > このファイルは**これからやること**だけを残す。完了した項目はここには残さない:
 > 各機能の what / how は要件定義 [`requirements/NNN-*.md`](requirements/)、why (採用理由・却下案・トレードオフ) は決定記録 [`decisions/`](decisions/)、使い方は利用手引 (`docs/tools/usage/*.md`) を参照。
 
+## BC. 前日の未達問題を復習キューとして一覧・チェック ✅ DONE
+
+> 要件詳細は [`requirements/074-review-missed-practice.md`](requirements/074-review-missed-practice.md)。利用手引は [`usage/review.md`](usage/review.md) の「前日の未達問題を復習する (`review missed`)」節。
+
+- `atcoder review missed [--date YYYY-MM-DD]` で、対象日の `exercise/` 解答のうち `ac=false` または `editorial=true` の solve-stat を持つ問題を一覧する。
+- `--check <id>` で復習済みを記録し、solve-stat に `reviewed_at` を保存する。`id` は `abc357_d` または `abc357/d` を受ける。
+- 一覧では `[ ]` / `[x]` と件数フッタで、未復習・復習済みを見分けられる。
+
 ## BA. start 画面の AOJ v2.0 風レイアウト刷新 (判定一覧 + ケース詳細の横 2 カラム) — 優先度: 中
 
 > 設計完了。実装は feature へ。要件 [072](requirements/072-start-aoj-layout.md)。[023](requirements/023-start-split-screen.md) (縦分割) と [036](requirements/036-start-watch-detail-view.md) (`Ctrl+G` トグル詳細) の**レイアウトを supersede**する (判定・chat・fetch のロジックは不変)。

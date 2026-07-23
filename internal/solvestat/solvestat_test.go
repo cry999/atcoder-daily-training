@@ -30,6 +30,7 @@ func TestParseFull(t *testing.T) {
 	src := `# >>> atcoder-stat >>>
 # started_at  = 2026-07-01T16:00:00+09:00
 # solved_at   = 2026-07-01T16:25:00+09:00
+# reviewed_at = 2026-07-02T07:30:00+09:00
 # duration_ms = 1500000
 # target_ms   = 2100000
 # ac          = true
@@ -61,7 +62,7 @@ print("hi")
 	if st.Score.Knowledge != 2 || st.Score.Verify != 1 {
 		t.Fatalf("score mismatch: %+v", st.Score)
 	}
-	if st.StartedAt.IsZero() || st.SolvedAt.IsZero() {
+	if st.StartedAt.IsZero() || st.SolvedAt.IsZero() || st.ReviewedAt.IsZero() {
 		t.Fatalf("times should be parsed")
 	}
 }
@@ -124,6 +125,31 @@ print(1)
 	}
 	if !strings.HasSuffix(string(out), "print(1)\n") {
 		t.Fatalf("code must be preserved, got:\n%s", out)
+	}
+}
+
+func TestMergeReviewedAt(t *testing.T) {
+	base := `# >>> atcoder-stat >>>
+# ac          = false
+# <<< atcoder-stat <<<
+print(1)
+`
+	reviewed := time.Date(2026, 7, 23, 7, 30, 0, 0, time.FixedZone("JST", 9*3600))
+	patch := Empty()
+	patch.ReviewedAt = reviewed
+	out, err := Merge([]byte(base), patch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(out), "reviewed_at = 2026-07-23T07:30:00+09:00") {
+		t.Fatalf("reviewed_at should render, got:\n%s", out)
+	}
+	st, found := mustParse(t, string(out))
+	if !found || !st.ReviewedAt.Equal(reviewed) {
+		t.Fatalf("reviewed_at round-trip failed: %+v", st)
+	}
+	if st.AC == nil || *st.AC {
+		t.Fatalf("existing ac=false should be preserved: %+v", st)
 	}
 }
 

@@ -1,13 +1,16 @@
 # `atcoder review` 利用手引
 
-`exercise/` で練習したコンテストを **カテゴリ単位で一覧**する。`atcoder review abc` で、これまで取り組んだ ABC を **contest × letter のテーブル**に並べ、各回を最後に解いた日付を添える。`stats` が集計値 (総数・ストリーク・草) を出すのに対し、`review` は個々のコンテストの**列挙**を担う。読み取り専用で、リポジトリには一切書き込まない。
+`exercise/` で練習したコンテストを **カテゴリ単位で一覧**する。`atcoder review abc` で、これまで取り組んだ ABC を **contest × letter のテーブル**に並べ、各回を最後に解いた日付を添える。`stats` が集計値 (総数・ストリーク・草) を出すのに対し、`review` は個々のコンテストの**列挙**を担う。
 
-> 要件詳細: `docs/tools/requirements/014-exercise-review.md`
+`atcoder review missed` では、前日に解けなかった問題 (`ac=false`) と解説を見た問題 (`editorial=true`) を復習キューとして一覧し、`--check` で復習済みを記録できる。
+
+> 要件詳細: `docs/tools/requirements/014-exercise-review.md` / `docs/tools/requirements/074-review-missed-practice.md`
 
 ## コマンド
 
 ```
 atcoder review <category> [-w | --week | -m | --month | -y | --year | -l | --last <dur>]
+atcoder review missed [--date YYYY-MM-DD] [--check <id>]
 ```
 
 | 引数 / フラグ | 説明 |
@@ -20,6 +23,36 @@ atcoder review <category> [-w | --week | -m | --month | -y | --year | -l | --las
 
 - 期間フラグは `stats` と同一の文法・排他規則。2 つ以上指定すると exit 2。指定しなければ全期間。
 - カテゴリとフラグの順序は自由 (`atcoder review abc --month` も `atcoder review --month abc` も可)。
+
+## 前日の未達問題を復習する (`review missed`)
+
+`review missed` は `exercise/<YYYY>/<MM>/<DD>/*.py` の 1 日ぶんを見て、solve-stat に次のどちらかが記録された問題を一覧する:
+
+| 条件 | 意味 |
+|---|---|
+| `ac=false` | AC できなかった |
+| `editorial=true` | AC 済みでも解説を見たので復習対象 |
+
+`--date` を省略すると実行日の前日を使う。復習済みかどうかは solve-stat の `reviewed_at` で管理し、一覧では `[ ]` / `[x]` で表示する。
+
+```
+$ atcoder review missed
+missed practice — 2026-07-22
+
+  [ ] abc357_d     ac=false  editorial=true   exercise/2026/07/22/abc357_d.py
+  [x] abc356_e     ac=true   editorial=true   exercise/2026/07/22/abc356_e.py   reviewed 2026-07-23 07:30
+
+  2 missed, 1 reviewed
+```
+
+復習したら `--check` で `reviewed_at` を現在時刻に更新する。`<id>` はファイル stem (`abc357_d`) または `contest/letter` (`abc357/d`) を指定できる。
+
+```
+$ atcoder review missed --check abc357_d
+reviewed abc357_d (exercise/2026/07/22/abc357_d.py)
+```
+
+`--check` なしの `review missed` と既存の `review <category>` は読み取り専用。`--check` だけが対象解答ファイルの solve-stat を部分更新する。
 
 ## 集計対象
 
@@ -89,16 +122,18 @@ exercise abc review — this month (2026-06)
 | code | 意味 |
 |---|---|
 | `0` | 一覧表示成功 (0 件でも成功扱い) |
-| `1` | `exercise/` または `<category>/` ツリーの読み取り I/O エラー |
-| `2` | 引数誤り (`<category>` 省略、未知フラグ、期間フラグの重複指定、不正な `--last` 値) |
+| `1` | `exercise/` または `<category>/` ツリーの読み取り I/O エラー、`review missed --check` の対象不一致 / solve-stat 書き込み失敗 |
+| `2` | 引数誤り (`<category>` 省略、未知フラグ、期間フラグの重複指定、不正な `--last` / `--date` 値) |
 
 ## 注意
 
-- 完全に読み取り専用。解答ファイル・キャッシュ・git には触れない。
+- `review <category>` と `review missed` の一覧は読み取り専用。`review missed --check` は solve-stat に `reviewed_at` を書く。
 - ネットワーク・認証は不要 (オフラインで動く)。recency は AtCoder の difficulty を fetch せず、解答日のみから決まる。
 - recency は「今日」基準。`--week` などの境界や色は実行日に依存する。
 
 ## 関連
 
 - `docs/tools/usage/stats.md` (`stats` 集計コマンド・データ層と期間フラグの定義元)
-- `docs/tools/requirements/014-exercise-review.md` (要件定義)
+- `docs/tools/requirements/014-exercise-review.md` (カテゴリ一覧の要件定義)
+- `docs/tools/requirements/074-review-missed-practice.md` (復習キューの要件定義)
+- `docs/tools/usage/record.md` (`ac` / `editorial` / solve-stat の記録)

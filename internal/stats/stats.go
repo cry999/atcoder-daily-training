@@ -52,6 +52,7 @@ type Rolling struct {
 type Solve struct {
 	Date     time.Time // パス由来の解答日 (ローカル 0 時)
 	File     string    // ベース名 (例 "abc457_d.py")
+	Path     string    // 元ファイルパス。Scan 由来でなければ空
 	Category string    // コンテスト種別 ("abc"/"arc"/…/"other")
 	Contest  string    // contest_id ("abc457")。先頭英字 + 数字。数字無しは先頭英字
 	Letter   string    // 問題レター ("a".."g") / 不明は "?"
@@ -243,7 +244,7 @@ func Scan(root string) ([]Solve, error) {
 		}
 		base := parts[3]
 		cat, letter := classify(base)
-		s := Solve{Date: date, File: base, Category: cat, Contest: contestID(base), Letter: letter}
+		s := Solve{Date: date, File: base, Path: m, Category: cat, Contest: contestID(base), Letter: letter}
 		// solve-stat ブロック (要件 061) を best-effort で読む。破損は無視 (集計から除外)。
 		if st, found, serr := solvestat.ReadFile(m); serr == nil && found {
 			s.HasStat = true

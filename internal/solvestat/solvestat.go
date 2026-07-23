@@ -50,11 +50,13 @@ type Score struct {
 // Stat は solve-stat ブロックの内容。各フィールドは任意 (未記録判別は下記):
 //   - StartedAt/SolvedAt: ゼロ値 (IsZero) が未記録
 //   - DurationMs/TargetMs: 0 が未記録
+//   - ReviewedAt: ゼロ値 (IsZero) が未記録
 //   - AC/Editorial: nil が未記録
 //   - Score 各軸: -1 が未記録
 type Stat struct {
 	StartedAt  time.Time
 	SolvedAt   time.Time
+	ReviewedAt time.Time
 	DurationMs int64
 	TargetMs   int64
 	AC         *bool
@@ -74,6 +76,7 @@ func BoolPtr(b bool) *bool { return &b }
 
 func (s Stat) hasStarted() bool  { return !s.StartedAt.IsZero() }
 func (s Stat) hasSolved() bool   { return !s.SolvedAt.IsZero() }
+func (s Stat) hasReviewed() bool { return !s.ReviewedAt.IsZero() }
 func (s Stat) hasDuration() bool { return s.DurationMs != 0 }
 func (s Stat) hasTarget() bool   { return s.TargetMs != 0 }
 
@@ -235,6 +238,12 @@ func (s *Stat) setKey(key, val string) error {
 			return err
 		}
 		s.SolvedAt = t
+	case "reviewed_at":
+		t, err := time.Parse(time.RFC3339, val)
+		if err != nil {
+			return err
+		}
+		s.ReviewedAt = t
 	case "duration_ms":
 		n, err := strconv.ParseInt(val, 10, 64)
 		if err != nil {
@@ -294,6 +303,9 @@ func mergeStat(base, patch Stat) Stat {
 	if patch.hasSolved() {
 		out.SolvedAt = patch.SolvedAt
 	}
+	if patch.hasReviewed() {
+		out.ReviewedAt = patch.ReviewedAt
+	}
 	if patch.hasDuration() {
 		out.DurationMs = patch.DurationMs
 	}
@@ -337,6 +349,9 @@ func renderBlock(s Stat) string {
 	}
 	if s.hasSolved() {
 		add("solved_at", s.SolvedAt.Format(time.RFC3339))
+	}
+	if s.hasReviewed() {
+		add("reviewed_at", s.ReviewedAt.Format(time.RFC3339))
 	}
 	if s.hasDuration() {
 		add("duration_ms", strconv.FormatInt(s.DurationMs, 10))

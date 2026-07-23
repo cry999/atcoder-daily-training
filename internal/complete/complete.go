@@ -41,6 +41,7 @@ var layoutCands = []Candidate{
 
 // categoryCands は `atcoder review` の <category> 位置引数候補 (説明付き)。
 var categoryCands = []Candidate{
+	{"missed", "list yesterday's missed practice and review checks"},
 	{"abc", "AtCoder Beginner Contest"},
 	{"arc", "AtCoder Regular Contest"},
 	{"agc", "AtCoder Grand Contest"},
@@ -179,6 +180,8 @@ var subFlags = map[string][]Candidate{
 		{"-y", "limit to this year"},
 		{"--last", "rolling window from today (e.g. 7d, 1m)"},
 		{"-l", "rolling window from today (e.g. 7d, 1m)"},
+		{"--date", "with missed: practice date (YYYY-MM-DD)"},
+		{"--check", "with missed: mark an item as reviewed"},
 	},
 	"update": {
 		{"--check", "only check for a newer version; don't install"},

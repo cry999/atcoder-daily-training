@@ -9,6 +9,7 @@ import (
 
 	"github.com/cry999/atcoder-daily-training/internal/cliargs"
 	"github.com/cry999/atcoder-daily-training/internal/review"
+	"github.com/cry999/atcoder-daily-training/internal/solvestat"
 	"github.com/cry999/atcoder-daily-training/internal/stats"
 	"golang.org/x/term"
 )
@@ -20,6 +21,12 @@ func cmdReview(args []string) (int, error) {
 	flagArgs, positionals := cliargs.Split(args)
 	if len(positionals) < 1 {
 		return 2, errors.New("category is required (e.g. atcoder review abc)")
+	}
+	if strings.ToLower(positionals[0]) == "missed" {
+		if len(positionals) > 1 {
+			return 2, errors.New("review missed does not accept positional arguments")
+		}
+		return cmdReviewMissed(flagArgs)
 	}
 	category := strings.ToLower(positionals[0])
 
@@ -75,4 +82,56 @@ func cmdReview(args []string) (int, error) {
 		return 1, err
 	}
 	return 0, nil
+}
+
+func cmdReviewMissed(flagArgs []string) (int, error) {
+	flags := flag.NewFlagSet("review missed", flag.ContinueOnError)
+	var dateText, check string
+	flags.StringVar(&dateText, "date", "", "Practice date to review (YYYY-MM-DD); default is yesterday")
+	flags.StringVar(&check, "check", "", "Mark one missed item as reviewed (e.g. abc357_d or abc357/d)")
+	flags.SetOutput(os.Stderr)
+	if err := flags.Parse(flagArgs); err != nil {
+		return 2, err
+	}
+	if flags.NArg() != 0 {
+		return 2, errors.New("review missed does not accept positional arguments")
+	}
+
+	now := time.Now().Local()
+	target := dayOnly(now.AddDate(0, 0, -1))
+	if strings.TrimSpace(dateText) != "" {
+		d, err := time.ParseInLocation("2006-01-02", dateText, time.Local)
+		if err != nil {
+			return 2, errors.New("--date must be YYYY-MM-DD")
+		}
+		target = d
+	}
+
+	solves, err := stats.Scan("exercise")
+	if err != nil {
+		return 1, err
+	}
+	rep := review.BuildMissed(solves, target)
+	if strings.TrimSpace(check) != "" {
+		item, err := rep.FindMissed(check)
+		if err != nil {
+			return 1, err
+		}
+		patch := solvestat.Empty()
+		patch.ReviewedAt = now
+		if err := solvestat.Update(item.Path, patch); err != nil {
+			return 1, err
+		}
+		_, _ = os.Stdout.WriteString("reviewed " + item.ID + " (" + item.Path + ")\n")
+		return 0, nil
+	}
+	if err := review.RenderMissed(os.Stdout, rep); err != nil {
+		return 1, err
+	}
+	return 0, nil
+}
+
+func dayOnly(t time.Time) time.Time {
+	y, m, d := t.Date()
+	return time.Date(y, m, d, 0, 0, 0, 0, t.Location())
 }
