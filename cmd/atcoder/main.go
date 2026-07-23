@@ -140,11 +140,11 @@ func usage() {
 	fmt.Fprintln(os.Stderr, `Usage:
   atcoder new
   atcoder new abc <contest> [--tasks <list>] [--refresh] [--no-skeleton] [--no-fetch]
-  atcoder start  <contest> --task <task> [--until-pass] [--refresh] [-d] [-s] [-j <n>] [--timeout <dur>] [--tolerance <eps>] [--layout <auto|abc|exercise>]
+  atcoder start  <contest> --task <task> [--until-pass] [--refresh] [-s] [-j <n>] [--timeout <dur>] [--tolerance <eps>] [--layout <auto|abc|exercise>]
   atcoder test   <contest> --task <task>   # default: judge downloaded samples
                  [sample: -c <N[,M,...]> | --refresh | -j <n> | -w | -s | --json | --submit [--no-open] [--keep-debug]]
                  [ad-hoc: --in <path>|- | --out <path> | --interactive [-R|--auto-restart]]
-                 [-v] [-d] [--timeout <dur>] [--tolerance <eps>] [--layout <auto|abc|exercise>]
+                 [-v] [--timeout <dur>] [--tolerance <eps>] [--layout <auto|abc|exercise>]
   atcoder gen    <contest> --task <task>   # 制約・入力形式を認識してランダム入力を生成 (ベストエフォート)
                  [-n <count>] [-o <path>] [--save] [--size <random|max|min>] [--seed <n>] [--show-spec] [--refresh]
   atcoder meta   <fetch | show | set> <url | contest --task <task>>   # キャッシュ (samples + time limit) の DL / 表示 / 編集

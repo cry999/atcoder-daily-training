@@ -61,7 +61,7 @@ type testReplay struct {
 func newCommandInput() textinput.Model {
 	ti := textinput.New()
 	ti.Prompt = ":"
-	ti.Placeholder = "case | test [case] | open | w [name] | set verify | meta | debug | replay | cheat | scroll | q"
+	ti.Placeholder = "case | test [case] | open | w [name] | set verify | meta | replay | cheat | scroll | q"
 	return ti
 }
 
@@ -148,11 +148,8 @@ func parseCommand(s string) command {
 	case "e", "edit":
 		// :e <spec> — 任意ジャンプ。arg に spec を載せる (解決は親 Navigate)。
 		return command{name: "e", arg: arg}
-	case "debug":
-		// :debug — Debug 表示 (-d 相当) をトグル。
-		return command{name: "debug", arg: arg}
 	case "pp":
-		// :pp — valid JSON の [DEBUG] ペイロード整形 (要件 047) をトグル。:debug と直交。
+		// :pp — valid JSON の [DEBUG] ペイロード整形 (要件 047) をトグル。
 		return command{name: "pp", arg: arg}
 	case "open":
 		// :open — 現在の問題ページを OS 既定ブラウザで開く (要件 073)。
@@ -370,11 +367,6 @@ func (m *chatModel) execCommand(cmd command) (tea.Model, tea.Cmd) {
 		}
 		m.refreshViewport()
 		return m, setCmd
-	case "debug":
-		debugCmd := m.toggleDebug()
-		m.returnFromCommand()
-		m.refreshViewport()
-		return m, debugCmd
 	case "pp":
 		m.togglePP()
 		m.returnFromCommand()
@@ -776,9 +768,7 @@ func (m *chatModel) metaSet(field, value string) {
 	}
 }
 
-// applySet は `:set verify` / `:set noverify` / `:set debug|nodebug` を処理する。
-// debug/nodebug は Debug を切り替えるので、watch ペインへ伝える DebugMsg の Cmd を返す
-// (要件 034)。他のオプションは表示だけなので nil を返す。
+// applySet は `:set verify` / `:set noverify` / `:set pp|nopp` を処理する。
 func (m *chatModel) applySet(arg string) tea.Cmd {
 	switch strings.TrimSpace(arg) {
 	case "verify":
@@ -793,10 +783,6 @@ func (m *chatModel) applySet(arg string) tea.Cmd {
 		m.verify = nil
 		m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(ライブ検証 off)"})
 		return nil
-	case "debug":
-		return m.setDebug(true)
-	case "nodebug":
-		return m.setDebug(false)
 	case "pp":
 		m.setPP(true)
 		return nil
@@ -809,7 +795,7 @@ func (m *chatModel) applySet(arg string) tea.Cmd {
 	}
 }
 
-// returnFromCommand は command で副作用だけ起こすコマンド (:set/:debug/:cheat) の
+// returnFromCommand は command で副作用だけ起こすコマンド (:set/:cheat) の
 // 後に元のモードへ戻す。builder を開いていれば編集に、なければ insert に戻る。
 func (m *chatModel) returnFromCommand() {
 	if m.builder != nil {
@@ -819,29 +805,8 @@ func (m *chatModel) returnFromCommand() {
 	}
 }
 
-// setDebug は Debug 表示 (-d 相当、子 stdout の [DEBUG] 行を別カテゴリに振り分け) を
-// on/off する。以後届く行に反映され、既に描画済みの行は遡及して変えない (要件 030)。
-// 分割画面 (start) では親 startSplitModel が DebugMsg を受けて watch ペインを live Debug で
-// 再判定する (要件 034)。単体 chat (test --interactive) では受け手がいないので無害に無視される。
-func (m *chatModel) setDebug(on bool) tea.Cmd {
-	m.header.Debug = on
-	state := "off"
-	if on {
-		state = "on"
-	}
-	m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: "(debug " + state + " — 以降の [DEBUG] 行に反映)"})
-	return func() tea.Msg { return DebugMsg{On: on} }
-}
-
-// toggleDebug は Debug 表示を反転する (:debug)。DebugMsg の Cmd を伝播する。
-func (m *chatModel) toggleDebug() tea.Cmd {
-	return m.setDebug(!m.header.Debug)
-}
-
 // setPP は pp 表示 (valid JSON の [DEBUG] ペイロード整形。要件 047) を on/off する。
-// :debug と直交し、以降届く [DEBUG] 行にだけ反映される (既描画行は遡及しない)。
-// debug 自体が off なら整形対象が無いので info 行に補足を添える。watch ペインへの
-// 波及 (DebugMsg 相当) は将来スコープなので Cmd は返さない (cosmetic のみ)。
+// 以降届く [DEBUG] 行にだけ反映される (既描画行は遡及しない)。
 func (m *chatModel) setPP(on bool) {
 	m.header.PP = on
 	state := "off"
@@ -849,9 +814,6 @@ func (m *chatModel) setPP(on bool) {
 		state = "on"
 	}
 	text := "(pp " + state + ")"
-	if on && !m.header.Debug {
-		text = "(pp on — :debug を on にすると整形結果が見えます)"
-	}
 	m.msgs = append(m.msgs, chatLine{kind: kindInfo, text: text})
 }
 
@@ -869,7 +831,6 @@ func (m *chatModel) showCheat() {
 		"  :test [case] (:t)     サンプルケースを実行 + ライブ検証 (:test で一覧)",
 		"  :w [name]             追加ケースを tests-extra に保存",
 		"  :set verify|noverify  ライブ検証 on/off",
-		"  :debug                Debug 表示 (-d) を切替 (:set debug|nodebug)",
 		"  :pp                   [DEBUG] の valid JSON を整形表示 (:set pp|nopp)",
 		"  :open                 現在の問題ページをブラウザで開く",
 		"  :replay               直近に流した入力 (手入力 / :test ケース) を再送 + 再検証",

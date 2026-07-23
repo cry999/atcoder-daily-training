@@ -18,7 +18,7 @@ const (
 	RE
 )
 
-// DebugPrefix で始まる行は、--debug 指定時の比較対象から除外される。
+// DebugPrefix で始まる行は、Debug 有効時の比較対象から除外される。
 const DebugPrefix = "[DEBUG]"
 
 // DefaultTolerance は float トークンの比較で許容する絶対 / 相対誤差。AtCoder の
@@ -31,8 +31,8 @@ type CaseResult struct {
 	Elapsed         time.Duration
 	Input           string // 常にセット (テストケースの標準入力)
 	Expected        string // 常にセット (normalize 済みの期待出力)
-	Actual          string // 常にセット (normalize 済みの実際の stdout, debug 時は [DEBUG] 行を除外したもの)
-	Debug           string // --debug 時にのみセット。[DEBUG] で始まる行の集合
+	Actual          string // 常にセット (normalize 済みの実際の stdout, Debug 時は [DEBUG] 行を除外したもの)
+	Debug           string // Debug 時にのみセット。[DEBUG] で始まる行の集合
 	Stderr          string // RE のみ
 	DebugSeen       bool   // 生の stdout / stderr のいずれかに [DEBUG] 始まりの行があったか (提出前ゲート用。要件 044)
 	OriginalLimitMs int    // problem の本来の制限時間 (ms)。Status==Pass で Elapsed が超えていたら本来 TLE。

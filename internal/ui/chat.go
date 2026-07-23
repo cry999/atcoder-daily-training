@@ -24,7 +24,7 @@ type ChatHeader struct {
 	Task        string
 	Contest     string
 	TimeLimitMs int
-	Debug       bool       // true なら子の stdout 行のうち [DEBUG] プレフィックスを持つものを別カテゴリで表示する
+	Debug       bool       // 常時 true。子の stdout 行のうち [DEBUG] プレフィックスを持つものを別カテゴリで表示する
 	PP          bool       // true なら以降の [DEBUG] 行のうち valid JSON ペイロードを 2-space 整形して表示する (要件 047)
 	AutoRestart bool       // true なら起動時から sticky auto-restart (子終了のたびに再起動する)
 	WatchPath   string     // 非空なら解答ファイルを監視し、保存検知で子を最新ファイルで再 spawn する
@@ -192,7 +192,7 @@ func RunChat(spawn Spawner, header ChatHeader) (*runner.ProcessResult, error) {
 const (
 	kindIn    = "in"
 	kindOut   = "out"
-	kindDebug = "debug" // [DEBUG] プレフィックスを持つ stdout 行 (Debug が true のときだけ振り分け)
+	kindDebug = "debug" // [DEBUG] プレフィックスを持つ stdout 行
 	kindErr   = "err"
 	kindInfo  = "info"
 	kindEnded = "ended"
@@ -343,6 +343,7 @@ type chatModel struct {
 // initialChatModel は遅延起動の chat モデルを作る。子プロセスは開いた時点では
 // 起動せず (handle=nil・running=false)、最初の入力 (Enter) で初めて spawn する。
 func initialChatModel(header ChatHeader, spawn Spawner) *chatModel {
+	header.Debug = true
 	submitHint := ""
 	if header.Submit != nil {
 		submitHint = "  /  Ctrl+S で提出準備"
@@ -857,8 +858,8 @@ func (m *chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			break // リロードで差し替えた旧 scanner の残響 → 破棄 (再発行もしない)
 		}
 		kind, text := msg.kind, msg.text
-		// -d 指定時のみ、stdout 行のうち [DEBUG] プレフィックスを持つものは
-		// kindDebug に振り分け、プレフィックス (とその直後の半角空白 1 つ) を剥がす。
+		// stdout 行のうち [DEBUG] プレフィックスを持つものは kindDebug に振り分け、
+		// プレフィックス (とその直後の半角空白 1 つ) を剥がす。
 		// 表示側で独自のインジケーター・色を当てるため、prefix は冗長になる。
 		if m.header.Debug && kind == kindOut && strings.HasPrefix(text, debugPrefix) {
 			kind = kindDebug

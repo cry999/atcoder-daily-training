@@ -1,8 +1,8 @@
 // Package debugstrip は提出準備時に Python 解答ソースから [DEBUG] 出力 print を
 // コメントアウトする。判定・実行には関与せず、文字列変換のみを行う純粋パッケージ。
 //
-// 既存の DEBUG 規約 (stdout 先頭が [DEBUG] の行をデバッグ出力とみなす。-d/--debug の
-// splitDebug) をソース行の print に流用し、提出コードからデバッグ出力を取り除く。
+// DEBUG 規約 (stdout 先頭が [DEBUG] の行をデバッグ出力とみなす splitDebug) を
+// ソース行の print に流用し、提出コードからデバッグ出力を取り除く。
 package debugstrip
 
 import (

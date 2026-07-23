@@ -55,7 +55,7 @@ atcoder test <contest> --task <task>            # 既定: DL 済みサンプル�
     [サンプル: -c <N[,M,...]> | --refresh | -j <n> | -w | -s | --json | --submit [--no-open] [--keep-debug]]
     [ad-hoc:  --in <path>|- | --out <path>]
     [対話:    --interactive [-R | --auto-restart]]
-    [共通:    -v | -d [--pp] | --timeout <dur> | --tolerance <eps> | --layout <auto|abc|exercise>]
+    [共通:    -v | --pp | --timeout <dur> | --tolerance <eps> | --layout <auto|abc|exercise>]
 ```
 
 ### 引数
@@ -67,8 +67,7 @@ atcoder test <contest> --task <task>            # 既定: DL 済みサンプル�
 | `<contest>` | ✔ | AtCoder のコンテスト ID (例: `abc325`)。URL の `/contests/<contest>/` に対応 |
 | `--task <task>` | ✔ | AtCoder のタスク ID (例: `abc325_d`)。URL の `/tasks/<task>` に対応。**短縮形**: `_` を含まない値は `<contest>_<task>` に自動展開 (例: `--task d` + `<contest>=abc325` → `abc325_d`) |
 | `-v` / `--verbose` | | 各ケースで入力 (`input:`) と実際の出力 (`output:`) を表示 |
-| `-d` / `--debug` | | 子プロセスに `DEBUG=1` を渡し、stdout のうち `[DEBUG]` で始まる行を比較対象から除外。除外行は `debug:` セクションに表示 |
-| `--pp` | | `debug:` セクションの `[DEBUG]` 行のうち、**ペイロードが単独で valid JSON** (`{`/`[` 始まり) のものを 2-space インデントで整形表示 (既定 off)。`-d` と直交する純粋な表示修飾で、判定・`--json`・exit code は変えない。`-d` 無しで渡すと `debug:` が空なので効かず、stderr に `note: --pp has no effect without -d/--debug` を出す。下の「JSON デバッグ出力の整形」節参照 |
+| `--pp` | | `debug:` セクションの `[DEBUG]` 行のうち、**ペイロードが単独で valid JSON** (`{`/`[` 始まり) のものを 2-space インデントで整形表示 (既定 off)。純粋な表示修飾で、判定・`--json`・exit code は変えない。下の「JSON デバッグ出力の整形」節参照 |
 | `-c` / `--case <N>` | | 指定したケース番号のみ実行。カンマ区切りで複数可 (`-c 1,3`)。数値は `01`, `03` のように 2 桁ゼロ埋めへ正規化。該当無しはエラー終了 |
 | `-s` / `--side-by-side` | | diff を左右 2 カラムで表示 (期待出力=左、実際の出力=右) |
 | `--refresh` | | テストキャッシュを無視して AtCoder から再取得 |
@@ -120,7 +119,7 @@ atcoder test abc325 --task d --in - < my_case.txt
 atcoder test abc325 --task d --in my_case.txt --out expected.txt
 ```
 
-出力ステータスは `OK` / `TLE` / `RE`。`-v` で渡した入力も表示、`-d` で `DEBUG=1`。
+出力ステータスは `OK` / `TLE` / `RE`。`-v` で渡した入力も表示する。`DEBUG=1` と `[DEBUG]` 行分離は常時有効。
 
 ### 対話モード
 
@@ -164,8 +163,7 @@ chat で見つけた再現入力をその場で**追加テストケース**に�
 | `:test [case]` (`:t`) | **キャッシュ済みサンプルケースを実行**する (要件 [045](../requirements/045-chat-run-sample-case.md))。`case` 指定 (公式 `01`/`1` / 追加 `x01`) で子を**リスタートしてその `.in` を順送**し、`.out` でライブ検証する。`case` 省略で利用可能なケース ID の一覧を表示する。fetch はしない (既にキャッシュ済みのものだけ読む) |
 | `:w [name]` | ビルダーの内容を `tests-extra/` に保存 (`name` 省略時は連番)。保存後 `(saved tests-extra/x03)` を出して chat に戻る |
 | `:set verify` / `:set noverify` | ライブ検証の on/off。ビルダーで expected を入れて閉じると自動 on |
-| `:debug` (`:set debug` / `:set nodebug`) | Debug 表示 (`-d` 相当、子 stdout の `[DEBUG]` 行を別カテゴリ表示) を切替。**以降届く行に反映**され、既に出ている行は変えない |
-| `:pp` (`:set pp` / `:set nopp`) | valid JSON の `[DEBUG]` ペイロードを 2-space インデントで整形表示するか切替 (既定 off)。`:debug` と直交し、**以降届く行にだけ反映** (既描画行は遡及しない)。`:debug` が off なら整形対象が無いので info 行に補足を添える |
+| `:pp` (`:set pp` / `:set nopp`) | valid JSON の `[DEBUG]` ペイロードを 2-space インデントで整形表示するか切替 (既定 off)。**以降届く行にだけ反映** (既描画行は遡及しない) |
 | `:open` | **現在の問題ページをブラウザで開く**。`meta.toml.url` があればその URL を優先し、無ければ標準の `/contests/<contest>/tasks/<task>` を開く。ブラウザ起動に失敗した場合も URL を表示して chat は継続する |
 | `:replay` | **直近に流した入力**を、子を**リスタートしてクリーンな状態から順に再送**する (要件 [039](../requirements/039-chat-replay-previous-session.md) / [048](../requirements/048-chat-replay-test-case.md))。コードを直して同じ入力を流し直すのに使える。優先順位は **現セッションの手入力 → 直近の `:test` ケース (再生時は `.out` で再検証) → 直前に完了したセッション → 前回 chat 起動**。`:test n` のあと手入力していなければそのケースを再入力し、手入力していれば手入力が優先される。どれも無ければ info 行のみで子は起動しない |
 | `:meta [url\|time_limit [値]]` | **meta.toml の url / Time Limit を表示・編集**する (要件 [055](../requirements/055-chat-meta-edit.md))。`:meta` で url / time limit / samples を表示、`:meta url <url>` で取得元 URL override、`:meta time_limit <dur>` (`5s`/`1500ms`) で Time Limit を上書き。`:meta url` / `:meta time_limit` (値なし) は現在値のみ表示。CLI `atcoder meta show`/`set` 相当を chat 内で行う |
@@ -200,9 +198,9 @@ chat で見つけた再現入力をその場で**追加テストケース**に�
 4. **クリーン** (3 つともなし) なら、確認なしで (手順 1 の) 中身をクリップボードへコピーし、提出ページ (`/contests/<contest>/submit?taskScreenName=<task_id>`) をブラウザで開く。`--no-open` ならコピーして URL を表示するだけ。
 5. **リスクあり**なら、理由を表示して `このまま提出準備を続けますか? [y/N]:` と尋ねる。`y` で提出準備へ進み、それ以外は中止する (`exit 1`)。**stdin が端末でない** (パイプ・CI 等) ときは確認を出さず自動で「いいえ」(中止・`exit 1`) となり、ハングしない。
 
-> 提出前チェックは「デバッグ出力の消し忘れ」や「落ちているコードのうっかり提出」を提出直前で止めるためのゲート (要件 [044](../requirements/044-submit-precheck-confirm.md))。判定は **実際に提出される中身 (コメントアウト後ソース) そのもの** で行う (要件 [049](../requirements/049-submit-precheck-run-commented-source.md))。これにより、デバッグ中に撒いた無条件 `print("[DEBUG] ...")` はコメントアウトされて実行されず、サンプル判定がクリーンになる (毎回 DEBUG 検出/不通過が出るノイズを解消)。一方、コメントアウトが regex で拾えなかった漏れ (例: `print` を使わない `sys.stderr.write("[DEBUG] ...")`) は実行時に `[DEBUG]` として残り、`DebugSeen` で検出されて確認対象になる — コメントアウト漏れに対する安全網。検出は実行時の **stdout / stderr** を見る (`-d` の有無に依らない)。
+> 提出前チェックは「デバッグ出力の消し忘れ」や「落ちているコードのうっかり提出」を提出直前で止めるためのゲート (要件 [044](../requirements/044-submit-precheck-confirm.md))。判定は **実際に提出される中身 (コメントアウト後ソース) そのもの** で行う (要件 [049](../requirements/049-submit-precheck-run-commented-source.md))。これにより、デバッグ中に撒いた無条件 `print("[DEBUG] ...")` はコメントアウトされて実行されず、サンプル判定がクリーンになる (毎回 DEBUG 検出/不通過が出るノイズを解消)。一方、コメントアウトが regex で拾えなかった漏れ (例: `print` を使わない `sys.stderr.write("[DEBUG] ...")`) は実行時に `[DEBUG]` として残り、`DebugSeen` で検出されて確認対象になる — コメントアウト漏れに対する安全網。検出は実行時の **stdout / stderr** を見る。
 
-クリップボードへ載せる際、**`[DEBUG]` を出力する `print` 行は自動でコメントアウト**される (デバッグ出力の消し忘れ提出による WA / TLE を防ぐ)。コメントアウトは `-d`/`--debug` と同じ `[DEBUG]` 規約に従い、`print("[DEBUG] ...")` / `print(f"[DEBUG] {x}")` / `print("[DEBUG]", x)` の行が対象。**解答ファイル本体は書き換えず、クリップボードに載る中身だけを加工する**。1 行以上コメントアウトすると、その件数を表示する。`--keep-debug` を付けると加工せず無加工でコピーする。
+クリップボードへ載せる際、**`[DEBUG]` を出力する `print` 行は自動でコメントアウト**される (デバッグ出力の消し忘れ提出による WA / TLE を防ぐ)。コメントアウトは debug 表示と同じ `[DEBUG]` 規約に従い、`print("[DEBUG] ...")` / `print(f"[DEBUG] {x}")` / `print("[DEBUG]", x)` の行が対象。**解答ファイル本体は書き換えず、クリップボードに載る中身だけを加工する**。1 行以上コメントアウトすると、その件数を表示する。`--keep-debug` を付けると加工せず無加工でコピーする。
 
 > `if os.environ.get("DEBUG"):` ガード直下の単独 print のように、コメントアウトすると空ブロックになる箇所はそのまま残す (`IndentationError` 回避。ガード下の print はジャッジで `DEBUG` 未設定により実行されないので無害)。複文 (`a; print("[DEBUG]")`) や複数行 print は対象外。chat の `Ctrl+S` でも同じくコメントアウトされる (こちらは常に ON)。
 
@@ -238,7 +236,7 @@ atcoder test abc457 --task d --json | jq '.cases[] | select(.status != "AC")'
 | `all_passed` | bool | `passed == total && total > 0` |
 | `cases[]` | array | per-case (ケース名順) |
 
-`cases[]` の各要素: `name` (表示 id `01`/`x01`)、`status` (`AC`/`WA`/`TLE`/`RE`)、`elapsed_ms`、`input`、`expected`、`actual`、`stderr` (RE 時のみ非空)、`debug` (`-d` 時のみ非空)。各キーは空でも必ず出力する。
+`cases[]` の各要素: `name` (表示 id `01`/`x01`)、`status` (`AC`/`WA`/`TLE`/`RE`)、`elapsed_ms`、`input`、`expected`、`actual`、`stderr` (RE 時のみ非空)、`debug` (Debug 出力があれば非空)。各キーは空でも必ず出力する。
 
 ```json
 {
@@ -258,7 +256,7 @@ atcoder test abc457 --task d --json | jq '.cases[] | select(.status != "AC")'
 ```
 
 - **exit code は通常の `test` と同じ**: 全通過 = 0、1 件でも不通過 = 1 (このとき JSON は正常に出る。`all_passed` でも判定できる)、fetch / 実行失敗 = 1 (JSON は出さず stderr にエラー)、フラグ誤り = 2。
-- `--json` は**サンプルモード専用**。`--in`/`--out`/`--interactive`・`--watch`・`--submit` との併用は `exit 2`。`-c`/`-d`/`--timeout`/`--tolerance`/`-j`/`--refresh`/`--layout` は併用可 (判定の入力条件)。`-s`/`--side-by-side`・`-v` は人間向け表示用なので JSON には影響しない。
+- `--json` は**サンプルモード専用**。`--in`/`--out`/`--interactive`・`--watch`・`--submit` との併用は `exit 2`。`-c`/`--timeout`/`--tolerance`/`-j`/`--refresh`/`--layout` は併用可 (判定の入力条件)。`-s`/`--side-by-side`・`-v` は人間向け表示用なので JSON には影響しない。
 - watch でのライブ更新 (再判定ごとの NDJSON ストリーム) は将来の拡張。現状は単発実行のみ。
 
 ### JSON デバッグ出力の整形 (`--pp` / `:pp`)
@@ -273,7 +271,7 @@ print("[DEBUG]", json.dumps({"dp": dp, "n": n}))   # 推奨: ペイロードが�
 `--pp` を付けると、`debug:` セクションの `[DEBUG]` 行のうち**ペイロードが単独で valid JSON** (`{`/`[` 始まり) のものだけを 2-space インデントで整形する。
 
 ```
-# atcoder test abc457 --task d -d --pp
+# atcoder test abc457 --task d --pp
        debug:
          [DEBUG] {
            "dp": [
@@ -286,7 +284,7 @@ print("[DEBUG]", json.dumps({"dp": dp, "n": n}))   # 推奨: ペイロードが�
 
 - **表示だけの純粋な整形**。verdict・`--json` の `debug` フィールド・exit code・保存値は一切変わらない (`json.Indent` を使うのでキー順・数値表記も保存)。
 - 整形するのは**ペイロード全体が valid JSON のとき**のみ。`[DEBUG] dp = {...}` のようなラベル付き行や Python `repr` (`'`/`True`/`None`/タプル)・スカラ (`[DEBUG] 42`) は対象外で原文のまま表示する (「JSON で吐けば整形される」という単純規約。言語別パーサは持たない)。
-- `-d` と**直交**。`-d` 無しで `--pp` を渡すと `debug:` が空で効かないため、stderr に `note: --pp has no effect without -d/--debug` を 1 行出す (exit code は不変)。`--json` と併用したときは人間向け表示自体が出ないので `--pp` は無視される。
+- `--json` と併用したときは人間向け表示自体が出ないので `--pp` は無視される。
 - 仕様詳細は要件 [047](../requirements/047-debug-json-pretty-print.md)。
 
 ## 動作
@@ -383,7 +381,7 @@ go run ./cmd/atcoder test abc325 --task abc325_d --watch
 
 ### 解答コードにデバッグ出力を仕込みたい
 
-`-d` 指定で子プロセスに `DEBUG=1` が渡る。Python 側で `os.environ.get("DEBUG")` を分岐すれば、デバッグ実行時のみログを出せる。出力行のうち先頭が `[DEBUG]` のものは比較対象から自動除外される。
+子プロセスには常に `DEBUG=1` が渡る。Python 側で `os.environ.get("DEBUG")` を分岐すれば、`atcoder test` / `start` 実行時だけログを出せる。出力行のうち先頭が `[DEBUG]` のものは比較対象から自動除外される。
 
 ```python
 import os
@@ -393,20 +391,17 @@ def dprint(*args, **kwargs):
         print("[DEBUG]", *args, **kwargs)
 
 N = int(input())
-dprint("N =", N)        # `-d` 時のみ [DEBUG] N = ... が出る
+dprint("N =", N)        # atcoder 実行時のみ [DEBUG] N = ... が出る
 # ...
 print(answer)
 ```
 
 ```sh
-# 通常実行: DEBUG 未設定、デバッグ出力なし、判定通り
+# [DEBUG] 行を debug: セクションで確認しつつ判定もそのまま
 go run ./cmd/atcoder test abc325 --task d
 
-# デバッグ実行: [DEBUG] 行を debug: セクションで確認しつつ判定もそのまま
-go run ./cmd/atcoder test abc325 --task d -d
-
 # 入力・出力もまとめて見たい
-go run ./cmd/atcoder test abc325 --task d -d -v
+go run ./cmd/atcoder test abc325 --task d -v
 ```
 
 ### 制限時間を上書きしたい

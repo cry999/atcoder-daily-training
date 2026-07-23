@@ -5,6 +5,15 @@ ABC 本番対応に限定されない、`atcoder` ツール全般の改善 TODO�
 > このファイルは**これからやること**だけを残す。完了した項目はここには残さない:
 > 各機能の what / how は要件定義 [`requirements/NNN-*.md`](requirements/)、why (採用理由・却下案・トレードオフ) は決定記録 [`decisions/`](decisions/)、使い方は利用手引 (`docs/tools/usage/*.md`) を参照。
 
+
+## BD. Debug 常時 on 化 ✅ DONE
+
+> 要件詳細は [`requirements/075-always-on-debug.md`](requirements/075-always-on-debug.md)。利用手引は [`usage/test.md`](usage/test.md) / [`usage/start.md`](usage/start.md)。
+
+- `atcoder test` / `start` / ad-hoc / interactive chat の実行で常に `DEBUG=1` を渡し、stdout の `[DEBUG]` 行を比較対象から除外して `debug:` 表示へ分離する。
+- `-d` / `--debug` と chat `:debug` / `:set debug` / `:set nodebug` は削除。`--pp` / `:pp` は Debug 常時 on の表示修飾として残し、`-d` 不在 note は出さない。
+- `--keep-debug` は提出用コピー加工の制御なので維持する。
+
 ## BC. 前日の未達問題を復習キューとして一覧・チェック ✅ DONE
 
 > 要件詳細は [`requirements/074-review-missed-practice.md`](requirements/074-review-missed-practice.md)。利用手引は [`usage/review.md`](usage/review.md) の「前日の未達問題を復習する (`review missed`)」節。
@@ -128,7 +137,7 @@ ABC 本番対応に限定されない、`atcoder` ツール全般の改善 TODO�
 
 - `[DEBUG]` 行のうち **ペイロードが単独で valid JSON (`{`/`[` 始まり) のものだけ** を `json.Indent` で 2-space 再インデント。Python `repr`・ラベル付き `key = {...}`・グリッド検出には踏み込まない (言語非依存・`encoding/json` のみ)。
 - オプトイン: バッチ `--pp` フラグ / chat `:pp` (`:set pp|nopp`) トグル、既定 off。**verdict・`--json` の `debug` フィールド・exit code・保存値は不変** (整形は表示時のみの純関数 `prettifyDebug`)。
-- `--pp` は `-d` と**直交**。`-d` 無しで `--pp` を渡したら stderr に `note: --pp has no effect without -d/--debug` を 1 行 (含意はしない / フットガンだけ消す)。キー順・数値は `json.Indent` で保存 (`Unmarshal`+`Marshal` は使わない)。
+- `--pp` は Debug 表示の修飾だけを担い、キー順・数値は `json.Indent` で保存 (`Unmarshal`+`Marshal` は使わない)。当初の `-d` 不在 note は、Debug 常時 on 化 ([075](requirements/075-always-on-debug.md)) により撤去済み。
 
 ### 影響範囲 (実装済み)
 

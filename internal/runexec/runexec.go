@@ -101,6 +101,7 @@ type Result struct {
 const defaultTimeLimitMs = 2000
 
 func Run(opts Options) (int, error) {
+	opts.Debug = true
 	lay := opts.Layout
 	if lay == nil {
 		lay = layout.Exercise{}
@@ -128,10 +129,7 @@ func Run(opts Options) (int, error) {
 		return 1, err
 	}
 
-	var extraEnv []string
-	if opts.Debug {
-		extraEnv = []string{"DEBUG=1"}
-	}
+	extraEnv := []string{"DEBUG=1"}
 
 	// インタラクティブモードは --interactive を明示したときだけ。
 	// -in と -in - は等価 (どちらも親 stdin を read-all する batch)。

@@ -73,11 +73,6 @@ const (
 
 type splitTickMsg struct{}
 
-// DebugMsg は chat ペインが親 (startSplitModel) に Debug 変化を伝える tea.Msg (要件 034)。
-// chat の :debug / :set debug|nodebug (要件 030) が発火し、親は watch ペインの live Debug を
-// 更新して再判定する。分割画面でない単体 chat (test --interactive) では受け手がいないので無害。
-type DebugMsg struct{ On bool }
-
 // splitSampleMsg は非同期サンプル判定の結果。epoch は発行時の再ターゲット世代で、
 // 現行と不一致なら旧ターゲットの遅延結果として破棄する (要件 027 の target epoch)。
 type splitSampleMsg struct {
@@ -95,7 +90,7 @@ type startSplitModel struct {
 	navigate     Navigate // nil ならナビ無効
 	untilPass    bool
 	poll         time.Duration
-	debug        bool // live Debug 値 (chat の :debug で変わる)。watch 再判定の Debug に渡す (要件 034)
+	debug        bool // 常時 true。watch 再判定の Debug に渡す。
 
 	summary        SampleSummary
 	haveSummary    bool
@@ -115,7 +110,7 @@ var (
 	splitFailStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("#f38ba8"))
 	splitRuleStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("#45475a"))
 	splitHelpStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("#7f849c")).Italic(true)
-	// [debug] バッジ。chat の debug 色 (mochaLavender) に揃えて Debug の一貫性を示す (要件 034)。
+	// [debug] バッジ。Debug 常時 on を示す。
 	splitDebugBadgeStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(mochaLavender)).Bold(true)
 )
 
@@ -138,7 +133,7 @@ func RunStartSplit(cfg StartSplitConfig) (int, error) {
 		navigate:     cfg.Navigate,
 		untilPass:    cfg.UntilPass,
 		poll:         poll,
-		debug:        t.Header.Debug, // 起動時 -d を初期 live Debug にする (要件 034)
+		debug:        true,
 	}
 	if _, err := tea.NewProgram(m, tea.WithAltScreen()).Run(); err != nil {
 		return 1, err
@@ -215,7 +210,7 @@ func (m *startSplitModel) tickCmd() tea.Cmd {
 
 func (m *startSplitModel) runSamplesCmd() tea.Cmd {
 	run := m.runSamples
-	debug := m.debug // 発行時の live Debug を焼き込む (再判定はこの Debug で行う。要件 034)
+	debug := true
 	epoch := m.epoch // 発行時の世代を焼き込む (再ターゲット後の遅延結果を破棄するため)
 	return func() tea.Msg { return splitSampleMsg{summary: run(debug), epoch: epoch} }
 }
@@ -233,9 +228,7 @@ func (m *startSplitModel) retarget(t StartTarget) tea.Cmd {
 	m.changed = changedFunc(t.Watcher)
 
 	// chat を新ターゲットで作り直す (遅延起動: 入力が来るまで子は起動しない)。
-	// live Debug (実行中の :debug トグル結果) を引き継ぐ。t.Header.Debug は起動時 -d の
-	// 値なので、上書きして chat 表示と watch 判定の Debug を揃える (要件 034)。
-	t.Header.Debug = m.debug
+	t.Header.Debug = true
 	// record tick 世代 (recordGen) を旧 chat から引き継ぐ。新 chat は 0 から始まるため、
 	// 引き継がないと旧 chat が計測中に発行済みの recordTickMsg (キャンセル不可の tea.Tick;
 	// shutdown は子プロセスしか kill しない) が retarget 後に遅延到達し、移動先も計測中だと
@@ -360,7 +353,7 @@ func (m *startSplitModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// chat の :meta fetch (要件 057) の非同期再取得が完了。まず chat に委譲して結果行 /
 		// err 行を積み、Time Limit が変わればヘッダに反映する。成功時はキャッシュ
 		// (meta.toml + tests/) が新しいサンプル / Time Limit に更新されているので、保存検知を
-		// 待たず watch ペインを即再判定して反映する (DebugMsg と同型: epoch を進めて in-flight の
+		// 待たず watch ペインを即再判定して反映する (保存検知と同型: epoch を進めて in-flight の
 		// 旧判定を破棄)。失敗時 (err != nil) はキャッシュを変えていないので再判定しない。
 		cm, ccmd := m.chat.Update(msg)
 		m.chat = cm.(*chatModel)
@@ -371,18 +364,6 @@ func (m *startSplitModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, m.runSamplesCmd())
 		}
 		return m, tea.Batch(cmds...)
-
-	case DebugMsg:
-		// chat の :debug トグル (要件 030) を watch ペインへ波及させる (要件 034)。live Debug を
-		// 更新し、新 Debug で即再判定する。in-flight の旧判定 (旧 Debug) は epoch を進めて破棄し、
-		// stale な結果で上書きされないようにする (要件 027 の target epoch を Debug 変化に流用)。
-		if m.debug == msg.On {
-			return m, nil // 値が変わっていなければ再判定しない
-		}
-		m.debug = msg.On
-		m.epoch++
-		m.sampleInFlight = true
-		return m, m.runSamplesCmd()
 
 	default:
 		// KeyMsg / chatLineMsg / streamEndMsg などは chat に委譲し、Cmd を伝播する。
@@ -469,8 +450,6 @@ func (m *startSplitModel) View() string {
 func (m *startSplitModel) renderWatchPane() string {
 	title := splitWatchTitleStyle.Render("watch") + "  " + splitHelpStyle.Render(m.solutionPath)
 	if m.debug {
-		// live Debug on を示すバッジ (chat の :debug と同期。要件 034)。タイトル行内に収め、
-		// watch ペインを 3 行 (splitTopLines) に保つ。
 		title += "  " + splitDebugBadgeStyle.Render("[debug]")
 	}
 	rule := splitRuleStyle.Render(strings.Repeat("─", maxInt(m.width, 1)))

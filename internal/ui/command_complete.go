@@ -8,17 +8,17 @@ import (
 // 補完候補の単一情報源 (要件 031)。canonical 名のみを返し、別名 (c/n/p 等) は
 // 候補に出さない (入力中のプレフィックスとしては parseCommand が受理する)。
 var (
-	// 常時出すコマンド名 (`:debug`/`:cheat` は要件 030、`:replay` は要件 039、`:test` は要件 045、
+	// 常時出すコマンド名 (`:cheat` は要件 030、`:replay` は要件 039、`:test` は要件 045、
 	// `:meta` は要件 055、`:gen` は要件 060、`:record` は要件 064、`:scroll` は要件 071、
 	// `:open` は要件 073 で追加)。
-	completeNamesBase = []string{"case", "cheat", "debug", "gen", "meta", "open", "pp", "q", "record", "replay", "scroll", "set", "test", "w"}
+	completeNamesBase = []string{"case", "cheat", "gen", "meta", "open", "pp", "q", "record", "replay", "scroll", "set", "test", "w"}
 	// NavEnabled (start 分割画面) のときだけ出すコマンド名 (要件 027)。
 	completeNamesNav = []string{"contest", "e", "task"}
 	// 第 2 トークンの候補 (1 語目 → サブトークン)。:set は verify/noverify に加え
-	// Debug 表示トグルの debug/nodebug (要件 030)・pp 整形トグルの pp/nopp (要件 047)
-	// も取る。:meta は fetch/url/time_limit (要件 055 / 057)。
+	// pp 整形トグルの pp/nopp (要件 047) も取る。:meta は fetch/url/time_limit
+	// (要件 055 / 057)。
 	completeSubTokens = map[string][]string{
-		"set":     {"debug", "nodebug", "nopp", "noverify", "pp", "verify"},
+		"set":     {"nopp", "noverify", "pp", "verify"},
 		"task":    {"next", "prev"},
 		"contest": {"next", "prev"},
 		"meta":    {"fetch", "time_limit", "url"},

@@ -113,56 +113,10 @@ func TestStartSplitStaleSampleDiscarded(t *testing.T) {
 	}
 }
 
-// DebugMsg は live Debug を更新し、新 Debug で watch を即再判定する (要件 034)。
-// epoch を進めて in-flight の旧判定を破棄し、runSamples には新しい Debug 値が渡る。
-func TestStartSplitDebugMsgRejudges(t *testing.T) {
-	var gotDebug []bool
-	m := &startSplitModel{
-		debug: false,
-		epoch: 0,
-		runSamples: func(debug bool) SampleSummary {
-			gotDebug = append(gotDebug, debug)
-			return SampleSummary{Passed: 1, Total: 1, AllPassed: true}
-		},
-	}
-
-	// :debug on 相当。live Debug が true になり、再判定 Cmd が返る。
-	_, cmd := m.Update(DebugMsg{On: true})
-	if !m.debug {
-		t.Errorf("DebugMsg{On:true} should set m.debug=true")
-	}
-	if m.epoch != 1 {
-		t.Errorf("debug change should bump epoch to discard stale in-flight judge, got epoch=%d", m.epoch)
-	}
-	if !m.sampleInFlight {
-		t.Errorf("debug change should mark a re-judge in flight")
-	}
-	if cmd == nil {
-		t.Fatal("DebugMsg should trigger a re-judge Cmd")
-	}
-	// Cmd を駆動すると runSamples が新 Debug=true で呼ばれ、現世代 epoch を載せた結果が返る。
-	msg, ok := cmd().(splitSampleMsg)
-	if !ok {
-		t.Fatalf("re-judge Cmd should produce splitSampleMsg, got %#v", cmd())
-	}
-	if msg.epoch != 1 {
-		t.Errorf("re-judge result should carry the new epoch 1, got %d", msg.epoch)
-	}
-	if len(gotDebug) != 1 || gotDebug[0] != true {
-		t.Errorf("runSamples should be called once with debug=true, got %v", gotDebug)
-	}
-
-	// 同値の DebugMsg は再判定しない (epoch も据え置き)。
-	_, cmd = m.Update(DebugMsg{On: true})
-	if cmd != nil || m.epoch != 1 {
-		t.Errorf("DebugMsg with unchanged value should be a no-op, got cmd=%v epoch=%d", cmd, m.epoch)
-	}
-}
-
 // :meta fetch (要件 057) の成功は watch ペインを即再判定する。fetch でキャッシュの
 // サンプル / Time Limit が更新されるので、保存検知を待たずに新しい結果へ追従させる。
 // chat にも委譲され、結果行とヘッダ Time Limit が反映される。epoch を進めて in-flight の
-// 旧判定を破棄する (DebugMsg と同型)。
+// 旧判定を破棄する (保存検知と同型)。
 func TestStartSplitMetaFetchDoneRejudges(t *testing.T) {
 	var calls int
 	m := &startSplitModel{
@@ -213,7 +167,7 @@ func TestStartSplitMetaFetchDoneRejudges(t *testing.T) {
 	}
 }
 
-// watch ペインのタイトルは live Debug on のときだけ [debug] バッジを出す (要件 034)。
+// watch ペインのタイトルは Debug on のとき [debug] バッジを出す。
 func TestRenderWatchPaneDebugBadge(t *testing.T) {
 	m := &startSplitModel{width: 60, solutionPath: "exercise/2026/06/11/abc999_a.py", haveSummary: true,
 		summary: SampleSummary{Passed: 1, Total: 1, AllPassed: true}}

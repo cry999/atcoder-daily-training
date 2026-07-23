@@ -209,10 +209,9 @@ func TestSetVerifyNeedsExpected(t *testing.T) {
 	}
 }
 
-// :debug / :cheat (別名 :help / :?) が parseCommand で正規化される (要件 030)。
-func TestParseDebugCheat(t *testing.T) {
+// :cheat (別名 :help / :?) が parseCommand で正規化される。
+func TestParseCheat(t *testing.T) {
 	cases := map[string]string{
-		"debug": "debug",
 		"cheat": "cheat",
 		"help":  "cheat",
 		"?":     "cheat",
@@ -224,74 +223,15 @@ func TestParseDebugCheat(t *testing.T) {
 	}
 }
 
-// :debug は header.Debug をトグルし、状態を info 行で示す。
-func TestToggleDebug(t *testing.T) {
-	m := initialChatModel(ChatHeader{}, fakeSpawn())
-	if m.header.Debug {
-		t.Fatal("Debug should default off")
-	}
-	m.toggleDebug()
-	if !m.header.Debug || !hasInfo(m, "debug on") {
-		t.Errorf("toggle should turn debug on with info; Debug=%v msgs=%v", m.header.Debug, m.msgs)
-	}
-	m.toggleDebug()
-	if m.header.Debug || !hasInfo(m, "debug off") {
-		t.Errorf("toggle should turn debug off with info; Debug=%v", m.header.Debug)
-	}
-}
-
-// :set debug / :set nodebug が明示 on/off する。
-func TestApplySetDebug(t *testing.T) {
-	m := initialChatModel(ChatHeader{}, fakeSpawn())
-	m.applySet("debug")
-	if !m.header.Debug {
-		t.Error(":set debug should enable Debug")
-	}
-	m.applySet("nodebug")
-	if m.header.Debug {
-		t.Error(":set nodebug should disable Debug")
-	}
-}
-
-// :debug / :set debug|nodebug は親 (startSplitModel) に Debug 変化を伝える DebugMsg を
-// 発火する Cmd を返す。これが watch ペインの再判定トリガになる (要件 034)。
-func TestDebugEmitsDebugMsg(t *testing.T) {
-	m := initialChatModel(ChatHeader{}, fakeSpawn())
-
-	// :debug (off → on) は DebugMsg{On: true} を発火。
-	cmd := m.toggleDebug()
-	if cmd == nil {
-		t.Fatal("toggleDebug should return a non-nil Cmd emitting DebugMsg")
-	}
-	if msg, ok := cmd().(DebugMsg); !ok || !msg.On {
-		t.Errorf("toggle on should emit DebugMsg{On:true}, got %#v", cmd())
-	}
-
-	// :set nodebug は DebugMsg{On: false} を発火。
-	cmd = m.applySet("nodebug")
-	if cmd == nil {
-		t.Fatal(":set nodebug should return a non-nil Cmd emitting DebugMsg")
-	}
-	if msg, ok := cmd().(DebugMsg); !ok || msg.On {
-		t.Errorf(":set nodebug should emit DebugMsg{On:false}, got %#v", cmd())
-	}
-
-	// 表示専用オプション (:set verify) は Debug を変えないので Cmd は出さない。
-	if cmd := m.applySet("noverify"); cmd != nil {
-		t.Errorf(":set noverify should not emit a Cmd, got %#v", cmd())
-	}
-}
-
-// :debug 後に届く [DEBUG] stdout 行は kindDebug に振り分けられる (既描画行は遡及しない)。
+// [DEBUG] stdout 行は常に kindDebug に振り分けられる。
 func TestDebugReclassifiesFutureLines(t *testing.T) {
 	m := initialChatModel(ChatHeader{}, fakeSpawn())
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m.sessionN = 1 // chatLineMsg.epoch と一致させる
-	m.toggleDebug()
 	m.Update(chatLineMsg{kind: kindOut, text: "[DEBUG] x", epoch: 1})
 	last := m.msgs[len(m.msgs)-1]
 	if last.kind != kindDebug || last.text != "x" {
-		t.Errorf("debug-on: [DEBUG] line should become kindDebug 'x'; got kind=%q text=%q", last.kind, last.text)
+		t.Errorf("debug: [DEBUG] line should become kindDebug 'x'; got kind=%q text=%q", last.kind, last.text)
 	}
 	// 通常の出力行はそのまま kindOut。
 	m.Update(chatLineMsg{kind: kindOut, text: "plain", epoch: 1})
@@ -305,8 +245,8 @@ func TestDebugReclassifiesFutureLines(t *testing.T) {
 func TestShowCheatNavGating(t *testing.T) {
 	off := initialChatModel(ChatHeader{}, fakeSpawn())
 	off.showCheat()
-	if !hasInfo(off, ":case") || !hasInfo(off, ":debug") {
-		t.Error("cheat should always list :case and :debug")
+	if !hasInfo(off, ":case") || hasInfo(off, ":debug") {
+		t.Error("cheat should list :case and omit removed :debug")
 	}
 	if !hasInfo(off, ":open") {
 		t.Error("cheat should list :open")
@@ -321,7 +261,7 @@ func TestShowCheatNavGating(t *testing.T) {
 	}
 }
 
-// :cheat / :debug は作成画面 (builder) を開いたまま元のモードへ戻す。
+// :cheat は作成画面 (builder) を開いたまま元のモードへ戻す。
 func TestCheatPreservesBuilder(t *testing.T) {
 	m := initialChatModel(ChatHeader{}, fakeSpawn())
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})

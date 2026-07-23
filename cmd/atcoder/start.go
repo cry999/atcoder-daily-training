@@ -44,9 +44,6 @@ func cmdStart(args []string) (int, error) {
 	restart := flags.Bool("restart", false, "Reset started_at to now and clear a prior completion record (redo practice)")
 	timeoutFlag := flags.Duration("timeout", 0, "Override time limit (e.g. 5s, 500ms). Defaults to the problem's time limit (2s if unknown).")
 	tolFlag := flags.Float64("tolerance", 0, "Float token comparison tolerance (e.g. 1e-9). 0 or unset → default 1e-6.")
-	var debug bool
-	flags.BoolVar(&debug, "d", false, "Run with DEBUG=1 and special-case [DEBUG]-prefixed output lines")
-	flags.BoolVar(&debug, "debug", false, "Run with DEBUG=1 and special-case [DEBUG]-prefixed output lines")
 	var sideBySide bool
 	flags.BoolVar(&sideBySide, "s", cfg.Test.SideBySide, "Show diff side-by-side (expected on left, actual on right)")
 	flags.BoolVar(&sideBySide, "side-by-side", cfg.Test.SideBySide, "Show diff side-by-side (expected on left, actual on right)")
@@ -70,7 +67,6 @@ func cmdStart(args []string) (int, error) {
 
 	sc := &startConfig{
 		layoutFlag: *layoutFlag,
-		debug:      debug,
 		timeout:    *timeoutFlag,
 		tolerance:  *tolFlag,
 		jobs:       jobs,
@@ -134,7 +130,6 @@ func cmdStart(args []string) (int, error) {
 // startConfig は start 起動フラグのうち、ターゲット構築 (初回 + ナビ) で共通に使う値。
 type startConfig struct {
 	layoutFlag string
-	debug      bool
 	timeout    time.Duration
 	tolerance  float64
 	jobs       int
@@ -163,16 +158,12 @@ func (c *startConfig) buildTarget(contestID, task string, refresh bool) (t ui.St
 	if err != nil {
 		return ui.StartTarget{}, false, 1, err
 	}
-	var extraEnv []string
-	if c.debug {
-		extraEnv = []string{"DEBUG=1"}
-	}
+	extraEnv := []string{"DEBUG=1"}
 	spawn := func() (*runner.ChatHandle, error) {
 		return ex.StartChat(path, extraEnv)
 	}
 
-	// debug は呼び出し時の live Debug 値 (chat の :debug トグルを watch 再判定にも反映する。
-	// 要件 034)。起動時 c.debug を焼き付けず、再判定ごとに渡された Debug で比較する。
+	// Debug は常時 on。start の watch 判定も chat 表示も常に [DEBUG] 行を分離する。
 	buildOpts := func(refresh, debug bool) testexec.Options {
 		return testexec.Options{
 			Contest:     contestID,
@@ -180,7 +171,7 @@ func (c *startConfig) buildTarget(contestID, task string, refresh bool) (t ui.St
 			Layout:      lay,
 			Refresh:     refresh,
 			Timeout:     c.timeout,
-			Debug:       debug,
+			Debug:       true,
 			Tolerance:   c.tolerance,
 			Concurrency: c.jobs,
 			ExecutorFor: selectExecutor,
@@ -190,7 +181,7 @@ func (c *startConfig) buildTarget(contestID, task string, refresh bool) (t ui.St
 
 	// 上ペイン: 保存検知でサンプルを再判定する。判定は stdout に書かず捕捉 Reporter で
 	// 結果だけ集めて要約にする。初回のみ refresh を効かせる (ナビ時は refresh=false)。
-	// debug は startSplitModel が渡す live Debug 値 (要件 034)。
+	// debug 引数は旧経路の互換で受けるが、判定は常に Debug=true で行う。
 	firstRefresh := refresh
 	runSamples := func(debug bool) ui.SampleSummary {
 		rep := testexec.NewSummaryReporter()
@@ -231,7 +222,7 @@ func (c *startConfig) buildTarget(contestID, task string, refresh bool) (t ui.St
 		Task:           task,
 		Contest:        contestID,
 		TimeLimitMs:    timeLimitMs,
-		Debug:          c.debug,
+		Debug:          true,
 		AutoRestart:    true,
 		WatchPath:      path,
 		Submit:         chatSubmitFunc(contestID, task, lay),

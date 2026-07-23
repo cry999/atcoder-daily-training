@@ -7,7 +7,7 @@
 ## コマンド
 
 ```
-atcoder start <contest> --task <task> [--until-pass] [--refresh] [--restart] [-d] [-s] [-j <n>] [--timeout <dur>] [--tolerance <eps>] [--layout <auto|abc|exercise>]
+atcoder start <contest> --task <task> [--until-pass] [--refresh] [--restart] [-s] [-j <n>] [--timeout <dur>] [--tolerance <eps>] [--layout <auto|abc|exercise>]
 ```
 
 > 位置引数 (`<contest>`) とフラグの順序は自由 (`atcoder start --task d abc457` も可)。
@@ -19,7 +19,7 @@ atcoder start <contest> --task <task> [--until-pass] [--refresh] [--restart] [-d
 | `--until-pass` | **サンプルが全通過したら watch を終了** (exit 0)。未指定なら `Ctrl+C` まで継続 |
 | `--refresh` | 初回のみサンプルを再取得 |
 | `--restart` | 完了記録がある問題をやり直す。`started_at` を今にリセットし完了記録 (`solved_at` / duration / スコア) をクリア |
-| `-d` / `-s` / `-j` / `--timeout` / `--tolerance` | `test` と同じ。各 watch 実行にそのまま渡す |
+| `-s` / `-j` / `--timeout` / `--tolerance` | `test` と同じ。各 watch 実行にそのまま渡す |
 | `--layout <auto\|abc\|exercise>` | 解答ファイル配置。既定は `--layout` > `ATCODER_LAYOUT` > config > auto |
 
 ## 動作 — 上下分割画面
@@ -27,7 +27,7 @@ atcoder start <contest> --task <task> [--until-pass] [--refresh] [--restart] [-d
 1. レイアウトを解決し、解答パス (`exercise/YYYY/MM/DD/<task>.py` または `abc/<num>/<letter>.py` 等) を決める。
 2. **解答ファイルを用意**: 親ディレクトリを作成し、ファイルが無ければ**空ファイル**を生成 (既存は温存)。`created:` / `solution: ... (exists)` を 1 行表示。
 3. **上下分割画面に入る**。**chat と watch を同時に動かし続ける**:
-   - **上ペイン = watch 要約**: 起動時に 1 回サンプルを判定し、以降は**保存検知のたびに自動で再判定**。全体 (`✓ 4/4` / `✗ 2/4`) に続けて**各ケースの verdict** を出す (`01 AC  02 WA  03 TLE  04 AC`。AC=緑・WA/TLE/RE=赤)。どのケースで落ちているかが一目で分かる (diff は出さない)。ケースが多くペイン幅を超えたら末尾を `…` で切り詰める。Debug (`-d` / chat の `:debug`) が on のときは判定が `[DEBUG]` 行を除外し、タイトルに `[debug]` バッジが付く (下記「コマンドモード — `:debug` は watch ペインにも反映」)。
+   - **上ペイン = watch 要約**: 起動時に 1 回サンプルを判定し、以降は**保存検知のたびに自動で再判定**。全体 (`✓ 4/4` / `✗ 2/4`) に続けて**各ケースの verdict** を出す (`01 AC  02 WA  03 TLE  04 AC`。AC=緑・WA/TLE/RE=赤)。どのケースで落ちているかが一目で分かる (diff は出さない)。ケースが多くペイン幅を超えたら末尾を `…` で切り詰める。Debug は常時 on で、判定は `[DEBUG]` 行を除外し、タイトルに `[debug]` バッジが付く。
    - **下ペイン = 対話 chat**: `test --interactive` と同じ chat。**解答は最初に入力を送った瞬間に起動** (遅延起動)、入力ボックスに 1 行 → `Enter` で送信、子の出力は届き次第表示。**複数行を貼り付ける**と各改行を `Enter` 扱いで順に送信する (要件 [035](../requirements/035-chat-multiline-paste.md))。auto-restart 付きなので子が終了しても閉じず、**次の入力で再実行**する (入力を読まず即終了する解答でも無限ループにならない)。
 4. 編集 → 保存すると、**上ペイン (サンプル再判定) と下ペイン (chat を最新コードで reload) の両方**が新しいコードを反映する (`test --interactive` の watch-reload と同じ)。
 5. 終了:
@@ -75,7 +75,7 @@ atcoder start <contest> --task <task> [--until-pass] [--refresh] [--restart] [-d
 - **移動時に着手 + 再ターゲット**: 移動先では start と同じく**着手** (解答ファイルが無ければ空ファイルを作成。`created: <path>` を表示) し、watch ペインのサンプル判定と chat ペインの子プロセスが**新しい問題で作り直される** (再ターゲット)。chat には `(→ abc457_e に移動しました)` の案内行が出る。
 - **既存ファイルは温存**: 移動先に解答ファイルが既にあれば**上書きしない** (`solution: <path> (exists)`)。提出コードを壊さない。`--until-pass` 指定時は、移動後の新しい問題に対して全通過判定が掛かる。
 - **境界・非対応は 1 行エラーで継続**: letter `a` で `:task prev`、番号が下限で `:contest prev`、番号を持たない contest での `:contest next`/`:contest prev`、複数文字 letter (`ex` 等) での `:task next`/`:task prev`、直指定の不正値 (`:task <非英字>`・`:contest 0` や形不正)、`:e` の引数が空/不正、などは**再ターゲットせず 1 行エラーを出して継続**する (start は落ちず exit code も変わらない)。
-- **Tab 補完**: `:` 行で `Tab` を押すとコマンド名 (`:case`/`:test`/`:w`/`:set`/`:meta`/`:q`/`:debug`/`:replay`/`:cheat`/`:task`/`:contest`/`:e`) と `next|prev`・`verify|noverify`・`fetch|url|time_limit` などのサブトークンを補完する。一意なら確定し、複数候補は `:` 行直下に一覧表示する (要件 [031](../requirements/031-command-mode-completion.md))。
+- **Tab 補完**: `:` 行で `Tab` を押すとコマンド名 (`:case`/`:test`/`:w`/`:set`/`:meta`/`:q`/`:replay`/`:cheat`/`:task`/`:contest`/`:e`) と `next|prev`・`verify|noverify`・`fetch|url|time_limit` などのサブトークンを補完する。一意なら確定し、複数候補は `:` 行直下に一覧表示する (要件 [031](../requirements/031-command-mode-completion.md))。
 - **入力リプレイ (`:replay`)**: `:replay` は**直近に流した入力**を子をリスタートして再送する (コード修正後の流し直し)。優先順位は **現セッションの手入力 → 直近の `:test` ケース (再生時は `.out` で再検証) → 直前に完了したセッションの手入力 → 前回 chat 起動の手入力**で、子のリスタートをまたいだ全入力の累積ではなく直近の 1 単位だけ。`:test n` でケースを流したあと手入力していなければそのケースを再入力し、手入力していれば手入力が優先される (要件 [048](../requirements/048-chat-replay-test-case.md))。下ペイン chat の手入力は問題ごとに永続化され、`:task`/`:contest`/`:e` で移動した先でもその問題の前回起動分が最後のフォールバックになる (要件 [039](../requirements/039-chat-replay-previous-session.md))。記録停止は `ATCODER_NO_CHAT_HISTORY=1`。
 - **サンプル実行 (`:test [case]`)**: `:test 01` (公式) / `:test x01` (追加) で、そのキャッシュ済みサンプルの `.in` を子をリスタートして順送し `.out` でライブ検証する。`:test` (引数なし) は利用可能なケース ID の一覧を表示する。`:replay` (手入力の再送) と違い**保存済みサンプル**を起点にする (要件 [045](../requirements/045-chat-run-sample-case.md))。fetch はせずキャッシュ済みのものだけ読む。
 - **meta 編集 (`:meta`)**: `:meta` で `meta.toml` の `url` / `time limit` / `samples` を表示し、`:meta url <url>` で取得元 URL override、`:meta time_limit 5s` で Time Limit を上書きする (要件 [055](../requirements/055-chat-meta-edit.md))。CLI `atcoder meta show`/`set` ([046](../requirements/046-meta-command.md)) を chat 内へ持ち込んだもので、検証規則・未キャッシュ時の扱いも CLI と同一。`time_limit` を直すとヘッダの Time Limit 表示も更新され、続く `:test` がその値で TLE 判定する。`:meta` (表示・編集) 自身は fetch せずキャッシュ済み `meta.toml` のみ読み書きするが、**`:meta fetch`** で url からサンプル + Time Limit を再取得できる (CLI `atcoder meta fetch` 相当。要件 [057](../requirements/057-chat-meta-fetch.md))。`:meta url <url>` で取得元を直してから `:meta fetch` と続ければ、chat を抜けずに新しい問題のサンプルへ差し替えられる (取得は非同期で、即「(再取得中…)」を出す)。`:task`/`:contest`/`:e` で別問題へ移動すれば、その問題の meta を対象に編集できる。
@@ -105,14 +105,12 @@ atcoder start <contest> --task <task> [--until-pass] [--refresh] [--restart] [-d
 
 > ナビゲーションは**分割画面 (start) の chat 限定**。`test --interactive` 単体の chat では `:task`/`:contest` 等は未知コマンド (`E492`) として無視される。既存の `:case`/`:test`/`:w`/`:set`/`:meta`/`:q` と `Ctrl+C`/`Ctrl+D`/`Ctrl+S` は不変 (`:test`/`:meta` は両方の chat で使える)。scrollback のスクロールは**専用のスクロールモード**に集約され、insert モードの `PageUp`/`PageDown`、または `:scroll` で入る (要件 [071](../requirements/071-chat-scroll-mode.md))。以前 insert / command モードに割り当てていた `PageUp`/`PageDown`/`Ctrl+B`/`Ctrl+F`/`Ctrl+P`/`Ctrl+N`/`Ctrl+U`/`Ctrl+D` のスクロールは撤去した。
 
-### コマンドモード — `:debug` は watch ペインにも反映
+### Debug 表示
 
-下ペインの chat で `:debug` (別名 `:set debug` / `:set nodebug`) で Debug を切り替えると ([030-chat-debug-cheat-commands.md](../requirements/030-chat-debug-cheat-commands.md))、`start` の分割画面では**上ペイン (watch) の再判定にも即反映**される (要件 [034](../requirements/034-start-debug-watch-sync.md))。
+`start` の分割画面では Debug が常時 on。上ペインの watch 判定も下ペインの chat も、子に `DEBUG=1` を渡し、stdout の `[DEBUG]` 接頭辞行を比較対象から除外して debug 行として表示する。watch ペインのタイトル行には常に `[debug]` バッジが出る。
 
-- Debug は単なる表示切替ではなく、**子に `DEBUG=1` を渡し、`stdout` の `[DEBUG]` 接頭辞行を比較対象から除外**する (`-d` フラグ相当)。watch ペインの per-case verdict はこの除外の有無で変わる。
-- そのため、`-d` を付けずに起動して解答にデバッグ print が混ざっていると watch は `[DEBUG]` 行込みで比較して **WA** になるが、対話中に `:debug` を on にすれば watch が**新しい Debug 値で即再判定**して verdict が正しく揃う (起動時 `-d` と同じ判定になる)。トグルと同時に watch ペインのタイトル行に **`[debug]` バッジ**が出る。
-- 問題ナビ (`:task`/`:contest`/`:e`) で移動しても **live Debug は引き継がれる** (起動時 `-d` の値に戻らない)。chat 表示の Debug と watch 判定の Debug は常に同じ値に揃う。
-- chat 下ペインの**子プロセスの環境は変わらない** (起動時 `-d` のまま。`:debug` で子を再起動しない)。`test --interactive` 単体では従来どおり chat 表示のトグルのみ (watch ペインが無いため)。
+- `:debug` / `:set debug` / `:set nodebug` は削除済み。途中で on/off は切り替えない。
+- 問題ナビ (`:task`/`:contest`/`:e`) で移動しても Debug 常時 on のまま。chat 表示と watch 判定は同じ `[DEBUG]` 規約で揃う。
 
 ## 例
 
@@ -147,4 +145,4 @@ atcoder start abc457 --task d
 ## 関連
 
 - 利用手引: [docs/tools/usage/test.md](test.md) (watch モードの詳細)
-- 要件: [018-start-command.md](../requirements/018-start-command.md) / [054-start-key-actions.md](../requirements/054-start-key-actions.md) / [023-start-split-screen.md](../requirements/023-start-split-screen.md) / [027-start-problem-navigation.md](../requirements/027-start-problem-navigation.md) (コマンドモードのナビゲーション) / [030-chat-debug-cheat-commands.md](../requirements/030-chat-debug-cheat-commands.md) (`:debug`/`:cheat`) / [034-start-debug-watch-sync.md](../requirements/034-start-debug-watch-sync.md) (`:debug` を watch へ反映) / [039-chat-replay-previous-session.md](../requirements/039-chat-replay-previous-session.md) (`:replay`) / [045-chat-run-sample-case.md](../requirements/045-chat-run-sample-case.md) (`:test`) / [048-chat-replay-test-case.md](../requirements/048-chat-replay-test-case.md) (`:replay` が直近の `:test` ケースを再生) / [055-chat-meta-edit.md](../requirements/055-chat-meta-edit.md) (`:meta`) / [057-chat-meta-fetch.md](../requirements/057-chat-meta-fetch.md) (`:meta fetch`) / [004-exercise-test-watch.md](../requirements/004-exercise-test-watch.md)
+- 要件: [018-start-command.md](../requirements/018-start-command.md) / [054-start-key-actions.md](../requirements/054-start-key-actions.md) / [023-start-split-screen.md](../requirements/023-start-split-screen.md) / [027-start-problem-navigation.md](../requirements/027-start-problem-navigation.md) (コマンドモードのナビゲーション) / [030-chat-debug-cheat-commands.md](../requirements/030-chat-debug-cheat-commands.md) (`:cheat`) / [075-always-on-debug.md](../requirements/075-always-on-debug.md) (Debug 常時 on) / [039-chat-replay-previous-session.md](../requirements/039-chat-replay-previous-session.md) (`:replay`) / [045-chat-run-sample-case.md](../requirements/045-chat-run-sample-case.md) (`:test`) / [048-chat-replay-test-case.md](../requirements/048-chat-replay-test-case.md) (`:replay` が直近の `:test` ケースを再生) / [055-chat-meta-edit.md](../requirements/055-chat-meta-edit.md) (`:meta`) / [057-chat-meta-fetch.md](../requirements/057-chat-meta-fetch.md) (`:meta fetch`) / [004-exercise-test-watch.md](../requirements/004-exercise-test-watch.md)
