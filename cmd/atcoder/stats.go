@@ -16,7 +16,7 @@ import (
 // 読み取り専用で、リポジトリには一切書き込まない。
 func cmdStats(args []string) (int, error) {
 	flags := flag.NewFlagSet("stats", flag.ContinueOnError)
-	var week, month, year, graph bool
+	var week, month, year, graph, table bool
 	var last string
 	flags.BoolVar(&week, "week", false, "Limit to this week (Monday start, including today)")
 	flags.BoolVar(&week, "w", false, "Limit to this week (Monday start, including today)")
@@ -28,6 +28,8 @@ func cmdStats(args []string) (int, error) {
 	flags.StringVar(&last, "l", "", "Rolling window from today: 7d, 2w, 1m, 1y (bare d/w/m/y = 1)")
 	flags.BoolVar(&graph, "graph", false, "Render the time series as a GitHub-style contribution graph")
 	flags.BoolVar(&graph, "g", false, "Render the time series as a GitHub-style contribution graph")
+	flags.BoolVar(&table, "table", false, "Render per-problem solve-stat records")
+	flags.BoolVar(&table, "t", false, "Render per-problem solve-stat records")
 	flags.SetOutput(os.Stderr)
 	if err := flags.Parse(args); err != nil {
 		return 2, err
@@ -45,6 +47,13 @@ func cmdStats(args []string) (int, error) {
 		return 1, err
 	}
 
+	if table {
+		label, rows := stats.RecordRows(solves, opts)
+		if err := stats.RenderRecordTable(os.Stdout, label, rows); err != nil {
+			return 1, err
+		}
+		return 0, nil
+	}
 	rep := stats.Compute(solves, opts)
 	if err := stats.Render(os.Stdout, rep); err != nil {
 		return 1, err

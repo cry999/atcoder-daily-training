@@ -166,6 +166,8 @@ var subFlags = map[string][]Candidate{
 		{"-l", "rolling window from today (e.g. 7d, 1m)"},
 		{"--graph", "render time series as a contribution graph"},
 		{"-g", "render time series as a contribution graph"},
+		{"--table", "render per-problem solve-stat records"},
+		{"-t", "render per-problem solve-stat records"},
 	},
 	"review": {
 		{"--week", "limit to this week"},

@@ -112,6 +112,17 @@ type Report struct {
 	Record        *Record       // solve-stat 集計 (要件 061)。記録が 1 件も無ければ nil
 }
 
+// RecordRow は `stats --table` の 1 行。Solve 本体と solve-stat の有無を
+// そのまま持ち、表示層で欠損を "-" に落とす。
+type RecordRow struct {
+	Date    time.Time
+	Problem string
+	File    string
+	Path    string
+	HasStat bool
+	Stat    solvestat.Stat
+}
+
 // axisNames は 5 軸スコアの表示名 (Record.ScoreAvg / ScoreN の並びと一致)。
 var axisNames = [5]string{"knowledge", "translation", "complexity", "impl", "verify"}
 
@@ -367,6 +378,44 @@ func Compute(solves []Solve, opts Options) Report {
 		rep.Series, rep.SeriesOmitted = weeklySeries(in)
 	}
 	return rep
+}
+
+// RecordRows は opts の期間窓に入る solve を、問題別テーブル用に新しい順で返す。
+// 同日の solve はファイル名昇順にする。
+func RecordRows(solves []Solve, opts Options) (label string, rows []RecordRow) {
+	now := opts.Now
+	if now.IsZero() {
+		now = time.Now().Local()
+	}
+	now = dayOf(now)
+	win := resolveWindow(opts, now)
+	for _, s := range solves {
+		if !inWin(s.Date, win) {
+			continue
+		}
+		rows = append(rows, RecordRow{
+			Date:    dayOf(s.Date),
+			Problem: problemID(s),
+			File:    s.File,
+			Path:    s.Path,
+			HasStat: s.HasStat,
+			Stat:    s.Stat,
+		})
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		if !rows[i].Date.Equal(rows[j].Date) {
+			return rows[i].Date.After(rows[j].Date)
+		}
+		return rows[i].File < rows[j].File
+	})
+	return win.label, rows
+}
+
+func problemID(s Solve) string {
+	if s.Contest != "" && s.Contest != "other" && s.Letter != "" && s.Letter != "?" {
+		return s.Contest + "_" + s.Letter
+	}
+	return strings.TrimSuffix(s.File, filepath.Ext(s.File))
 }
 
 // window は集計に使う日付窓。start/end は inclusive 日境界 (ローカル 0 時)。

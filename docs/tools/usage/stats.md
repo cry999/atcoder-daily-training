@@ -4,12 +4,13 @@
 
 > 要件詳細: `docs/tools/requirements/005-exercise-stats.md`,
 > `docs/tools/requirements/010-stats-rolling-window.md` (ローリング期間),
-> `docs/tools/requirements/061-solve-record-stats.md` (solve-stat 集計)
+> `docs/tools/requirements/061-solve-record-stats.md` (solve-stat 集計),
+> `docs/tools/requirements/076-stats-record-table.md` (問題別テーブル)
 
 ## コマンド
 
 ```
-atcoder stats [-w | --week | -m | --month | -y | --year | -l | --last <dur>] [-g | --graph]
+atcoder stats [-w | --week | -m | --month | -y | --year | -l | --last <dur>] [-g | --graph] [-t | --table]
 ```
 
 期間指定は **暦ベース** (今週/今月/今年) と **ローリング** (今日から N 単位分) の 2 系統。
@@ -22,8 +23,9 @@ atcoder stats [-w | --week | -m | --month | -y | --year | -l | --last <dur>] [-g
 | `--year` (`-y`) | 暦の今年 (今日と同じ年) |
 | `--last <dur>` (`-l`) | 今日から `<dur>` 分だけ遡るローリング窓 |
 | `--graph` (`-g`) | 時系列を GitHub 風の草グリッドで表示 (期間指定と併用可) |
+| `--table` (`-t`) | 期間内の問題ごとの solve-stat をテーブル表示 |
 
-`--week` / `--month` / `--year` / `--last` は **排他**。2 つ以上指定すると exit 2。`--graph` (`-g`) はいずれの期間指定とも併用でき、草グリッドの範囲が選んだ窓に追従する。
+`--week` / `--month` / `--year` / `--last` は **排他**。2 つ以上指定すると exit 2。`--graph` (`-g`) はいずれの期間指定とも併用でき、草グリッドの範囲が選んだ窓に追従する。`--table` (`-t`) は問題別表示モードで、`--graph` と同時指定された場合は `--table` が優先される。
 
 ### `--last <dur>` のローリング期間
 
@@ -117,6 +119,30 @@ by day
 
 - `recorded (<N> solves, <M> with stats)`: solve-stat を持つ solve の集計。`ac rate` / `self-solved` (AC かつ解説なし) / `editorial rate` / `median time` (記録があるときだけ、min/max/n 付き) / `target hit rate` (目標を設定した solve があるときだけ、実装 ≤ 目標)。各レートは**そのキーが記録されている solve だけ**を母集団にする (欠損キーは個別に除外)。見出しの `<N>` は窓内の全 solve 数、`<M>` は solve-stat を持つ数で、差でカバレッジが分かる。
 - `score (avg 0–3)`: 5 軸 (knowledge / translation / complexity / impl / verify) の平均を簡易バーで表示する。軸ごとに記録があるものだけで平均する。
+
+## 問題別テーブル (`--table`)
+
+`--table` (`-t`) を付けると、サマリ集計ではなく期間内の solve を 1 問 1 行で表示する。期間フラグは通常の `stats` と同じように効く。solve-stat が無い問題も行には残り、未記録の値は `-` になる。
+
+```
+$ atcoder stats --last 7d --table
+practice records — last 7 days (2026-07-19–07-25)
+
+  date        problem   duration  ac   editorial  score
+  2026-07-25  abc457_d  23m       yes  no         2/3/2/2/1
+  2026-07-24  abc456_e  -         no   yes        -
+```
+
+| 列 | 意味 |
+|---|---|
+| date | `exercise/YYYY/MM/DD/` 由来の解答日 |
+| problem | ファイル名から導いた `contest_letter` (`abc457_d` など)。導けない場合は拡張子なしファイル名 |
+| duration | solve-stat の `duration_ms`。未記録は `-` |
+| ac | solve-stat の `ac` (`yes` / `no` / `-`) |
+| editorial | solve-stat の `editorial` (`yes` / `no` / `-`) |
+| score | 5 軸を `knowledge/translation/complexity/impl/verify` の順に `2/3/2/2/1` 形式で表示。軸ごとの未記録は `-`、全軸未記録なら全体を `-` |
+
+並び順は新しい日付が先。同じ日付の中ではファイル名昇順。
 
 ## 草表示 (`--graph`)
 

@@ -661,6 +661,10 @@ run_case "record stop missing solution file"  1 record stop fixture --task zz
 # stats: solve-stat を書いた解答があるので "recorded" / "score" セクションが出る。
 check_output "stats shows recorded section" 0 has "recorded (" -- stats
 check_output "stats shows score section"    0 has "score (avg" -- stats
+check_output "stats --table shows records"  0 has "practice records" -- stats --table
+check_output "stats --table shows columns"  0 has "duration" -- stats --table
+check_output "stats --table shows problem"  0 has "fixture_d" -- stats --table
+check_output "stats --table shows values"   0 has "25m.*yes.*no.*2/3/2/0/1" -- stats --table
 
 rm -rf "$RECCFG"
 

@@ -6,6 +6,14 @@ ABC 本番対応に限定されない、`atcoder` ツール全般の改善 TODO�
 > 各機能の what / how は要件定義 [`requirements/NNN-*.md`](requirements/)、why (採用理由・却下案・トレードオフ) は決定記録 [`decisions/`](decisions/)、使い方は利用手引 (`docs/tools/usage/*.md`) を参照。
 
 
+## BE. 指定期間の solve-stat 問題別テーブル ✅ DONE
+
+> 要件詳細は [`requirements/076-stats-record-table.md`](requirements/076-stats-record-table.md)。利用手引は [`usage/stats.md`](usage/stats.md) の「問題別テーブル (`--table`)」節。
+
+- `atcoder stats --table` (`-t`) で、既存の期間指定 (`--week` / `--month` / `--year` / `--last`) に入る solve を 1 問 1 行で表示する。
+- 列は `date` / `problem` / `duration` / `ac` / `editorial` / `score`。特に `duration` / `ac` / `editorial` は常に見えるようにし、未記録値は `-` で表示する。
+- solve-stat が無い問題も行に残す。並び順は新しい日付が先、同日内はファイル名昇順。
+
 ## BD. Debug 常時 on 化 ✅ DONE
 
 > 要件詳細は [`requirements/075-always-on-debug.md`](requirements/075-always-on-debug.md)。利用手引は [`usage/test.md`](usage/test.md) / [`usage/start.md`](usage/start.md)。

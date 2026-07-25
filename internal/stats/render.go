@@ -86,6 +86,123 @@ func Render(w io.Writer, r Report) error {
 	return err
 }
 
+// RenderRecordTable は期間内 solve の solve-stat を 1 問 1 行で表示する。
+func RenderRecordTable(w io.Writer, label string, rows []RecordRow) error {
+	var b strings.Builder
+	b.WriteString(statTitleStyle.Render("practice records — "+label) + "\n\n")
+	if len(rows) == 0 {
+		b.WriteString(statInfoStyle.Render("no solves found in exercise/ for "+label) + "\n")
+		_, err := io.WriteString(w, b.String())
+		return err
+	}
+
+	headers := []string{"date", "problem", "duration", "ac", "editorial", "score"}
+	data := make([][]string, 0, len(rows))
+	widths := append([]int(nil), intsFromLens(headers)...)
+	for _, r := range rows {
+		row := []string{
+			r.Date.Format("2006-01-02"),
+			r.Problem,
+			rowDuration(r),
+			rowBool(r, "ac"),
+			rowBool(r, "editorial"),
+			rowScore(r),
+		}
+		for i, s := range row {
+			if len(s) > widths[i] {
+				widths[i] = len(s)
+			}
+		}
+		data = append(data, row)
+	}
+	writeRecordTableRow(&b, headers, widths, true)
+	for _, row := range data {
+		writeRecordTableRow(&b, row, widths, false)
+	}
+	_, err := io.WriteString(w, b.String())
+	return err
+}
+
+func intsFromLens(ss []string) []int {
+	out := make([]int, len(ss))
+	for i, s := range ss {
+		out[i] = len(s)
+	}
+	return out
+}
+
+func writeRecordTableRow(b *strings.Builder, cols []string, widths []int, header bool) {
+	b.WriteString("  ")
+	for i, c := range cols {
+		if i > 0 {
+			b.WriteString("  ")
+		}
+		cell := fmt.Sprintf("%-*s", widths[i], c)
+		if header {
+			b.WriteString(statLabelStyle.Render(cell))
+		} else if i == 1 {
+			b.WriteString(statValueStyle.Render(cell))
+		} else {
+			b.WriteString(cell)
+		}
+	}
+	b.WriteString("\n")
+}
+
+func rowDuration(r RecordRow) string {
+	if !r.HasStat || r.Stat.DurationMs <= 0 {
+		return "-"
+	}
+	return fmtDurMs(r.Stat.DurationMs)
+}
+
+func rowBool(r RecordRow, key string) string {
+	if !r.HasStat {
+		return "-"
+	}
+	var p *bool
+	switch key {
+	case "ac":
+		p = r.Stat.AC
+	case "editorial":
+		p = r.Stat.Editorial
+	}
+	if p == nil {
+		return "-"
+	}
+	if *p {
+		return "yes"
+	}
+	return "no"
+}
+
+func rowScore(r RecordRow) string {
+	if !r.HasStat {
+		return "-"
+	}
+	axes := []int{
+		r.Stat.Score.Knowledge,
+		r.Stat.Score.Translation,
+		r.Stat.Score.Complexity,
+		r.Stat.Score.Impl,
+		r.Stat.Score.Verify,
+	}
+	any := false
+	parts := make([]string, len(axes))
+	for i, v := range axes {
+		if v >= 0 {
+			any = true
+			parts[i] = fmt.Sprintf("%d", v)
+		} else {
+			parts[i] = "-"
+		}
+	}
+	if !any {
+		return "-"
+	}
+	return strings.Join(parts, "/")
+}
+
 // writeRecord は solve-stat 集計セクション (recorded + score) を書く (要件 061)。
 func writeRecord(b *strings.Builder, rec *Record) {
 	b.WriteString("\n" + statSectStyle.Render(fmt.Sprintf("recorded (%d solves, %d with stats)", rec.Total, rec.WithStats)) + "\n")

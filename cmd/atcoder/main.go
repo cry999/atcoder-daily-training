@@ -149,7 +149,7 @@ func usage() {
                  [-n <count>] [-o <path>] [--save] [--size <random|max|min>] [--seed <n>] [--show-spec] [--refresh]
   atcoder meta   <fetch | show | set> <url | contest --task <task>>   # キャッシュ (samples + time limit) の DL / 表示 / 編集
                  [set: --url <url> | --time-limit <dur>]
-  atcoder stats  [-w|--week | -m|--month | -y|--year | -l|--last <dur>] [-g|--graph]
+  atcoder stats  [-w|--week | -m|--month | -y|--year | -l|--last <dur>] [-g|--graph] [-t|--table]
   atcoder usage  [--flags] [--json]   # ローカルに記録した CLI 利用頻度・所要時間の集計
   atcoder review <category> [-w|--week | -m|--month | -y|--year | -l|--last <dur>]
   atcoder review missed [--date YYYY-MM-DD] [--check <id>]

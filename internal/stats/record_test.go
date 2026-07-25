@@ -1,6 +1,8 @@
 package stats
 
 import (
+	"bytes"
+	"strings"
 	"testing"
 	"time"
 
@@ -86,5 +88,66 @@ func TestComputeRecordScoreUnsetAxisExcluded(t *testing.T) {
 	}
 	if rep.Record.ScoreN[1] != 1 || rep.Record.ScoreAvg[1] != 2.0 {
 		t.Fatalf("translation should be 2.0 n=1, got n=%d avg=%f", rep.Record.ScoreN[1], rep.Record.ScoreAvg[1])
+	}
+}
+
+func TestRecordRowsTableWindowAndOrder(t *testing.T) {
+	s1 := statSolve(2, true, false, 10*60000, 0, sc(2, 3, 2, 3, 1))
+	s1.File = "abc457_d.py"
+	s1.Contest = "abc457"
+	s1.Letter = "d"
+	s2 := statSolve(2, false, true, 0, 0, sc(-1, -1, -1, -1, -1))
+	s2.File = "abc457_b.py"
+	s2.Contest = "abc457"
+	s2.Letter = "b"
+	s3 := statSolve(1, true, false, 20*60000, 0, sc(1, 1, 1, 1, 1))
+	s3.File = "abc456_a.py"
+	s3.Contest = "abc456"
+	s3.Letter = "a"
+
+	label, rows := RecordRows([]Solve{s3, s1, s2}, Options{
+		Period: ThisMonth,
+		Now:    time.Date(2026, 6, 3, 0, 0, 0, 0, time.Local),
+	})
+	if label != "this month (2026-06)" {
+		t.Fatalf("label=%q", label)
+	}
+	got := []string{rows[0].Problem, rows[1].Problem, rows[2].Problem}
+	want := []string{"abc457_b", "abc457_d", "abc456_a"}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("rows order=%v want %v", got, want)
+		}
+	}
+}
+
+func TestRenderRecordTable(t *testing.T) {
+	s := statSolve(1, true, false, 10*60000, 0, sc(2, -1, 1, 3, -1))
+	row := RecordRow{Date: s.Date, Problem: "abc457_d", File: s.File, HasStat: true, Stat: s.Stat}
+	missing := RecordRow{Date: time.Date(2026, 6, 2, 0, 0, 0, 0, time.Local), Problem: "memo", File: "memo.py"}
+
+	var b bytes.Buffer
+	if err := RenderRecordTable(&b, "test window", []RecordRow{row, missing}); err != nil {
+		t.Fatal(err)
+	}
+	out := b.String()
+	for _, want := range []string{
+		"practice records",
+		"date",
+		"problem",
+		"duration",
+		"ac",
+		"editorial",
+		"score",
+		"abc457_d",
+		"10m",
+		"yes",
+		"no",
+		"2/-/1/3/-",
+		"memo",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("output missing %q:\n%s", want, out)
+		}
 	}
 }
