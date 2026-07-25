@@ -19,7 +19,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/cry999/atcoder-daily-training/internal/cachepath"
-	"github.com/cry999/atcoder-daily-training/internal/layout"
+	"github.com/cry999/atcoder-daily-training/internal/mode"
 	"github.com/cry999/atcoder-daily-training/internal/runner"
 	"github.com/cry999/atcoder-daily-training/internal/testexec"
 )
@@ -65,7 +65,7 @@ type Options struct {
 	InFile      string        // "" / "-" → 親プロセスの stdin を read-all (batch)、それ以外はそのファイルを batch で読む
 	OutFile     string        // 非空のとき、stdout をこのファイルの内容と比較 (judge モード)
 	Interactive bool          // true なら子の stdin/stdout/stderr を親に直結する対話モード (TTY なら chat TUI)
-	Layout      layout.Layout // nil なら layout.Exercise{} 相当 (旧挙動)
+	Mode        mode.Mode     // nil なら mode.Exercise{} 相当 (旧挙動)
 	Timeout     time.Duration // 0 → meta.toml.time_limit_ms か 2 秒のデフォルト
 	Tolerance   float64       // float トークン比較の誤差。0 以下なら testexec.DefaultTolerance
 	Debug       bool          // DEBUG=1 と [DEBUG] フィルタ (test と同じ規約)
@@ -102,11 +102,11 @@ const defaultTimeLimitMs = 2000
 
 func Run(opts Options) (int, error) {
 	opts.Debug = true
-	lay := opts.Layout
-	if lay == nil {
-		lay = layout.Exercise{}
+	m := opts.Mode
+	if m == nil {
+		m = mode.Exercise{}
 	}
-	solutionPath, err := lay.SolutionPath(opts.Contest, opts.Task)
+	solutionPath, err := m.SolutionPath(opts.Contest, opts.Task)
 	if err != nil {
 		return 1, err
 	}

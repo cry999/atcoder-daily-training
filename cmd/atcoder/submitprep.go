@@ -12,7 +12,7 @@ import (
 	"github.com/atotto/clipboard"
 	"github.com/cry999/atcoder-daily-training/internal/config"
 	"github.com/cry999/atcoder-daily-training/internal/debugstrip"
-	"github.com/cry999/atcoder-daily-training/internal/layout"
+	"github.com/cry999/atcoder-daily-training/internal/mode"
 	"github.com/cry999/atcoder-daily-training/internal/solvestat"
 	"github.com/cry999/atcoder-daily-training/internal/testexec"
 	"golang.org/x/term"
@@ -30,7 +30,7 @@ func submitURLFor(contest, task string) string {
 // override が空 / task URL でなければ task をそのまま使う (contest はここでは変えない)。
 func effectiveScreenName(task, urlOverride string) string {
 	if urlOverride != "" {
-		if _, taskID, ok := layout.ParseTaskURL(urlOverride); ok {
+		if _, taskID, ok := mode.ParseTaskURL(urlOverride); ok {
 			return taskID
 		}
 	}
@@ -61,7 +61,7 @@ type submitSource struct {
 //
 // 返す error: layout/task の解決失敗 (引数誤り) と読込失敗 (実行時失敗) は呼び出し側が
 // exit code を振り分けられるよう、解決失敗かどうかを先に切り分けて返す。
-func buildSubmitSource(contest, task string, lay layout.Layout, keepDebug bool) (submitSource, error) {
+func buildSubmitSource(contest, task string, lay mode.Mode, keepDebug bool) (submitSource, error) {
 	solutionPath, err := lay.SolutionPath(contest, task)
 	if err != nil {
 		return submitSource{}, err
@@ -223,7 +223,7 @@ func confirmSubmit() bool {
 // submitGateReporter でラップして DebugSeen を集約する。
 //
 // exit code は「提出準備に進めたか」を表す: 0=提出準備した / 1=しなかった・失敗 / 2=引数誤り。
-func runSubmitPrep(contest, task string, lay layout.Layout, opts testexec.Options, noOpen, keepDebug bool) (int, error) {
+func runSubmitPrep(contest, task string, lay mode.Mode, opts testexec.Options, noOpen, keepDebug bool) (int, error) {
 	// task/layout の解決失敗は引数誤り (exit 2)。読込・一時ファイル失敗は実行時失敗 (exit 1)。
 	if _, err := lay.SolutionPath(contest, task); err != nil {
 		return 2, err
@@ -262,7 +262,7 @@ func runSubmitPrep(contest, task string, lay layout.Layout, opts testexec.Option
 }
 
 // finishSubmitPrep は提出準備を実行し、成功後に AC プロンプト (要件 061) を挟む。
-func finishSubmitPrep(src submitSource, contest, task string, lay layout.Layout, noOpen bool) (int, error) {
+func finishSubmitPrep(src submitSource, contest, task string, lay mode.Mode, noOpen bool) (int, error) {
 	code, err := prepareSubmission(src, contest, task, noOpen)
 	if code == 0 && err == nil {
 		maybeSubmitACPrompt(contest, task, lay)
@@ -276,7 +276,7 @@ func finishSubmitPrep(src submitSource, contest, task string, lay layout.Layout,
 //   - stdin が TTY (非対話は尋ねずスキップ = confirmSubmit と同じ安全側)
 //
 // N/skip/Enter は何もしない (WA は記録しない・計測継続)。ブロックしない。
-func maybeSubmitACPrompt(contest, task string, lay layout.Layout) {
+func maybeSubmitACPrompt(contest, task string, lay mode.Mode) {
 	path, err := lay.SolutionPath(contest, task)
 	if err != nil {
 		return
@@ -303,7 +303,7 @@ func maybeSubmitACPrompt(contest, task string, lay layout.Layout) {
 	patch.SolvedAt = now
 	patch.AC = solvestat.BoolPtr(true)
 	patch.DurationMs = now.Sub(st.StartedAt).Milliseconds()
-	if letter, e := layout.Letter(task); e == nil {
+	if letter, e := mode.Letter(task); e == nil {
 		if cfg, e := config.Load(); e == nil {
 			if d, ok := cfg.TargetDuration(contestCategory(contest), letter); ok {
 				patch.TargetMs = d.Milliseconds()

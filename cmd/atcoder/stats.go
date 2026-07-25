@@ -12,7 +12,7 @@ import (
 	"github.com/cry999/atcoder-daily-training/internal/stats"
 )
 
-// cmdStats は exercise/YYYY/MM/DD/*.py を集計して練習統計をテーブル表示する。
+// cmdStats は exercise ツリーと solve-stat 付き contest ツリーを集計して練習統計をテーブル表示する。
 // 読み取り専用で、リポジトリには一切書き込まない。
 func cmdStats(args []string) (int, error) {
 	flags := flag.NewFlagSet("stats", flag.ContinueOnError)
@@ -42,7 +42,7 @@ func cmdStats(args []string) (int, error) {
 	opts.Now = time.Now().Local()
 	opts.Graph = graph
 
-	solves, err := stats.Scan("exercise")
+	solves, err := stats.ScanAll(".")
 	if err != nil {
 		return 1, err
 	}

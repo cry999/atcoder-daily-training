@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cry999/atcoder-daily-training/internal/layout"
+	"github.com/cry999/atcoder-daily-training/internal/mode"
 	"github.com/cry999/atcoder-daily-training/internal/testexec"
 )
 
@@ -35,7 +35,7 @@ func chatMetaShowFunc(contest, task string) func(field string) ([]string, error)
 
 // chatMetaSetFunc は chat の :meta 編集フック (要件 055)。CLI `atcoder meta set --url|--time-limit`
 // と同じ検証規則・整形で meta.toml を上書きする:
-//   - url: AtCoder の URL (layout.IsTaskURL) のみ。スロット未キャッシュでも空 meta に記録できる。
+//   - url: AtCoder の URL (mode.IsTaskURL) のみ。スロット未キャッシュでも空 meta に記録できる。
 //   - time_limit: 正の duration (time.ParseDuration) のみ。キャッシュ済みが前提 (未取得なら error)。
 //
 // 戻り値の newTimeLimitMs は time_limit を更新したときの新値 (chat がヘッダ表示を揃えるのに使う)。
@@ -44,7 +44,7 @@ func chatMetaSetFunc(contest, task string) func(field, value string) ([]string, 
 	return func(field, value string) ([]string, int, error) {
 		switch field {
 		case "url":
-			if !layout.IsTaskURL(value) {
+			if !mode.IsTaskURL(value) {
 				return nil, 0, fmt.Errorf("--url は AtCoder の URL を指定してください: %q", value)
 			}
 			// url override はスロット未キャッシュでも記録できる (空の meta を作る)。

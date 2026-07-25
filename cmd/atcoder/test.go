@@ -13,7 +13,7 @@ import (
 
 	"github.com/cry999/atcoder-daily-training/internal/cliargs"
 	"github.com/cry999/atcoder-daily-training/internal/config"
-	"github.com/cry999/atcoder-daily-training/internal/layout"
+	"github.com/cry999/atcoder-daily-training/internal/mode"
 	"github.com/cry999/atcoder-daily-training/internal/runner"
 	"github.com/cry999/atcoder-daily-training/internal/testexec"
 	"github.com/cry999/atcoder-daily-training/internal/ui"
@@ -59,7 +59,7 @@ func cmdTest(args []string) (int, error) {
 	var sideBySide bool
 	flags.BoolVar(&sideBySide, "s", cfg.Test.SideBySide, "Show diff side-by-side (expected on left, actual on right)")
 	flags.BoolVar(&sideBySide, "side-by-side", cfg.Test.SideBySide, "Show diff side-by-side (expected on left, actual on right)")
-	layoutFlag := addLayoutFlag(flags)
+	modeFlag := addModeFlag(flags)
 	// ad-hoc / 対話モード (旧 run コマンド)。これらを明示したときだけ、サンプル判定
 	// (testexec) ではなく ad-hoc 実行 (runexec) に振り分ける。明示しなければ既定は
 	// サンプル判定で、stdin がパイプされていてもモードは変わらない (魔法なし)。
@@ -102,7 +102,7 @@ func cmdTest(args []string) (int, error) {
 		task = contest + "_" + task
 	}
 
-	lay, err := resolveLayout(*layoutFlag, contest)
+	lay, err := resolveMode(*modeFlag)
 	if err != nil {
 		return 2, err
 	}
@@ -133,7 +133,7 @@ func cmdTest(args []string) (int, error) {
 		if setAny("refresh", "case", "c", "jobs", "j", "watch", "w", "s", "side-by-side", "submit", "no-open", "keep-debug") {
 			return 2, errors.New("--refresh/--case/--jobs/--watch/--side-by-side/--submit are sample-mode flags and cannot be combined with --in/--out/--interactive")
 		}
-		return runAdHoc(contest, task, lay, inFile, outFile, interactive, autoRestart, verbose, pp, *timeoutFlag, *tolFlag, cfg.Editor, cfg.EditorNvimRemote)
+		return runAdHoc(contest, task, lay, inFile, outFile, interactive, autoRestart, true, verbose, pp, *timeoutFlag, *tolFlag, cfg.Editor, cfg.EditorNvimRemote)
 	}
 
 	// --submit は一回限りの提出準備なので、常駐する --watch とは併用不可。
@@ -156,7 +156,7 @@ func cmdTest(args []string) (int, error) {
 		return testexec.Options{
 			Contest:     contest,
 			Task:        task,
-			Layout:      lay,
+			Mode:        lay,
 			Refresh:     refresh,
 			Timeout:     *timeoutFlag,
 			Debug:       true,
@@ -194,7 +194,7 @@ func cmdTest(args []string) (int, error) {
 // Ctrl+C で抜けて exit 0。判定結果 (FAIL/RE/TLE) ではループを止めない。
 // untilPass が true なら、サンプルが全通過した回 (testexec.Run が 0) で抜けて exit 0
 // にする (`atcoder start --until-pass` 用)。
-func runTestWatch(contest, task string, lay layout.Layout, refresh bool, buildOpts func(refresh bool) testexec.Options, untilPass bool) (int, error) {
+func runTestWatch(contest, task string, lay mode.Mode, refresh bool, buildOpts func(refresh bool) testexec.Options, untilPass bool) (int, error) {
 	if !ui.IsStdoutTerminal() {
 		return 2, errors.New("--watch requires a terminal (stdout is not a TTY)")
 	}

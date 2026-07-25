@@ -9,7 +9,7 @@ import (
 
 	"github.com/cry999/atcoder-daily-training/internal/cachepath"
 	"github.com/cry999/atcoder-daily-training/internal/cliargs"
-	"github.com/cry999/atcoder-daily-training/internal/layout"
+	"github.com/cry999/atcoder-daily-training/internal/mode"
 	"github.com/cry999/atcoder-daily-training/internal/testexec"
 	"github.com/cry999/atcoder-daily-training/internal/ui"
 )
@@ -38,8 +38,8 @@ func cmdMeta(args []string) (int, error) {
 // 位置引数が task URL なら URL から contest_id / task_id を抽出し、それ以外は
 // contest 位置引数 + --task (短縮形展開) を使う。
 func resolveMetaTarget(positionals []string, taskFlag string) (contest, task string, err error) {
-	if len(positionals) >= 1 && layout.IsTaskURL(positionals[0]) {
-		c, t, ok := layout.ParseTaskURL(positionals[0])
+	if len(positionals) >= 1 && mode.IsTaskURL(positionals[0]) {
+		c, t, ok := mode.ParseTaskURL(positionals[0])
 		if !ok {
 			return "", "", fmt.Errorf("task URL を解釈できません: %s", positionals[0])
 		}
@@ -52,7 +52,7 @@ func resolveMetaTarget(positionals []string, taskFlag string) (contest, task str
 	if taskFlag == "" {
 		return "", "", errors.New("--task が必要です (または task URL を渡してください)")
 	}
-	return contest, layout.TaskID(contest, taskFlag), nil
+	return contest, mode.TaskID(contest, taskFlag), nil
 }
 
 // metaFetch は task のサンプル + Time Limit を AtCoder から取得しキャッシュへ
@@ -147,7 +147,7 @@ func metaSet(args []string) (int, error) {
 	if set["time-limit"] && *timeLimit <= 0 {
 		return 2, errors.New("--time-limit は正の値で指定してください (例: 5s, 1500ms)")
 	}
-	if set["url"] && !layout.IsTaskURL(*urlFlag) {
+	if set["url"] && !mode.IsTaskURL(*urlFlag) {
 		return 2, fmt.Errorf("--url は AtCoder の URL を指定してください: %q", *urlFlag)
 	}
 

@@ -12,7 +12,7 @@ import (
 
 	"github.com/cry999/atcoder-daily-training/internal/cliargs"
 	"github.com/cry999/atcoder-daily-training/internal/contestmeta"
-	"github.com/cry999/atcoder-daily-training/internal/layout"
+	"github.com/cry999/atcoder-daily-training/internal/mode"
 	"github.com/cry999/atcoder-daily-training/internal/testexec"
 )
 
@@ -20,17 +20,12 @@ import (
 // rate limit を踏まないための保険 (ネットワーク取得が起きたケースの後だけ待つ)。
 const fetchInterval = 300 * time.Millisecond
 
-// cmdNew は引数なしなら当日 dir を作り、`abc <contest>` ならコンテスト一括準備を行う。
+// cmdNew は引数なしなら当日 dir を作り、引数ありならコンテスト一括準備を行う。
 func cmdNew(args []string) error {
 	if len(args) == 0 {
 		return newToday()
 	}
-	switch args[0] {
-	case "abc":
-		return newABC(args[1:])
-	default:
-		return fmt.Errorf("unknown new mode %q (want: abc, or no argument for today's dir)", args[0])
-	}
+	return newContest(args)
 }
 
 // newToday は当日の練習ディレクトリ exercise/YYYY/MM/DD を作成する (従来挙動)。
@@ -55,16 +50,19 @@ func newToday() error {
 	return nil
 }
 
-// newABC は ABC コンテスト 1 つ分を一括準備する:
+// newContest はコンテスト 1 つ分を一括準備する:
 // タスク一覧 + サンプルの fetch、コンテストメタ保存、解答スケルトン生成。
-func newABC(args []string) error {
+func newContest(args []string) error {
 	flagArgs, positionals := cliargs.Split(args)
 	if len(positionals) < 1 {
-		return errors.New("contest is required (e.g. `atcoder new abc abc457`)")
+		return errors.New("contest is required (e.g. `atcoder new abc457`)")
+	}
+	if len(positionals) > 1 {
+		return fmt.Errorf("unexpected argument %q (usage: atcoder new <contest> [flags])", positionals[1])
 	}
 	contest := positionals[0]
 
-	fs := flag.NewFlagSet("new abc", flag.ContinueOnError)
+	fs := flag.NewFlagSet("new", flag.ContinueOnError)
 	refresh := fs.Bool("refresh", false, "Re-fetch samples and contest meta, overwriting the cache")
 	tasksFlag := fs.String("tasks", "", `Limit to these tasks (comma-separated letters or task IDs, e.g. "a,b" or "abc457_a")`)
 	noSkeleton := fs.Bool("no-skeleton", false, "Do not generate solution skeleton files")
@@ -74,15 +72,15 @@ func newABC(args []string) error {
 		return err
 	}
 
-	if _, ok := layout.ContestNum(contest); !ok {
-		return fmt.Errorf("contest ID must match abc<NNN>, got %q", contest)
+	if _, _, ok := mode.SplitContestID(contest); !ok {
+		return fmt.Errorf("contest id must be <prefix><num>, got %q", contest)
 	}
 
 	// --tasks 指定はタスク ID に展開する (letter 単体は <contest>_<letter> へ)。
 	var wantTasks []string
 	for _, p := range strings.Split(*tasksFlag, ",") {
 		if p = strings.TrimSpace(p); p != "" {
-			wantTasks = append(wantTasks, layout.TaskID(contest, p))
+			wantTasks = append(wantTasks, mode.TaskID(contest, p))
 		}
 	}
 
@@ -189,10 +187,10 @@ func fetchTasks(contest string, tasks []string, refresh bool) error {
 	return nil
 }
 
-// generateSkeletons は各タスクの解答ファイル abc/<num>/<letter>.py を、
+// generateSkeletons は各タスクの解答ファイル <prefix>/<num>/<letter>.py を、
 // 存在しなければ空ファイルで作成する (既存ファイルは温存する)。
 func generateSkeletons(contest string, tasks []string) error {
-	lay := layout.ABC{}
+	lay := mode.Contest{}
 	created, existed := 0, 0
 	for _, tid := range tasks {
 		path, err := lay.SolutionPath(contest, tid)
@@ -233,7 +231,7 @@ func firstLetter(tasks []string) string {
 	if len(tasks) == 0 {
 		return "a"
 	}
-	if l, err := layout.Letter(tasks[0]); err == nil {
+	if l, err := mode.Letter(tasks[0]); err == nil {
 		return l
 	}
 	return tasks[0]

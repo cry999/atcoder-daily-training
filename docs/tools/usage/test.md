@@ -55,7 +55,7 @@ atcoder test <contest> --task <task>            # 既定: DL 済みサンプル�
     [サンプル: -c <N[,M,...]> | --refresh | -j <n> | -w | -s | --json | --submit [--no-open] [--keep-debug]]
     [ad-hoc:  --in <path>|- | --out <path>]
     [対話:    --interactive [-R | --auto-restart]]
-    [共通:    -v | --pp | --timeout <dur> | --tolerance <eps> | --layout <auto|abc|exercise>]
+    [共通:    -v | --pp | --timeout <dur> | --tolerance <eps> | --mode <contest|exercise>]
 ```
 
 ### 引数
@@ -73,7 +73,7 @@ atcoder test <contest> --task <task>            # 既定: DL 済みサンプル�
 | `--refresh` | | テストキャッシュを無視して AtCoder から再取得 |
 | `--timeout <dur>` | | 1 ケースあたりの実行制限時間を上書き。Go の duration 記法 (例: `5s`, `500ms`)。未指定なら `meta.toml.time_limit_ms` の値を使う |
 | `--tolerance <eps>` | | float トークン比較の絶対/相対許容誤差 (例: `1e-9`)。未指定または `0` は既定の `1e-6` |
-| `--layout <auto\|abc\|exercise>` | | 解答ファイルの配置規約。`exercise`=当日 `exercise/YYYY/MM/DD/<task>.py`、`abc`=`abc/<num>/<letter>.py`、`auto`=`abc<NNN>` なら `abc`、それ以外は `exercise`。**省略時**は `$ATCODER_LAYOUT` → `config.toml` の `layout` → `auto` の順で既定値を引く ([既定レイアウトの固定](config.md#layout-既定レイアウト)参照) |
+| `--mode <contest\|exercise>` | | 解答ファイルの配置規約。`contest`=`<prefix>/<num>/<letter>.py` (例 `abc/457/d.py`, `arc/212/c.py`)、`exercise`=当日 `exercise/YYYY/MM/DD/<task>.py`。**省略時**は `$ATCODER_MODE` → `config.toml` の `mode` → `exercise` の順で既定値を引く ([既定modeの固定](config.md#mode-既定mode)参照) |
 | `-j` / `--jobs <n>` | | テストケースを並列実行する数。`0` (既定) は CPU 数 (ケース数で頭打ち)。`-j 1` で逐次 |
 | `-w` / `--watch` | | 解答ファイルの保存を監視し、変更のたびにテストを自動再実行。`Ctrl+C` で終了。**端末 (TTY) が必要** |
 | `--in` / `-i <path>` | | **ad-hoc モード**に切替。自前入力で 1 回実行 (`-` で stdin)。判定はしない (`--out` 併用時のみ) |
@@ -89,7 +89,7 @@ atcoder test <contest> --task <task>            # 既定: DL 済みサンプル�
 
 ### 解答ファイルの特定
 
-ツールは **当日 (ローカル時刻) の `exercise/YYYY/MM/DD/<task>.py`** を解答ファイルとして使う。指定された日付の解答だけをテストする想定であり、過去日の解答は (現時点では) テストできない。
+ツールは `--mode` で選んだ配置の解答ファイルを使う。`exercise` では **当日 (ローカル時刻) の `exercise/YYYY/MM/DD/<task>.py`**、`contest` では **`<prefix>/<num>/<letter>.py`** を参照する。`contest` の `<prefix>`/`<num>` は `abc457` や `arc212` のような contest ID から導出し、`<letter>` は task ID の末尾の問題記号を使う。
 
 ## モード: サンプル判定 (既定) / ad-hoc / 対話
 
@@ -256,7 +256,7 @@ atcoder test abc457 --task d --json | jq '.cases[] | select(.status != "AC")'
 ```
 
 - **exit code は通常の `test` と同じ**: 全通過 = 0、1 件でも不通過 = 1 (このとき JSON は正常に出る。`all_passed` でも判定できる)、fetch / 実行失敗 = 1 (JSON は出さず stderr にエラー)、フラグ誤り = 2。
-- `--json` は**サンプルモード専用**。`--in`/`--out`/`--interactive`・`--watch`・`--submit` との併用は `exit 2`。`-c`/`--timeout`/`--tolerance`/`-j`/`--refresh`/`--layout` は併用可 (判定の入力条件)。`-s`/`--side-by-side`・`-v` は人間向け表示用なので JSON には影響しない。
+- `--json` は**サンプルモード専用**。`--in`/`--out`/`--interactive`・`--watch`・`--submit` との併用は `exit 2`。`-c`/`--timeout`/`--tolerance`/`-j`/`--refresh`/`--mode` は併用可 (判定の入力条件)。`-s`/`--side-by-side`・`-v` は人間向け表示用なので JSON には影響しない。
 - watch でのライブ更新 (再判定ごとの NDJSON ストリーム) は将来の拡張。現状は単発実行のみ。
 
 ### JSON デバッグ出力の整形 (`--pp` / `:pp`)

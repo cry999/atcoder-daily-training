@@ -15,7 +15,7 @@ import (
 
 	"github.com/cry999/atcoder-daily-training/internal/cachepath"
 	"github.com/cry999/atcoder-daily-training/internal/extracase"
-	"github.com/cry999/atcoder-daily-training/internal/layout"
+	"github.com/cry999/atcoder-daily-training/internal/mode"
 	"github.com/cry999/atcoder-daily-training/internal/runner"
 )
 
@@ -28,7 +28,7 @@ type ExecutorFor func(sourcePath string) (Executor, error)
 type Options struct {
 	Contest     string
 	Task        string
-	Layout      layout.Layout // nil なら layout.Exercise{} 相当 (旧挙動)
+	Mode        mode.Mode // nil なら mode.Exercise{} 相当 (旧挙動)
 	Refresh     bool
 	Timeout     time.Duration // 0 → use the problem's time_limit_ms from meta.toml
 	Debug       bool          // true → DEBUG=1 を子プロセスに渡し、stdout から [DEBUG] 行を除外して比較
@@ -39,18 +39,18 @@ type Options struct {
 	Reporter    Reporter
 
 	// SolutionPathOverride は実行対象の解答パスを上書きする (要件 049)。非空なら
-	// Layout.SolutionPath の解決結果ではなくこのパスを実行する。提出ゲートが
+	// Mode.SolutionPath の解決結果ではなくこのパスを実行する。提出ゲートが
 	// 「コメントアウト後ソースを書き出した一時ファイル」を走らせるために使う。
 	// 拡張子は ExecutorFor の言語選択に効くので、原本と同じ拡張子で渡すこと。
 	SolutionPathOverride string
 }
 
 func Run(opts Options) (int, error) {
-	lay := opts.Layout
-	if lay == nil {
-		lay = layout.Exercise{}
+	m := opts.Mode
+	if m == nil {
+		m = mode.Exercise{}
 	}
-	solutionPath, err := lay.SolutionPath(opts.Contest, opts.Task)
+	solutionPath, err := m.SolutionPath(opts.Contest, opts.Task)
 	if err != nil {
 		return 1, err
 	}
@@ -195,7 +195,7 @@ type EnsureResult struct {
 
 // EnsureTests は単一タスクのサンプル + meta をキャッシュに揃える。
 // キャッシュ済みなら何もせず、未取得 (または refresh) なら AtCoder から取得する。
-// `atcoder new abc` のような一括準備から呼ぶための公開ラッパー。
+// `atcoder new <contest>` のような一括準備から呼ぶための公開ラッパー。
 func EnsureTests(reporter Reporter, contest, task string, refresh bool) (EnsureResult, error) {
 	taskDir := cachepath.Task(contest, task)
 	testsDir := filepath.Join(taskDir, "tests")

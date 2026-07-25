@@ -33,7 +33,7 @@ ABC 本番対応に限定されない、`atcoder` ツール全般の改善 TODO�
 
 ## BA. start 画面の AOJ v2.0 風レイアウト刷新 (判定一覧 + ケース詳細の横 2 カラム) — 優先度: 中
 
-> 設計完了。実装は feature へ。要件 [072](requirements/072-start-aoj-layout.md)。[023](requirements/023-start-split-screen.md) (縦分割) と [036](requirements/036-start-watch-detail-view.md) (`Ctrl+G` トグル詳細) の**レイアウトを supersede**する (判定・chat・fetch のロジックは不変)。
+> 設計完了。実装は feature へ。要件 [072](requirements/072-start-aoj-mode.md)。[023](requirements/023-start-split-screen.md) (縦分割) と [036](requirements/036-start-watch-detail-view.md) (`Ctrl+G` トグル詳細) の**レイアウトを supersede**する (判定・chat・fetch のロジックは不変)。
 
 - `atcoder start` の画面を AOJ v2.0 問題ページ風の 3 領域構成に刷新: **上部を横 2 カラム** (左=判定一覧 [`✓ 2/4` + per-case verdict + 選択カーソル] / 右=選択ケース詳細 [WA/TLE=diff・RE=stderr・AC=入力/期待]) + **下部 chat** + 最下部ヘルプ行。詳細は `Ctrl+G` トグルではなく**右カラムに常時表示**し、左で選んだケースを追従。
 - **問題文・制約は取得も表示もしない** (AOJ の問題文エリアは作らない。fetch 拡張なし)。旧レイアウトは**全面置換**で撤去 (フラグで戻せない)。狭い端末は縦積みにフォールバック。

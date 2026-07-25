@@ -13,7 +13,7 @@ import (
 	"github.com/cry999/atcoder-daily-training/internal/cliargs"
 	"github.com/cry999/atcoder-daily-training/internal/extracase"
 	"github.com/cry999/atcoder-daily-training/internal/gen"
-	"github.com/cry999/atcoder-daily-training/internal/layout"
+	"github.com/cry999/atcoder-daily-training/internal/mode"
 	"github.com/cry999/atcoder-daily-training/internal/testexec"
 	"github.com/cry999/atcoder-daily-training/internal/ui"
 )
@@ -49,7 +49,7 @@ func cmdGen(args []string) (int, error) {
 	if *taskFlag == "" {
 		return 2, errors.New("--task is required")
 	}
-	task := layout.TaskID(contest, *taskFlag)
+	task := mode.TaskID(contest, *taskFlag)
 
 	set := map[string]bool{}
 	fs.Visit(func(f *flag.Flag) { set[f.Name] = true })

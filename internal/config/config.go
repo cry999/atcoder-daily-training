@@ -13,8 +13,8 @@
 //
 // 優先順位は flag > config > default。各サブコマンドは flag のデフォルト値に
 // config 値を流し込むことで、明示フラグ > config > 組み込み既定値 を実現する。
-// レイアウト既定値だけは flag > env (ATCODER_LAYOUT) > config > auto で、解決は
-// internal/layout.Resolve に集約する (env 層が挟まる点が他の既定値と異なる)。
+// mode 既定値だけは flag > env (ATCODER_MODE) > config > exercise で、解決は
+// internal/mode.Resolve に集約する (env 層が挟まる点が他の既定値と異なる)。
 package config
 
 import (
@@ -36,12 +36,12 @@ const FileName = "config.toml"
 // Config は config.toml のスキーマ。サブコマンドごとにセクションを切る。
 // 未知のキー/セクションは toml デコード時に無視され、前方/後方互換を保つ。
 //
-// Layout は test/run/submit を横断する既定レイアウトなので、特定セクションに
+// Mode は test/start/record を横断する既定配置なので、特定セクションに
 // 属さないトップレベルキーとして持つ。TOML はトップレベルキーをテーブルより
 // 先に書く必要があるため、struct でも Test セクションより前に declare する。
-// 空 ("") は未設定で、layout.Resolve が auto にフォールバックする。
+// 空 ("") は未設定で、mode.Resolve が exercise にフォールバックする。
 type Config struct {
-	Layout           string            `toml:"layout,omitempty"`
+	Mode             string            `toml:"mode,omitempty"`
 	Editor           string            `toml:"editor,omitempty"`             // start の Ctrl+E (nvim 外) で使うエディタコマンド (要件 038)
 	EditorNvimRemote string            `toml:"editor_nvim_remote,omitempty"` // start の Ctrl+E (nvim 内 remote) のターゲット current/tab (要件 041)
 	Test             TestConfig        `toml:"test"`

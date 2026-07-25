@@ -1,13 +1,13 @@
-// Package layout は解答ファイル配置規約を Strategy パターンで表現する。
+// Package mode は解答ファイル配置規約を Strategy パターンで表現する。
 //
-// test / run コマンドは contest_id と task から解答ファイルパスを得るために
-// Layout インターフェースを使う。各レイアウトは ABC / Exercise などの struct
-// として実装され、test/run はその中身を知らない。レイアウト追加 (ARC/AGC など)
-// は新しい struct を追加するだけで、既存コードに触れずに済む (open-closed)。
+// test / start / record コマンドは contest_id と task から解答ファイルパスを
+// 得るために Mode インターフェースを使う。配置規約は contest / exercise の 2 種で、
+// contest は <prefix>/<contest_num>/<letter>.py、exercise は
+// exercise/YYYY/MM/DD/<task_id>.py に解決する。
 //
-// task_id / letter の抽出は layout に依存しないので、package トップレベルの
-// 関数として分離してある (cache key・AtCoder URL でも同じ値が必要なため)。
-package layout
+// task_id / letter の抽出は mode に依存しないので、package トップレベルの関数
+// として分離してある (cache key・AtCoder URL でも同じ値が必要なため)。
+package mode
 
 import (
 	"errors"
@@ -19,9 +19,9 @@ import (
 	"time"
 )
 
-// Layout は解答ファイル配置規約。
-type Layout interface {
-	// Name はフラグ値や診断メッセージ用のレイアウト識別子 ("abc" / "exercise" 等)。
+// Mode は解答ファイル配置規約。
+type Mode interface {
+	// Name はフラグ値や診断メッセージ用の配置識別子 ("contest" / "exercise")。
 	Name() string
 
 	// SolutionPath はリポジトリルートからの相対パスを返す。
@@ -30,32 +30,18 @@ type Layout interface {
 	SolutionPath(contestID, task string) (string, error)
 }
 
-// abcContestRE は abc<NNN> 形式 (NNN は数字 1 文字以上) を捕捉する。
-var abcContestRE = regexp.MustCompile(`^abc(\d+)$`)
-
 // contestIDRE は <英字接頭辞><数字> 形式の contest_id を接頭辞と数字に分ける。
-var contestIDRE = regexp.MustCompile(`^([a-z]+)(\d+)$`)
+var contestIDRE = regexp.MustCompile(`^([A-Za-z]+)(\d+)$`)
 
-// splitContestID は contest_id を英字接頭辞と数字に分ける。
+// SplitContestID は contest_id を英字接頭辞と数字に分ける。
 // 例: "abc457" → ("abc", "457", true) / "arc100" → ("arc", "100", true)。
 // 形式 (<英字接頭辞><数字>) に一致しなければ ok=false。
-func splitContestID(id string) (prefix, num string, ok bool) {
+func SplitContestID(id string) (prefix, num string, ok bool) {
 	m := contestIDRE.FindStringSubmatch(id)
 	if m == nil {
 		return "", "", false
 	}
-	return m[1], m[2], true
-}
-
-// ContestNum は abc<NNN> 形式の contest ID から数字部分 (例: "457") を取り出す。
-// ABC レイアウトのディレクトリ名 (`abc/<contest_num>/`) に使う。
-// abc<NNN> 形式でなければ ok=false を返す (接頭辞が abc 以外も同様)。
-func ContestNum(contestID string) (string, bool) {
-	prefix, num, ok := splitContestID(contestID)
-	if !ok || prefix != "abc" {
-		return "", false
-	}
-	return num, true
+	return strings.ToLower(m[1]), m[2], true
 }
 
 // ナビゲーション (ShiftLetter / ShiftContest) の境界・形式エラー。
@@ -89,7 +75,7 @@ func ShiftLetter(letter string, delta int) (string, error) {
 // ゼロ詰め幅は元の桁数を下限に保持 (abc099 → abc100)。形式に一致しなければ
 // ErrContestShape、数字が 1 未満になるなら ErrContestBound。
 func ShiftContest(contestID string, delta int) (string, error) {
-	prefix, num, ok := splitContestID(contestID)
+	prefix, num, ok := SplitContestID(contestID)
 	if !ok {
 		return "", ErrContestShape
 	}
@@ -107,7 +93,7 @@ func ShiftContest(contestID string, delta int) (string, error) {
 //
 // 形式に一致しなければ ErrContestShape、n が 1 未満なら ErrContestBound。
 func WithContestNum(contestID string, n int) (string, error) {
-	prefix, num, ok := splitContestID(contestID)
+	prefix, num, ok := SplitContestID(contestID)
 	if !ok {
 		return "", ErrContestShape
 	}
@@ -119,7 +105,7 @@ func WithContestNum(contestID string, n int) (string, error) {
 
 // TaskID は短縮形 task ("d") を AtCoder の task ID ("abc457_d") に展開する。
 // 既に `_` を含んでいればそのまま返す (例: "abc457_d" → "abc457_d")。
-// layout に依存しない (cache key / AtCoder URL 共通)。
+// mode に依存しない (cache key / AtCoder URL 共通)。
 func TaskID(contestID, task string) string {
 	if strings.Contains(task, "_") {
 		return task
@@ -156,7 +142,7 @@ var taskURLRe = regexp.MustCompile(`atcoder\.jp/contests/([^/]+)/tasks/([^/?#]+)
 //   - "https://atcoder.jp/contests/abc457/tasks/abc457_d" → ("abc457", "abc457_d", true)
 //   - "atcoder.jp/contests/abc457/tasks/abc457_d?lang=ja"  → ("abc457", "abc457_d", true)
 //
-// `/contests/.../tasks/...` を取り出せなければ ok=false。layout に依存しない
+// `/contests/.../tasks/...` を取り出せなければ ok=false。mode に依存しない
 // (cache key / AtCoder URL 共通の ID 抽出ヘルパー)。
 func ParseTaskURL(s string) (contestID, taskID string, ok bool) {
 	m := taskURLRe.FindStringSubmatch(s)
@@ -172,25 +158,24 @@ func IsTaskURL(s string) bool {
 	return strings.Contains(s, "://") || strings.Contains(s, "atcoder.jp/")
 }
 
-// ABC は `abc/<contest_num>/<letter>.py` 配置のレイアウト。
-type ABC struct{}
+// Contest は `<prefix>/<contest_num>/<letter>.py` 配置の mode。
+type Contest struct{}
 
-func (ABC) Name() string { return "abc" }
+func (Contest) Name() string { return "contest" }
 
-func (ABC) SolutionPath(contestID, task string) (string, error) {
-	m := abcContestRE.FindStringSubmatch(contestID)
-	if m == nil {
-		return "", fmt.Errorf("abc layout requires contest ID like abc<NNN>, got %q", contestID)
+func (Contest) SolutionPath(contestID, task string) (string, error) {
+	prefix, num, ok := SplitContestID(contestID)
+	if !ok {
+		return "", fmt.Errorf("contest id must be <prefix><num>, got %q", contestID)
 	}
-	contestNum := m[1]
 	letter, err := Letter(task)
 	if err != nil {
-		return "", fmt.Errorf("abc layout: %w", err)
+		return "", fmt.Errorf("contest mode: %w", err)
 	}
-	return filepath.Join("abc", contestNum, letter+".py"), nil
+	return filepath.Join(prefix, num, letter+".py"), nil
 }
 
-// Exercise は `exercise/YYYY/MM/DD/<task_id>.py` 配置のレイアウト (練習用)。
+// Exercise は `exercise/YYYY/MM/DD/<task_id>.py` 配置の mode (練習用)。
 // Today はゼロ値なら time.Now().Local() を使う (テスト時に固定したい場合に注入)。
 type Exercise struct {
 	Today time.Time
@@ -213,41 +198,29 @@ func (e Exercise) SolutionPath(contestID, task string) (string, error) {
 	), nil
 }
 
-// Parse は CLI フラグ値と contest_id から Layout を選ぶ。
-//   - "" / "auto" → Detect(contestID)
-//   - "abc"       → ABC{}
-//   - "exercise"  → Exercise{}
-//   - その他      → エラー
-func Parse(name, contestID string) (Layout, error) {
+// Parse は CLI フラグ値から Mode を選ぶ。
+//   - "" / "exercise" → Exercise{}
+//   - "contest"       → Contest{}
+//   - その他          → エラー
+func Parse(name string) (Mode, error) {
 	switch name {
-	case "", "auto":
-		return Detect(contestID), nil
-	case "abc":
-		return ABC{}, nil
-	case "exercise":
+	case "", "exercise":
 		return Exercise{}, nil
+	case "contest":
+		return Contest{}, nil
 	default:
-		return nil, fmt.Errorf("unknown layout %q (must be auto, abc, or exercise)", name)
+		return nil, fmt.Errorf("unknown mode %q (must be contest or exercise)", name)
 	}
 }
 
-// Detect は contest_id から layout を自動選択する純粋関数。
-// `abc<NNN>` にマッチすれば ABC、それ以外は Exercise。
-func Detect(contestID string) Layout {
-	if abcContestRE.MatchString(contestID) {
-		return ABC{}
-	}
-	return Exercise{}
-}
-
-// Names は既知レイアウト名を正規順 (auto, abc, exercise) で返す。
+// Names は既知 mode 名を正規順 (contest, exercise) で返す。
 // 検証 (Known) と補完候補・config の値候補がここを単一情報源とすることで、
-// 受理されるレイアウト名の一覧を二重管理しないで済む。
+// 受理される mode 名の一覧を二重管理しないで済む。
 func Names() []string {
-	return []string{"auto", "abc", "exercise"}
+	return []string{"contest", "exercise"}
 }
 
-// Known はレイアウト名が既知 (auto/abc/exercise) かを返す (config set の検証用)。
+// Known は mode 名が既知 (contest/exercise) かを返す (config set の検証用)。
 func Known(name string) bool {
 	for _, n := range Names() {
 		if name == n {
@@ -257,14 +230,14 @@ func Known(name string) bool {
 	return false
 }
 
-// Resolve は既定レイアウトの precedence を 1 か所に集約する純粋関数。
-// 優先順は flag > env > config > auto で、最初に空でない値を採用する
-// (どれも空なら "auto")。採用した値を Parse して Layout を返す。
+// Resolve は既定 mode の precedence を 1 か所に集約する純粋関数。
+// 優先順は flag > env > config > exercise で、最初に空でない値を採用する
+// (どれも空なら "exercise")。採用した値を Parse して Mode を返す。
 //
-// value は採用したレイアウト名、source はその出所
+// value は採用した mode 名、source はその出所
 // ("flag"/"env"/"config"/"default") で、診断に使う。値が未知なら Parse が
 // エラーを返す。
-func Resolve(flag, env, cfg, contestID string) (lay Layout, value, source string, err error) {
+func Resolve(flag, env, cfg string) (m Mode, value, source string, err error) {
 	switch {
 	case flag != "":
 		value, source = flag, "flag"
@@ -273,11 +246,11 @@ func Resolve(flag, env, cfg, contestID string) (lay Layout, value, source string
 	case cfg != "":
 		value, source = cfg, "config"
 	default:
-		value, source = "auto", "default"
+		value, source = "exercise", "default"
 	}
-	lay, err = Parse(value, contestID)
+	m, err = Parse(value)
 	if err != nil {
 		return nil, value, source, err
 	}
-	return lay, value, source, nil
+	return m, value, source, nil
 }

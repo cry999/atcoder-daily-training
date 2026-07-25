@@ -13,7 +13,7 @@ import (
 
 	"github.com/cry999/atcoder-daily-training/internal/cliargs"
 	"github.com/cry999/atcoder-daily-training/internal/config"
-	"github.com/cry999/atcoder-daily-training/internal/layout"
+	"github.com/cry999/atcoder-daily-training/internal/mode"
 	"github.com/cry999/atcoder-daily-training/internal/solvestat"
 	"github.com/cry999/atcoder-daily-training/internal/ui"
 	"golang.org/x/term"
@@ -48,24 +48,23 @@ type recordTarget struct {
 	letter   string
 }
 
-// buildRecordTarget は layout を解決し、解答パスと category×letter を求める。
-func buildRecordTarget(layoutFlag, contest, task string) (recordTarget, error) {
-	lay, err := resolveLayout(layoutFlag, contest)
+// buildRecordTarget は mode を解決し、解答パスと category×letter を求める。
+func buildRecordTarget(modeFlag, contest, task string) (recordTarget, error) {
+	lay, err := resolveMode(modeFlag)
 	if err != nil {
 		return recordTarget{}, err
 	}
 	return recordTargetFor(lay, contest, task)
 }
 
-// recordTargetFor は解決済み layout から解答パスと category×letter を求める。
-// chat の :record は起動時に選ばれた layout を保持しているので、これを直接使う
-// (buildRecordTarget の "auto" 再判定を挟むと abc<NNN> が常に ABC に落ちてしまう)。
-func recordTargetFor(lay layout.Layout, contest, task string) (recordTarget, error) {
+// recordTargetFor は解決済み mode から解答パスと category×letter を求める。
+// chat の :record は起動時に選ばれた mode を保持しているので、これを直接使う。
+func recordTargetFor(lay mode.Mode, contest, task string) (recordTarget, error) {
 	path, err := lay.SolutionPath(contest, task)
 	if err != nil {
 		return recordTarget{}, err
 	}
-	letter, err := layout.Letter(task)
+	letter, err := mode.Letter(task)
 	if err != nil {
 		return recordTarget{}, err
 	}
@@ -176,7 +175,7 @@ func recordStart(args []string) (int, error) {
 
 	fs := flag.NewFlagSet("record start", flag.ContinueOnError)
 	taskFlag := addTaskFlag(fs)
-	layoutFlag := addLayoutFlag(fs)
+	modeFlag := addModeFlag(fs)
 	restart := fs.Bool("restart", false, "Reset started_at to now and clear completion (redo practice)")
 	fs.SetOutput(os.Stderr)
 	if err := fs.Parse(flagArgs); err != nil {
@@ -186,7 +185,7 @@ func recordStart(args []string) (int, error) {
 	if err != nil {
 		return code, err
 	}
-	rt, err := buildRecordTarget(*layoutFlag, contest, task)
+	rt, err := buildRecordTarget(*modeFlag, contest, task)
 	if err != nil {
 		return 2, err
 	}
@@ -218,7 +217,7 @@ func recordStop(args []string) (int, error) {
 
 	fs := flag.NewFlagSet("record stop", flag.ContinueOnError)
 	taskFlag := addTaskFlag(fs)
-	layoutFlag := addLayoutFlag(fs)
+	modeFlag := addModeFlag(fs)
 	acFlag := fs.Bool("ac", false, "Record AC = true")
 	noAcFlag := fs.Bool("no-ac", false, "Record AC = false")
 	timeFlag := fs.String("time", "", "Override implementation time (e.g. 25m, 1h5m)")
@@ -241,7 +240,7 @@ func recordStop(args []string) (int, error) {
 			return 2, err
 		}
 	}
-	rt, err := buildRecordTarget(*layoutFlag, contest, task)
+	rt, err := buildRecordTarget(*modeFlag, contest, task)
 	if err != nil {
 		return 2, err
 	}
@@ -286,7 +285,7 @@ func recordMain(args []string) (int, error) {
 
 	fs := flag.NewFlagSet("record", flag.ContinueOnError)
 	taskFlag := addTaskFlag(fs)
-	layoutFlag := addLayoutFlag(fs)
+	modeFlag := addModeFlag(fs)
 	acFlag := fs.Bool("ac", false, "Record AC = true")
 	noAcFlag := fs.Bool("no-ac", false, "Record AC = false")
 	edFlag := fs.Bool("editorial", false, "Record editorial viewed = true")
@@ -327,7 +326,7 @@ func recordMain(args []string) (int, error) {
 		}
 	}
 
-	rt, err := buildRecordTarget(*layoutFlag, contest, task)
+	rt, err := buildRecordTarget(*modeFlag, contest, task)
 	if err != nil {
 		return 2, err
 	}
@@ -432,7 +431,7 @@ func recordEdit(args []string) (int, error) {
 
 	fs := flag.NewFlagSet("record edit", flag.ContinueOnError)
 	taskFlag := addTaskFlag(fs)
-	layoutFlag := addLayoutFlag(fs)
+	modeFlag := addModeFlag(fs)
 	fs.SetOutput(os.Stderr)
 	if err := fs.Parse(flagArgs); err != nil {
 		return 2, err
@@ -441,7 +440,7 @@ func recordEdit(args []string) (int, error) {
 	if err != nil {
 		return code, err
 	}
-	rt, err := buildRecordTarget(*layoutFlag, contest, task)
+	rt, err := buildRecordTarget(*modeFlag, contest, task)
 	if err != nil {
 		return 2, err
 	}

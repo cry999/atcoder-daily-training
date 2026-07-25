@@ -1,13 +1,13 @@
 # `atcoder start` 利用手引
 
-問題に取り掛かるときの **「解答ファイルを用意 → 対話 + watch を同時起動」** を 1 コマンドで済ませる。`atcoder start <contest> --task <task>` で、レイアウトに応じた解答ファイルを (無ければ) 作り、そのまま**上下分割画面**に入る (上 = サンプル自動判定の watch 要約、下 = 対話 chat)。両方を同時に動かし続けられる。
+問題に取り掛かるときの **「解答ファイルを用意 → 対話 + watch を同時起動」** を 1 コマンドで済ませる。`atcoder start <contest> --task <task>` で、mode に応じた解答ファイルを (無ければ) 作り、そのまま**上下分割画面**に入る (上 = サンプル自動判定の watch 要約、下 = 対話 chat)。両方を同時に動かし続けられる。
 
 > 要件詳細: [requirements/018-start-command.md](../requirements/018-start-command.md)
 
 ## コマンド
 
 ```
-atcoder start <contest> --task <task> [--until-pass] [--refresh] [--restart] [-s] [-j <n>] [--timeout <dur>] [--tolerance <eps>] [--layout <auto|abc|exercise>]
+atcoder start <contest> --task <task> [--until-pass] [--refresh] [--restart] [-s] [-j <n>] [--timeout <dur>] [--tolerance <eps>] [--mode <contest|exercise>]
 ```
 
 > 位置引数 (`<contest>`) とフラグの順序は自由 (`atcoder start --task d abc457` も可)。
@@ -20,11 +20,11 @@ atcoder start <contest> --task <task> [--until-pass] [--refresh] [--restart] [-s
 | `--refresh` | 初回のみサンプルを再取得 |
 | `--restart` | 完了記録がある問題をやり直す。`started_at` を今にリセットし完了記録 (`solved_at` / duration / スコア) をクリア |
 | `-s` / `-j` / `--timeout` / `--tolerance` | `test` と同じ。各 watch 実行にそのまま渡す |
-| `--layout <auto\|abc\|exercise>` | 解答ファイル配置。既定は `--layout` > `ATCODER_LAYOUT` > config > auto |
+| `--mode <contest\|exercise>` | 解答ファイル配置。既定は `--mode` > `ATCODER_MODE` > config `mode` > `exercise` |
 
 ## 動作 — 上下分割画面
 
-1. レイアウトを解決し、解答パス (`exercise/YYYY/MM/DD/<task>.py` または `abc/<num>/<letter>.py` 等) を決める。
+1. mode を解決し、解答パス (`exercise/YYYY/MM/DD/<task>.py` または `<prefix>/<num>/<letter>.py`) を決める。
 2. **解答ファイルを用意**: 親ディレクトリを作成し、ファイルが無ければ**空ファイル**を生成 (既存は温存)。`created:` / `solution: ... (exists)` を 1 行表示。
 3. **上下分割画面に入る**。**chat と watch を同時に動かし続ける**:
    - **上ペイン = watch 要約**: 起動時に 1 回サンプルを判定し、以降は**保存検知のたびに自動で再判定**。全体 (`✓ 4/4` / `✗ 2/4`) に続けて**各ケースの verdict** を出す (`01 AC  02 WA  03 TLE  04 AC`。AC=緑・WA/TLE/RE=赤)。どのケースで落ちているかが一目で分かる (diff は出さない)。ケースが多くペイン幅を超えたら末尾を `…` で切り詰める。Debug は常時 on で、判定は `[DEBUG]` 行を除外し、タイトルに `[debug]` バッジが付く。
@@ -115,12 +115,12 @@ atcoder start <contest> --task <task> [--until-pass] [--refresh] [--restart] [-s
 ## 例
 
 ```sh
-# 当日の演習として abc457_d に着手 (exercise レイアウト)
+# 当日の演習として abc457_d に着手 (exercise mode)
 atcoder start abc457 --task d
 # → created: exercise/2026/06/11/abc457_d.py  のあと watch ループへ
 
-# ABC 本番中、abc/ レイアウトに着手し、通ったら自動で抜ける
-atcoder start abc457 --task d --layout abc --until-pass
+# ABC 本番中、contest mode に着手し、通ったら自動で抜ける
+atcoder start abc457 --task d --mode contest --until-pass
 # → created: abc/457/d.py  …編集 → 保存 → 全 PASS で自動終了
 
 # 既にファイルがある問題に watch だけ掛け直す
@@ -134,7 +134,7 @@ atcoder start abc457 --task d
 |---|---|
 | `0` | `Ctrl+C` で終了、または `--until-pass` で全通過終了 |
 | `1` | ディレクトリ作成 / ファイル生成の失敗 |
-| `2` | 引数誤り (`--task` 欠落・不正レイアウト)、または **非 TTY** (watch は端末必須)。※非 TTY でも解答ファイルの作成は先に行われる |
+| `2` | 引数誤り (`--task` 欠落・不正 mode)、または **非 TTY** (watch は端末必須)。※非 TTY でも解答ファイルの作成は先に行われる |
 
 ## 注意
 

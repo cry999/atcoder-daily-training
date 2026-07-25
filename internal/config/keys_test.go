@@ -181,60 +181,60 @@ func TestReviewMissedValueCandidates(t *testing.T) {
 	}
 }
 
-// layout キーは set → get で round-trip し、config.toml に書かれる。
-func TestLayoutSetThenGet(t *testing.T) {
+// mode キーは set → get で round-trip し、config.toml に書かれる。
+func TestModeSetThenGet(t *testing.T) {
 	writeConfig(t, "")
-	if err := Set("layout", "abc"); err != nil {
-		t.Fatalf("Set layout failed: %v", err)
+	if err := Set("mode", "contest"); err != nil {
+		t.Fatalf("Set mode failed: %v", err)
 	}
-	v, err := Get("layout")
+	v, err := Get("mode")
 	if err != nil {
-		t.Fatalf("Get layout failed: %v", err)
+		t.Fatalf("Get mode failed: %v", err)
 	}
-	if v != "abc" {
-		t.Fatalf("expected layout = abc, got %q", v)
+	if v != "contest" {
+		t.Fatalf("expected mode = contest, got %q", v)
 	}
 }
 
-// 未設定の layout は get / show 上 auto に見える (実効既定値)。
-func TestLayoutDefaultsToAuto(t *testing.T) {
+// 未設定の mode は get / show 上 exercise に見える (実効既定値)。
+func TestModeDefaultsToExercise(t *testing.T) {
 	writeConfig(t, "")
-	v, err := Get("layout")
+	v, err := Get("mode")
 	if err != nil {
-		t.Fatalf("Get layout failed: %v", err)
+		t.Fatalf("Get mode failed: %v", err)
 	}
-	if v != "auto" {
-		t.Fatalf("expected unset layout to read as auto, got %q", v)
+	if v != "exercise" {
+		t.Fatalf("expected unset mode to read as exercise, got %q", v)
 	}
 }
 
-// 不正なレイアウト値は ErrInvalidValue (書き込まない)。
-func TestLayoutInvalidValue(t *testing.T) {
+// 不正な mode 値は ErrInvalidValue (書き込まない)。
+func TestModeInvalidValue(t *testing.T) {
 	writeConfig(t, "")
-	if err := Set("layout", "junk"); !errors.Is(err, ErrInvalidValue) {
+	if err := Set("mode", "junk"); !errors.Is(err, ErrInvalidValue) {
 		t.Fatalf("expected ErrInvalidValue, got %v", err)
 	}
 }
 
-// layout は enum キーなので ValueCandidates が auto/abc/exercise を返す。
-func TestLayoutValueCandidates(t *testing.T) {
-	got := ValueCandidates("layout")
-	want := []string{"abc", "auto", "exercise"} // ソート済み
+// mode は enum キーなので ValueCandidates が contest/exercise を返す。
+func TestModeValueCandidates(t *testing.T) {
+	got := ValueCandidates("mode")
+	want := []string{"contest", "exercise"} // ソート済み
 	if len(got) != len(want) {
-		t.Fatalf("ValueCandidates(layout) = %v, want %v", got, want)
+		t.Fatalf("ValueCandidates(mode) = %v, want %v", got, want)
 	}
 	for i := range want {
 		if got[i] != want[i] {
-			t.Fatalf("ValueCandidates(layout) = %v, want %v", got, want)
+			t.Fatalf("ValueCandidates(mode) = %v, want %v", got, want)
 		}
 	}
 }
 
-// layout はトップレベルキーなので、set しても [test] セクションを壊さない。
-func TestLayoutPreservesTestSection(t *testing.T) {
+// mode はトップレベルキーなので、set しても [test] セクションを壊さない。
+func TestModePreservesTestSection(t *testing.T) {
 	writeConfig(t, "[test]\nside_by_side = true\n")
-	if err := Set("layout", "exercise"); err != nil {
-		t.Fatalf("Set layout failed: %v", err)
+	if err := Set("mode", "exercise"); err != nil {
+		t.Fatalf("Set mode failed: %v", err)
 	}
 	v, err := Get("test.side_by_side")
 	if err != nil {

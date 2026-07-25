@@ -11,11 +11,11 @@ import (
 	"github.com/cry999/atcoder-daily-training/internal/runner"
 )
 
-// fixedLayout は SolutionPath を固定パスに解決する最小 Layout (テスト用)。
-type fixedLayout struct{ path string }
+// fixedMode は SolutionPath を固定パスに解決する最小 Mode (テスト用)。
+type fixedMode struct{ path string }
 
-func (l fixedLayout) Name() string                                      { return "fixed" }
-func (l fixedLayout) SolutionPath(contest, task string) (string, error) { return l.path, nil }
+func (m fixedMode) Name() string                                      { return "fixed" }
+func (m fixedMode) SolutionPath(contest, task string) (string, error) { return m.path, nil }
 
 // recordingExecutor は Run に渡された source パスを記録し、PASS する固定出力を返す。
 type recordingExecutor struct {
@@ -29,7 +29,7 @@ func (e *recordingExecutor) Run(ctx context.Context, source string, input []byte
 }
 
 // TestRunSolutionPathOverride は Options.SolutionPathOverride (要件 049) を検証する:
-// 非空ならその値が実行対象になり、空なら Layout.SolutionPath の解決結果が使われる。
+// 非空ならその値が実行対象になり、空なら Mode.SolutionPath の解決結果が使われる。
 func TestRunSolutionPathOverride(t *testing.T) {
 	// キャッシュ (tests/ + meta.toml) を一時 XDG_CACHE_HOME に用意し、fetch を回避する。
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
@@ -49,7 +49,7 @@ func TestRunSolutionPathOverride(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// 解答パス (Layout 解決先) と override 先。Run は os.Stat するので両方実体を置く。
+	// 解答パス (Mode 解決先) と override 先。Run は os.Stat するので両方実体を置く。
 	dir := t.TempDir()
 	layPath := filepath.Join(dir, "sol.py")
 	ovrPath := filepath.Join(dir, "override.py")
@@ -64,7 +64,7 @@ func TestRunSolutionPathOverride(t *testing.T) {
 		opts := Options{
 			Contest:              contest,
 			Task:                 task,
-			Layout:               fixedLayout{layPath},
+			Mode:                 fixedMode{layPath},
 			ExecutorFor:          func(string) (Executor, error) { return exec, nil },
 			Reporter:             NewSummaryReporter(),
 			SolutionPathOverride: override,
@@ -76,7 +76,7 @@ func TestRunSolutionPathOverride(t *testing.T) {
 	}
 
 	if got := run(""); got != layPath {
-		t.Errorf("override 空: 実行対象 = %q, want Layout 解決の %q", got, layPath)
+		t.Errorf("override 空: 実行対象 = %q, want Mode 解決の %q", got, layPath)
 	}
 	if got := run(ovrPath); got != ovrPath {
 		t.Errorf("override 指定: 実行対象 = %q, want override の %q", got, ovrPath)

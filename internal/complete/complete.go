@@ -20,7 +20,7 @@ import (
 	"github.com/cry999/atcoder-daily-training/internal/cliargs"
 	"github.com/cry999/atcoder-daily-training/internal/config"
 	"github.com/cry999/atcoder-daily-training/internal/contestmeta"
-	"github.com/cry999/atcoder-daily-training/internal/layout"
+	"github.com/cry999/atcoder-daily-training/internal/mode"
 )
 
 // Candidate は補完候補 1 件。Desc は空可 (説明なし)。
@@ -32,11 +32,10 @@ type Candidate struct {
 // contestPrefixes は contest_id を構成するレイアウト接頭辞。
 var contestPrefixes = []string{"abc", "arc", "awc", "agc", "ahc"}
 
-// layoutCands は --layout フラグが取りうる値 (説明付き)。
-var layoutCands = []Candidate{
-	{"auto", "pick abc for abc<NNN>, else exercise"},
-	{"abc", "abc/<contest>/<letter>.py layout"},
-	{"exercise", "exercise/YYYY/MM/DD/<task>.py layout"},
+// modeCands は --mode フラグが取りうる値 (説明付き)。
+var modeCands = []Candidate{
+	{"contest", "<prefix>/<contest>/<letter>.py mode"},
+	{"exercise", "exercise/YYYY/MM/DD/<task>.py mode"},
 }
 
 // categoryCands は `atcoder review` の <category> 位置引数候補 (説明付き)。
@@ -67,7 +66,7 @@ var configSubCands = []Candidate{
 
 // subcommandCands は補完対象のサブコマンド名 (説明付き)。__complete は隠すので含めない。
 var subcommandCands = []Candidate{
-	{"new", "scaffold today's exercise dir (or an abc contest)"},
+	{"new", "scaffold today's exercise dir (or a contest)"},
 	{"start", "create the solution file and launch test --watch"},
 	{"test", "run a solution (samples by default; --in/--out/--interactive for ad-hoc; --submit to submit)"},
 	{"gen", "generate random input from the problem's constraints + input format"},
@@ -106,7 +105,7 @@ var subFlags = map[string][]Candidate{
 		{"--side-by-side", "show diff side-by-side"},
 		{"--jobs", "parallel test-case workers"},
 		{"-j", "parallel test-case workers"},
-		{"--layout", "solution file layout"},
+		{"--mode", "solution file mode"},
 	},
 	"test": {
 		{"--task", "task ID or short letter (e.g. d)"},
@@ -114,7 +113,7 @@ var subFlags = map[string][]Candidate{
 		{"--timeout", "override time limit (e.g. 5s)"},
 		{"--case", "run only the given case(s)"},
 		{"-c", "run only the given case(s)"},
-		{"--layout", "solution file layout"},
+		{"--mode", "solution file mode"},
 		{"--jobs", "parallel test-case workers"},
 		{"-j", "parallel test-case workers"},
 		{"--watch", "re-run on file change (needs a TTY)"},
@@ -199,7 +198,7 @@ var subFlags = map[string][]Candidate{
 		{"--verify", "verify score 0-3"},
 		{"--time", "override implementation time (e.g. 25m)"},
 		{"--restart", "with record start: reset started_at and clear completion"},
-		{"--layout", "solution file layout"},
+		{"--mode", "solution file mode"},
 	},
 	"login": {
 		{"--session-cookie", "REVEL_SESSION cookie value to import (default: read from stdin)"},
@@ -263,7 +262,7 @@ func Tasks(root, contest string) []string {
 	}
 	if m, err := contestmeta.Load(contestmeta.Path(contest)); err == nil {
 		for _, t := range m.Tasks {
-			if l, err := layout.Letter(t); err == nil {
+			if l, err := mode.Letter(t); err == nil {
 				set[l] = struct{}{}
 			}
 		}
@@ -296,8 +295,8 @@ func Complete(root string, words []string) []Candidate {
 				return filterPrefix(plain(Tasks(root, c)), cur)
 			}
 			return nil
-		case "--layout":
-			return filterPrefix(layoutCands, cur)
+		case "--mode":
+			return filterPrefix(modeCands, cur)
 		}
 	}
 
@@ -330,9 +329,6 @@ func Complete(root string, words []string) []Candidate {
 	switch {
 	case sub == "new":
 		if len(posBefore) == 0 {
-			return filterPrefix([]Candidate{{"abc", "prepare an abc contest"}}, cur) // モード名
-		}
-		if len(posBefore) == 1 && posBefore[0] == "abc" {
 			return filterPrefix(plain(Contests(root)), cur)
 		}
 	case takesContest[sub]:

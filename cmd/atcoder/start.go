@@ -15,16 +15,16 @@ import (
 	"github.com/cry999/atcoder-daily-training/internal/chatlog"
 	"github.com/cry999/atcoder-daily-training/internal/cliargs"
 	"github.com/cry999/atcoder-daily-training/internal/config"
-	"github.com/cry999/atcoder-daily-training/internal/layout"
+	"github.com/cry999/atcoder-daily-training/internal/mode"
 	"github.com/cry999/atcoder-daily-training/internal/runner"
 	"github.com/cry999/atcoder-daily-training/internal/testexec"
 	"github.com/cry999/atcoder-daily-training/internal/ui"
 	"github.com/cry999/atcoder-daily-training/internal/watch"
 )
 
-// cmdStart は問題への着手をまとめる: レイアウトに応じた解答ファイルを (無ければ)
+// cmdStart は問題への着手をまとめる: mode に応じた解答ファイルを (無ければ)
 // 用意し、そのまま test --watch の編集ループに入る。`--until-pass` でサンプル全通過時に
-// 終了する。新しい実行・判定ロジックは持たず、layout / testexec / watch を束ねるだけ。
+// 終了する。新しい実行・判定ロジックは持たず、mode / testexec / watch を束ねるだけ。
 func cmdStart(args []string) (int, error) {
 	flagArgs, positionals := cliargs.Split(args)
 	if len(positionals) < 1 {
@@ -50,7 +50,7 @@ func cmdStart(args []string) (int, error) {
 	var jobs int
 	flags.IntVar(&jobs, "jobs", 0, "Number of test cases to run in parallel. 0 → number of CPUs (capped at the case count).")
 	flags.IntVar(&jobs, "j", 0, "Number of test cases to run in parallel. 0 → number of CPUs (capped at the case count).")
-	layoutFlag := addLayoutFlag(flags)
+	modeFlag := addModeFlag(flags)
 	flags.SetOutput(os.Stderr)
 
 	if err := flags.Parse(flagArgs); err != nil {
@@ -66,7 +66,8 @@ func cmdStart(args []string) (int, error) {
 	}
 
 	sc := &startConfig{
-		layoutFlag: *layoutFlag,
+		modeFlag:   *modeFlag,
+		debug:      true,
 		timeout:    *timeoutFlag,
 		tolerance:  *tolFlag,
 		jobs:       jobs,
@@ -75,7 +76,7 @@ func cmdStart(args []string) (int, error) {
 		nvimRemote: cfg.EditorNvimRemote,
 	}
 
-	// 初期ターゲットを構築 (resolveLayout / 着手 はここで)。
+	// 初期ターゲットを構築 (resolveMode / 着手 はここで)。
 	t0, created, code, err := sc.buildTarget(contest, task, *refresh)
 	if err != nil {
 		return code, err
@@ -129,7 +130,8 @@ func cmdStart(args []string) (int, error) {
 
 // startConfig は start 起動フラグのうち、ターゲット構築 (初回 + ナビ) で共通に使う値。
 type startConfig struct {
-	layoutFlag string
+	modeFlag   string
+	debug      bool
 	timeout    time.Duration
 	tolerance  float64
 	jobs       int
@@ -138,12 +140,12 @@ type startConfig struct {
 	nvimRemote string // config の editor_nvim_remote キー (Ctrl+E の nvim 内 remote。current/tab。要件 041)
 }
 
-// buildTarget は (contestID, task) に対する分割画面ターゲットを構築する。レイアウト解決
-// (auto は contestID で再判定) → 着手 (無ければ空ファイル) → runner spawn・サンプル判定
+// buildTarget は (contestID, task) に対する分割画面ターゲットを構築する。mode 解決
+// → 着手 (無ければ空ファイル) → runner spawn・サンプル判定
 // closure・watcher・ChatHeader を組む。初回起動とナビゲーション解決の両方から呼ぶ薄い
 // orchestration で、新しい実行・判定ロジックは持たない。code は err 時の exit code。
 func (c *startConfig) buildTarget(contestID, task string, refresh bool) (t ui.StartTarget, created bool, code int, err error) {
-	lay, err := resolveLayout(c.layoutFlag, contestID)
+	lay, err := resolveMode(c.modeFlag)
 	if err != nil {
 		return ui.StartTarget{}, false, 2, err
 	}
@@ -168,7 +170,7 @@ func (c *startConfig) buildTarget(contestID, task string, refresh bool) (t ui.St
 		return testexec.Options{
 			Contest:     contestID,
 			Task:        task,
-			Layout:      lay,
+			Mode:        lay,
 			Refresh:     refresh,
 			Timeout:     c.timeout,
 			Debug:       true,
@@ -255,11 +257,11 @@ func (c *startConfig) buildTarget(contestID, task string, refresh bool) (t ui.St
 
 // nextTarget は現 (contestID, task) とナビ要求から移動先の (contestID, task) を算出する
 // 純粋関数 (要件 027)。境界・非対応・不正 spec は日本語の UI 文言エラーを返す
-// (TUI 内 1 行表示に使う)。layout の sentinel error を文言に写像する。
+// (TUI 内 1 行表示に使う)。mode の sentinel error を文言に写像する。
 func nextTarget(contestID, task string, req ui.NavRequest) (newID, newTask string, err error) {
 	switch req.Kind {
 	case ui.NavLetterNext, ui.NavLetterPrev:
-		letter, lerr := layout.Letter(task)
+		letter, lerr := mode.Letter(task)
 		if lerr != nil {
 			return "", "", errors.New("この問題は記号移動に対応していません")
 		}
@@ -267,9 +269,9 @@ func nextTarget(contestID, task string, req ui.NavRequest) (newID, newTask strin
 		if req.Kind == ui.NavLetterPrev {
 			delta = -1
 		}
-		nl, serr := layout.ShiftLetter(letter, delta)
+		nl, serr := mode.ShiftLetter(letter, delta)
 		if serr != nil {
-			if errors.Is(serr, layout.ErrLetterShape) {
+			if errors.Is(serr, mode.ErrLetterShape) {
 				return "", "", errors.New("この問題は記号移動に対応していません")
 			}
 			if delta < 0 {
@@ -280,7 +282,7 @@ func nextTarget(contestID, task string, req ui.NavRequest) (newID, newTask strin
 		return contestID, contestID + "_" + nl, nil
 
 	case ui.NavContestNext, ui.NavContestPrev:
-		letter, lerr := layout.Letter(task)
+		letter, lerr := mode.Letter(task)
 		if lerr != nil {
 			return "", "", errors.New("この問題は番号移動に対応していません")
 		}
@@ -288,9 +290,9 @@ func nextTarget(contestID, task string, req ui.NavRequest) (newID, newTask strin
 		if req.Kind == ui.NavContestPrev {
 			delta = -1
 		}
-		nid, serr := layout.ShiftContest(contestID, delta)
+		nid, serr := mode.ShiftContest(contestID, delta)
 		if serr != nil {
-			if errors.Is(serr, layout.ErrContestShape) {
+			if errors.Is(serr, mode.ErrContestShape) {
 				return "", "", errors.New("このコンテストは番号移動に対応していません")
 			}
 			if delta < 0 {
@@ -305,15 +307,15 @@ func nextTarget(contestID, task string, req ui.NavRequest) (newID, newTask strin
 
 	case ui.NavLetterExplicit:
 		// :task <letter> — 現コンテストの記号を直指定。単一 a–z を検証する。
-		letter, lerr := layout.ShiftLetter(strings.ToLower(strings.TrimSpace(req.Spec)), 0)
+		letter, lerr := mode.ShiftLetter(strings.ToLower(strings.TrimSpace(req.Spec)), 0)
 		if lerr != nil {
 			return "", "", errors.New("E492: 記号は単一英字で指定してください (例 :task f / 任意は :e <task_id>)")
 		}
-		return contestID, layout.TaskID(contestID, letter), nil
+		return contestID, mode.TaskID(contestID, letter), nil
 
 	case ui.NavContestExplicit:
 		// :contest <num|id> — コンテストを直指定し、現 letter を保持する。
-		letter, lerr := layout.Letter(task)
+		letter, lerr := mode.Letter(task)
 		if lerr != nil {
 			return "", "", errors.New("この問題は番号移動に対応していません")
 		}
@@ -321,7 +323,7 @@ func nextTarget(contestID, task string, req ui.NavRequest) (newID, newTask strin
 		if cerr != nil {
 			return "", "", cerr
 		}
-		return newID, layout.TaskID(newID, letter), nil
+		return newID, mode.TaskID(newID, letter), nil
 
 	default:
 		return "", "", errors.New("不明なナビゲーション要求です")
@@ -337,9 +339,9 @@ func resolveContestSpec(spec, contestID string) (string, error) {
 		return "", errors.New("E492: :contest <番号> か :contest <id> を指定してください")
 	}
 	if n, err := strconv.Atoi(spec); err == nil {
-		nid, serr := layout.WithContestNum(contestID, n)
+		nid, serr := mode.WithContestNum(contestID, n)
 		if serr != nil {
-			if errors.Is(serr, layout.ErrContestBound) {
+			if errors.Is(serr, mode.ErrContestBound) {
 				return "", errors.New("コンテスト番号は 1 以上で指定してください")
 			}
 			return "", errors.New("このコンテストは番号指定に対応していません")
@@ -347,11 +349,8 @@ func resolveContestSpec(spec, contestID string) (string, error) {
 		return nid, nil
 	}
 	// 数字以外を含む → コンテスト ID 直指定。数字接尾辞を持つ形のみ受ける。
-	if _, ok := layout.ContestNum(spec); !ok {
-		// ContestNum は abc 限定なので、汎用に「英字+数字」の形だけ確かめる。
-		if !contestIDLike(spec) {
-			return "", errors.New("E492: :contest <番号> か :contest <id> (例 abc123 / arc100) を指定してください")
-		}
+	if _, _, ok := mode.SplitContestID(spec); !ok {
+		return "", errors.New("E492: :contest <番号> か :contest <id> (例 abc123 / arc100) を指定してください")
 	}
 	return strings.ToLower(spec), nil
 }
@@ -389,13 +388,13 @@ func parseExplicitSpec(spec, contestID string) (newID, newTask string, err error
 		if cid == "" || letter == "" {
 			return "", "", errors.New("E492: 不正な問題指定です :e " + spec)
 		}
-		return cid, layout.TaskID(cid, letter), nil
+		return cid, mode.TaskID(cid, letter), nil
 	}
 	if strings.ContainsAny(spec, "0123456789") {
 		return "", "", errors.New("E492: コンテスト単体ではなく :e <contest>_<letter> の形式で指定してください (例 :e abc500_d)")
 	}
 	letter := strings.ToLower(spec)
-	return contestID, layout.TaskID(contestID, letter), nil
+	return contestID, mode.TaskID(contestID, letter), nil
 }
 
 // navInfoLines は再ターゲット時に chat へ出す案内行を組む (移動先 + 着手状況)。
@@ -426,7 +425,7 @@ func caseLabel(s testexec.CaseStatus) string {
 
 // ensureSolutionFile は lay/contest/task の解答パスを返し、無ければ親 dir を作って
 // 空ファイルを生成する (既存ファイルは温存)。created はこの呼び出しで作ったか。
-func ensureSolutionFile(lay layout.Layout, contest, task string) (path string, created bool, err error) {
+func ensureSolutionFile(lay mode.Mode, contest, task string) (path string, created bool, err error) {
 	path, err = lay.SolutionPath(contest, task)
 	if err != nil {
 		return "", false, err

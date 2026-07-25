@@ -1,8 +1,8 @@
 # `atcoder config` 利用手引
 
-`atcoder` のユーザ設定ファイル `config.toml` を CLI から閲覧・編集する。サブコマンド既定値 (例 `layout` / `test.side_by_side`) と、**git 風のコマンド alias** (`[alias]`) を管理する。設定は XDG Base Directory に従い `$XDG_CONFIG_HOME/atcoder-daily-training/config.toml` (未設定なら `~/.config/...`) に置かれる。手で開いて編集してもよいが、`atcoder config set` を使えば既知キーの型チェックと、未知キー・他セクションの保全が効く。
+`atcoder` のユーザ設定ファイル `config.toml` を CLI から閲覧・編集する。サブコマンド既定値 (例 `mode` / `test.side_by_side`) と、**git 風のコマンド alias** (`[alias]`) を管理する。設定は XDG Base Directory に従い `$XDG_CONFIG_HOME/atcoder-daily-training/config.toml` (未設定なら `~/.config/...`) に置かれる。手で開いて編集してもよいが、`atcoder config set` を使えば既知キーの型チェックと、未知キー・他セクションの保全が効く。
 
-> 要件詳細: `docs/tools/requirements/007-atcoder-config.md` (設定ファイルの基盤) / `docs/tools/requirements/009-atcoder-config-subcommand.md` (サブコマンド) / `docs/tools/requirements/017-config-layout-default.md` (`layout` キー) / `docs/tools/requirements/016-config-alias.md` (alias) / `docs/tools/requirements/075-review-missed-config.md` (`review missed` 条件)
+> 要件詳細: `docs/tools/requirements/007-atcoder-config.md` (設定ファイルの基盤) / `docs/tools/requirements/009-atcoder-config-subcommand.md` (サブコマンド) / `docs/tools/requirements/017-config-layout-default.md` (`mode` キー) / `docs/tools/requirements/016-config-alias.md` (alias) / `docs/tools/requirements/075-review-missed-config.md` (`review missed` 条件)
 
 ## コマンド
 
@@ -28,7 +28,7 @@ exit code: 引数誤り / 未知キー / 型・値の不一致 / 不正な alias
 
 | キー | 型 | 既定 | 説明 |
 |---|---|---|---|
-| `layout` | enum (`auto` / `abc` / `exercise`) | `auto` | 解答ファイルの既定レイアウト (下記) |
+| `mode` | enum (`contest` / `exercise`) | `exercise` | 解答ファイルの既定 mode (下記) |
 | `editor` | string | `(unset)` | `atcoder start` / `test --interactive` の `Ctrl+E` で**nvim 外**のとき使うエディタコマンド (空白区切りで argv 展開、例 `nvim -p` / `code -w`)。未設定は `$EDITOR` → `nvim`。nvim の `:terminal` 内 (`$NVIM` 在り) は親 nvim へ送るのでこのキーは効かない ([要件 038](../requirements/038-start-edit-in-editor.md)) |
 | `editor_nvim_remote` | enum (`current` / `tab`) | `current` | nvim の `:terminal` 内 (`$NVIM` 在り) で `Ctrl+E` したときの remote ターゲット。`current`=現在のウィンドウで開く (`--remote`、タブを再利用)、`tab`=新規タブ (`--remote-tab`、問題ごとにタブが増える)。nvim 外には効かない ([要件 041](../requirements/041-edit-nvim-remote-reuse.md)) |
 | `test.side_by_side` | bool | `false` | `atcoder test` の FAIL 時 diff を左右 2 カラムで表示する既定値 (`-s` 相当) |
@@ -37,7 +37,7 @@ exit code: 引数誤り / 未知キー / 型・値の不一致 / 不正な alias
 
 ```toml
 # $XDG_CONFIG_HOME/atcoder-daily-training/config.toml
-layout = "abc"
+mode = "contest"
 
 [test]
 side_by_side = true
@@ -50,60 +50,61 @@ conditions = ["ac=false", "editorial=true", "score.impl<=1"]
 upd-lo = "update --local"
 ```
 
-## `layout` 既定レイアウト
+## `mode` 既定mode
 
-レイアウト (`auto` / `abc` / `exercise`) を毎回 `--layout` で渡さなくても、既定値として固定できる。`atcoder test` (ad-hoc / `--submit` 含む) は省略時に次の順で既定を決める:
+mode (`contest` / `exercise`) を毎回 `--mode` で渡さなくても、既定値として固定できる。`atcoder test` (ad-hoc / `--submit` 含む) は省略時に次の順で既定を決める:
 
 | 優先 | 出所 | 例 |
 |---|---|---|
-| 1 | コマンドの `--layout` フラグ | `atcoder test abc457 --task d --layout exercise` |
-| 2 | 環境変数 `ATCODER_LAYOUT` | `ATCODER_LAYOUT=abc atcoder test ...` |
-| 3 | `config.toml` の `layout` | `atcoder config set layout abc` |
-| 4 | 既定 `auto` | `abc<NNN>` なら `abc`、他は `exercise` |
+| 1 | コマンドの `--mode` フラグ | `atcoder test abc457 --task d --mode contest` |
+| 2 | 環境変数 `ATCODER_MODE` | `ATCODER_MODE=contest atcoder test ...` |
+| 3 | `config.toml` の `mode` | `atcoder config set mode contest` |
+| 4 | 既定 `exercise` | `exercise/YYYY/MM/DD/<task>.py` |
 
-- 最初に空でない出所が採用される。`--layout` を省略 (空) すると 2 以降にフォールバックし、`$ATCODER_LAYOUT` も config も無ければ従来どおり `auto`。
-- `--layout auto` を**明示**した場合は段 1 で確定し、env / config を無視して `auto` 検出に回る。
-- 不正なレイアウト値はどの出所でも `unknown layout ...` で **exit 2**。
+- 最初に空でない出所が採用される。`--mode` を省略 (空) すると 2 以降にフォールバックし、`$ATCODER_MODE` も config も無ければ `exercise`。
+- `contest` は `<prefix>/<contest_num>/<letter>.py` (例 `abc/457/d.py`, `arc/212/c.py`) を使う。contest ID は `<英字><数字>` 形式で、prefix は小文字化される。
+- `exercise` は `exercise/YYYY/MM/DD/<task>.py` を使う。
+- 不正な mode 値はどの出所でも **exit 2**。
 
 ```
-# 永続的に abc レイアウトを既定にする
-$ atcoder config set layout abc
-set layout = abc  (/home/user/.config/atcoder-daily-training/config.toml)
+# 永続的に contest mode を既定にする
+$ atcoder config set mode contest
+set mode = contest  (/home/user/.config/atcoder-daily-training/config.toml)
 
-$ atcoder config get layout
-abc
+$ atcoder config get mode
+contest
 
 # このシェルだけ exercise に上書き (config より優先)
-$ ATCODER_LAYOUT=exercise atcoder test abc457 --task d
+$ ATCODER_MODE=exercise atcoder test abc457 --task d
 
 # その 1 回だけ明示フラグで上書き (env / config より優先)
-$ atcoder test abc457 --task d --layout exercise
+$ atcoder test abc457 --task d --mode contest
 ```
 
-未設定 (`config.toml` に `layout` が無い) のとき、`config get layout` / `config show` は実効既定値の **`auto`** を表示する (env / フラグの上書きは含まない、config 層から見た既定)。`auto` に戻したいときは `atcoder config set layout auto` を明示する。
+未設定 (`config.toml` に `mode` が無い) のとき、`config get mode` / `config show` は実効既定値の **`exercise`** を表示する (env / フラグの上書きは含まない、config 層から見た既定)。既定へ戻したいときは `atcoder config unset mode` で削除する。
 
-> レイアウトそのものの定義 (`abc` = `abc/<num>/<letter>.py`、`exercise` = `exercise/YYYY/MM/DD/<task>.py`) は [`atcoder test` の `--layout`](test.md) と要件 `002-exercise-abc-layout.md` を参照。
+> mode そのものの定義は [`atcoder test` の `--mode`](test.md) と要件 `070-contest-exercise-mode.md` を参照。
 
-### starship に現在のレイアウトを表示する
+### starship に現在の mode を表示する
 
-`atcoder config get layout` は現在の既定レイアウト (未設定なら `auto`) を 1 行で吐いて **exit 0** で返るので、[starship](https://starship.rs/) の [custom module](https://starship.rs/config/#custom-commands) からそのまま呼べる。`~/.config/starship.toml` に次を足すと、プロンプトに選択中のレイアウトが出る。
+`atcoder config get mode` は現在の既定 mode (未設定なら `exercise`) を 1 行で吐いて **exit 0** で返るので、[starship](https://starship.rs/) の [custom module](https://starship.rs/config/#custom-commands) からそのまま呼べる。`~/.config/starship.toml` に次を足すと、プロンプトに選択中の mode が出る。
 
 下の `format` は Catppuccin powerline 風の `[directory]` (角丸キャップ + アイコンをアクセント色・値を `surface0` に乗せる) に合わせてある。アクセント色は `[directory]` の `mauve` と区別して `peach` にしている:
 
 ```toml
-[custom.atcoder_layout]
-# env (ATCODER_LAYOUT) > config > auto を忠実に表示する。
-command = 'echo "${ATCODER_LAYOUT:-$(atcoder config get layout)}"'
+[custom.atcoder_mode]
+# env (ATCODER_MODE) > config > exercise を忠実に表示する。
+command = 'echo "${ATCODER_MODE:-$(atcoder config get mode)}"'
 shell = ["bash", "--noprofile", "--norc"]
 when = true
 symbol = ""
 format = "[](fg:peach)[ $symbol](fg:mantle bg:peach)[](fg:peach bg:surface0)[ $output](bg:surface0)[](fg:surface0)"
 ```
 
-- `command` を `echo "${ATCODER_LAYOUT:-...}"` にしておくと、`atcoder` 本体と同じ **env > config > auto** の優先順で表示できる (config 層だけで良ければ `atcoder config get layout` 単体でもよい)。
-- `format` は `[directory]` と同じセグメント構成: `` 角丸左キャップ → アイコンを `peach` 背景に → `` 矢印で `surface0` へ → `$output` (レイアウト名) を `surface0` 背景に → `` 角丸右キャップ。`[directory]` の直後に置くなら、間に連結線を入れたい場合は先頭へ `[─](fg:peach)` を足す。
+- `command` を `echo "${ATCODER_MODE:-...}"` にしておくと、`atcoder` 本体と同じ **env > config > exercise** の優先順で表示できる (config 層だけで良ければ `atcoder config get mode` 単体でもよい)。
+- `format` は `[directory]` と同じセグメント構成: 角丸左キャップ → アイコンを `peach` 背景に → 矢印で `surface0` へ → `$output` (mode 名) を `surface0` 背景に → 角丸右キャップ。`[directory]` の直後に置くなら、間に連結線を入れたい場合は先頭へ `[─](fg:peach)` を足す。
 - アクセント色 (`peach`) と `symbol` のグリフは好みで差し替えてよい (パレット名は `[directory]` と同じ Catppuccin を流用)。
-- `layout` はグローバル設定なので既定では**どのディレクトリでも**出る。練習リポジトリ内だけに絞りたいなら `detect_folders = ["exercise", "abc", "arc"]` を足す (cwd にそのフォルダがある時だけ表示)。`auto` のときは隠したいなら `when = '[ "$(atcoder config get layout)" != auto ]'` のようにガードする。
+- `mode` はグローバル設定なので既定では**どのディレクトリでも**出る。練習リポジトリ内だけに絞りたいなら `detect_folders = ["exercise", "abc", "arc"]` を足す (cwd にそのフォルダがある時だけ表示)。`exercise` のときは隠したいなら `when = '[ "${ATCODER_MODE:-$(atcoder config get mode)}" != exercise ]'` のようにガードする。
 
 > `atcoder` が PATH に無いと custom module は何も出さない (command 失敗で自動的に隠れる)。
 
@@ -165,7 +166,7 @@ unset alias.upd-lo  (...)
 
 ## 補完
 
-`atcoder config <TAB>` は sub-subcommand (`show`/`get`/`set`/`unset`/`path`) を、`config get|set|unset <TAB>` は既知キー + 既存 `alias.<name>` を、`config set <key> <TAB>` は値候補 (`layout` なら `abc auto exercise`、bool キーなら `true false`、`review.missed.mode` なら `all any`) を補完する。`atcoder <TAB>` のサブコマンド位置には組み込みに加え `[alias]` の名前も出る (説明は展開先)。詳細は [`docs/tools/usage/completion.md`](completion.md)。
+`atcoder config <TAB>` は sub-subcommand (`show`/`get`/`set`/`unset`/`path`) を、`config get|set|unset <TAB>` は既知キー + 既存 `alias.<name>` を、`config set <key> <TAB>` は値候補 (`mode` なら `contest exercise`、bool キーなら `true false`、`review.missed.mode` なら `all any`) を補完する。`atcoder <TAB>` のサブコマンド位置には組み込みに加え `[alias]` の名前も出る (説明は展開先)。詳細は [`docs/tools/usage/completion.md`](completion.md)。
 
 ## 注意
 
@@ -176,6 +177,6 @@ unset alias.upd-lo  (...)
 
 - 設定ファイル基盤と XDG: [ADR 0003](../decisions/0003-user-config-xdg-toml.md) / 要件 007
 - サブコマンドのキーレジストリ: 要件 009
-- 既定レイアウト: 要件 017 / [`docs/tools/usage/test.md`](test.md)
+- 既定mode: 要件 017 / [`docs/tools/usage/test.md`](test.md)
 - alias: 要件 016 / [`docs/tools/usage/completion.md`](completion.md)
 - review missed 条件: 要件 075 / [`docs/tools/usage/review.md`](review.md)

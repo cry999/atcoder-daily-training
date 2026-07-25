@@ -43,10 +43,10 @@ L, R = map(int, input().split())
 ```
 atcoder record       <contest> --task <task> [--ac|--no-ac] [--editorial|--no-editorial]
                                              [--score <k,t,c,i,v>] [--knowledge|--translation|--complexity|--impl|--verify <0-3>]
-                                             [--time <dur>] [--layout <auto|abc|exercise>]
-atcoder record start <contest> --task <task> [--restart] [--layout ...]
-atcoder record stop  <contest> --task <task> [--ac|--no-ac] [--time <dur>] [--layout ...]
-atcoder record edit  <contest> --task <task> [--layout ...]
+                                             [--time <dur>] [--mode <contest|exercise>]
+atcoder record start <contest> --task <task> [--restart] [--mode ...]
+atcoder record stop  <contest> --task <task> [--ac|--no-ac] [--time <dur>] [--mode ...]
+atcoder record edit  <contest> --task <task> [--mode ...]
 ```
 
 第 1 引数が `start` / `stop` / `edit` ならそのサブコマンド、そうでなければ (contest 指定) 記録本体。位置引数 (`<contest>`) とフラグの順序は自由。

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cry999/atcoder-daily-training/internal/layout"
+	"github.com/cry999/atcoder-daily-training/internal/mode"
 	"github.com/cry999/atcoder-daily-training/internal/solvestat"
 )
 
@@ -15,10 +15,9 @@ import (
 // solve-stat 書き込みロジックを非対話で使い、第 1 トークンで start/stop/(記録本体) を
 // dispatch する。chat (TUI) から呼ばれるため stderr には一切出さず、結果・警告・案内は
 // すべて行で返す (chat が info/err 行で表示する)。ローカル I/O のみなので同期。
-// layout は chat 起動時 (start 分割画面 / test --interactive) に解決済みの lay を受け取り、
-// それをそのまま使う (auto 再判定を挟むと abc<NNN> を exercise で解いていても常に ABC
-// パスに落ちてしまうため。要件 064)。
-func chatRecordFunc(contest, task string, lay layout.Layout) func(args []string) ([]string, error) {
+// mode は chat 起動時 (start 分割画面 / test --interactive) に解決済みの lay を受け取り、
+// それをそのまま使う (chat 中の解答パスを CLI 側で再解決しないため。要件 064)。
+func chatRecordFunc(contest, task string, lay mode.Mode) func(args []string) ([]string, error) {
 	return func(args []string) ([]string, error) {
 		if len(args) >= 1 {
 			switch args[0] {
@@ -35,8 +34,8 @@ func chatRecordFunc(contest, task string, lay layout.Layout) func(args []string)
 // chatRecordEditLoadFunc は chat の :record edit (要件 066) が編集フォームへ渡す現在値を
 // 読み込むフック。解答パスを解決し solve-stat を読んで Stat・目標時間 (config)・記録の有無を
 // 返す。ファイルが無い / ブロックが無いときは found=false (フォームは開かず chat が案内する)。
-// layout は chat 起動時に解決済みの lay をそのまま使う (chatRecordFunc と同じ理由)。
-func chatRecordEditLoadFunc(contest, task string, lay layout.Layout) func() (solvestat.Stat, int64, bool, error) {
+// mode は chat 起動時に解決済みの lay をそのまま使う (chatRecordFunc と同じ理由)。
+func chatRecordEditLoadFunc(contest, task string, lay mode.Mode) func() (solvestat.Stat, int64, bool, error) {
 	return func() (solvestat.Stat, int64, bool, error) {
 		rt, err := recordTargetFor(lay, contest, task)
 		if err != nil {
@@ -56,7 +55,7 @@ func chatRecordEditLoadFunc(contest, task string, lay layout.Layout) func() (sol
 // chatRecordEditSaveFunc は :record edit のフォーム確定時に、編集後の Stat を全置換保存する
 // フック。started_at / solved_at / target_ms はフォームが元値を温存済み。保存後に読み直して
 // 更新結果の要約行を返す (chat が info 行で積む)。
-func chatRecordEditSaveFunc(contest, task string, lay layout.Layout) func(solvestat.Stat) ([]string, error) {
+func chatRecordEditSaveFunc(contest, task string, lay mode.Mode) func(solvestat.Stat) ([]string, error) {
 	return func(st solvestat.Stat) ([]string, error) {
 		rt, err := recordTargetFor(lay, contest, task)
 		if err != nil {
@@ -73,7 +72,7 @@ func chatRecordEditSaveFunc(contest, task string, lay layout.Layout) func(solves
 
 // chatRecordStart は :record start を処理する (CLI recordStart 相当)。started_at を刻む。
 // restart トークンで再計測 (started_at リセット + 完了系クリア)。
-func chatRecordStart(contest, task string, lay layout.Layout, args []string) ([]string, error) {
+func chatRecordStart(contest, task string, lay mode.Mode, args []string) ([]string, error) {
 	restart := false
 	for _, a := range args {
 		if a != "restart" {
@@ -106,7 +105,7 @@ func chatRecordStart(contest, task string, lay layout.Layout, args []string) ([]
 
 // chatRecordStop は :record stop を処理する (CLI recordStop 相当)。solved_at を確定し
 // duration を算出、target をスナップショットする。ac / time= のみ受ける (スコアは記録本体で)。
-func chatRecordStop(contest, task string, lay layout.Layout, args []string) ([]string, error) {
+func chatRecordStop(contest, task string, lay mode.Mode, args []string) ([]string, error) {
 	ac, _, _, overrideMs, err := parseChatRecordTokens(args, false)
 	if err != nil {
 		return nil, err
@@ -153,7 +152,7 @@ func chatRecordStop(contest, task string, lay layout.Layout, args []string) ([]s
 // ac / editorial / score / time を solve-stat へ部分更新で書き戻す。引数なし (:record 単体)
 // のときは書き込まず現在値だけ表示する (chat では対話ウィザードを持たないため、記入は
 // フラグ経由・閲覧は引数なしに割り当てる)。
-func chatRecordMain(contest, task string, lay layout.Layout, args []string) ([]string, error) {
+func chatRecordMain(contest, task string, lay mode.Mode, args []string) ([]string, error) {
 	ac, editorial, score, overrideMs, err := parseChatRecordTokens(args, true)
 	if err != nil {
 		return nil, err

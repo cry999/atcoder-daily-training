@@ -7,11 +7,11 @@ import (
 	"testing"
 )
 
-// fakeLayout は buildSubmitSource のテスト用に固定パスを返す最小 Layout。
-type fakeLayout struct{ path string }
+// fakeMode は buildSubmitSource のテスト用に固定パスを返す最小 Mode。
+type fakeMode struct{ path string }
 
-func (fakeLayout) Name() string                                          { return "fake" }
-func (l fakeLayout) SolutionPath(contestID, task string) (string, error) { return l.path, nil }
+func (fakeMode) Name() string                                          { return "fake" }
+func (m fakeMode) SolutionPath(contestID, task string) (string, error) { return m.path, nil }
 
 // TestBuildSubmitSourceStripsSolveStat は提出される中身 (Body) から solve-stat ブロックが
 // 除去され、DEBUG コメントアウトと両立することを固定する (要件 063)。解答ファイル本体は不変。
@@ -30,7 +30,7 @@ print(n * 2)
 	if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	lay := fakeLayout{path: path}
+	lay := fakeMode{path: path}
 
 	// keepDebug=false: solve-stat 除去 + DEBUG コメントアウト。
 	got, err := buildSubmitSource("abc457", "d", lay, false)

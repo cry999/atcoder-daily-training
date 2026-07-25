@@ -47,15 +47,14 @@ func TestComplete(t *testing.T) {
 		{"subcommand prefix", []string{"te"}, []string{"test"}},
 		{"subcommand prefix s", []string{"s"}, []string{"start", "stats"}},
 		{"start takes a contest", []string{"start", "ab"}, []string{"abc457"}},
-		{"flag prefix", []string{"test", "--la"}, []string{"--layout"}},
-		{"layout values", []string{"test", "abc457", "--layout", ""}, []string{"auto", "abc", "exercise"}},
+		{"flag prefix", []string{"test", "--mo"}, []string{"--mode"}},
+		{"mode values", []string{"test", "abc457", "--mode", ""}, []string{"contest", "exercise"}},
 		{"contest from dirs", []string{"test", "ab"}, []string{"abc457"}},
 		{"contest arc", []string{"test", "ar"}, []string{"arc180"}},
 		{"task letters from files", []string{"test", "abc457", "--task", ""}, []string{"a", "b"}},
 		{"task default when unknown", []string{"test", "abc999", "--task", ""}, []string{"a", "b", "c", "d", "e", "f", "g"}},
 		{"completion shells", []string{"completion", ""}, []string{"bash", "zsh", "fish"}},
-		{"new mode", []string{"new", ""}, []string{"abc"}},
-		{"new contest after abc", []string{"new", "abc", "ab"}, []string{"abc457"}},
+		{"new contest", []string{"new", "ab"}, []string{"abc457"}},
 		{"stats has no contest", []string{"stats", "ab"}, nil},
 		{"subcommand prefix up -> update", []string{"up"}, []string{"update"}},
 		{"subcommand prefix ver -> version", []string{"ver"}, []string{"version"}},
@@ -83,8 +82,8 @@ func TestCompleteDescriptions(t *testing.T) {
 		}
 	}
 	// フラグは説明付き。
-	for _, c := range Complete(root, []string{"test", "--la"}) {
-		if c.Value == "--layout" && c.Desc == "" {
+	for _, c := range Complete(root, []string{"test", "--mo"}) {
+		if c.Value == "--mode" && c.Desc == "" {
 			t.Errorf("flag %q has empty Desc, want a description", c.Value)
 		}
 	}

@@ -3,6 +3,7 @@ package stats
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -296,12 +297,68 @@ func TestScanMissingRoot(t *testing.T) {
 	}
 }
 
+func TestScanAllIncludesRecordedContestTree(t *testing.T) {
+	root := t.TempDir()
+	mustWrite(t, filepath.Join(root, "exercise", "2026", "06", "09", "abc457_d.py"))
+	mustWrite(t, filepath.Join(root, "abc", "457", "a.py")) // solve-stat なし → 除外
+	mustWriteStat(t, filepath.Join(root, "arc", "212", "c.py"), d(2026, 6, 10), d(2026, 6, 11))
+	mustWriteStat(t, filepath.Join(root, "agc", "065", "b.py"), d(2026, 6, 12), time.Time{})
+	mustWriteStat(t, filepath.Join(root, "adt_2026", "001", "x.py"), d(2026, 6, 13), d(2026, 6, 13)) // prefix 不正 → 除外
+
+	solves, err := ScanAll(root)
+	if err != nil {
+		t.Fatalf("ScanAll: %v", err)
+	}
+	if len(solves) != 3 {
+		t.Fatalf("len(solves) = %d, want 3; got %+v", len(solves), solves)
+	}
+	byContest := map[string]Solve{}
+	for _, s := range solves {
+		byContest[s.Contest] = s
+	}
+	if s, ok := byContest["arc212"]; !ok {
+		t.Fatalf("arc212 solve missing: %+v", solves)
+	} else {
+		if s.Date != d(2026, 6, 11) || s.Category != "arc" || s.Letter != "c" || !s.HasStat {
+			t.Fatalf("arc212 solve = %+v, want solved_at date/category/letter/stat", s)
+		}
+	}
+	if s, ok := byContest["agc065"]; !ok {
+		t.Fatalf("agc065 solve missing: %+v", solves)
+	} else if s.Date != d(2026, 6, 12) {
+		t.Fatalf("agc065 Date = %v, want started_at fallback 2026-06-12", s.Date)
+	}
+	if _, ok := byContest["abc457"]; !ok {
+		t.Fatalf("exercise solve missing: %+v", solves)
+	}
+}
+
 func mustWrite(t *testing.T, path string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(path, []byte("print(1)\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func mustWriteStat(t *testing.T, path string, started, solved time.Time) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	var b strings.Builder
+	b.WriteString("# >>> atcoder-stat >>>\n")
+	if !started.IsZero() {
+		b.WriteString("# started_at  = " + started.Format(time.RFC3339) + "\n")
+	}
+	if !solved.IsZero() {
+		b.WriteString("# solved_at   = " + solved.Format(time.RFC3339) + "\n")
+	}
+	b.WriteString("# <<< atcoder-stat <<<\n")
+	b.WriteString("print(1)\n")
+	if err := os.WriteFile(path, []byte(b.String()), 0o644); err != nil {
 		t.Fatal(err)
 	}
 }

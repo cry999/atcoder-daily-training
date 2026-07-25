@@ -4,14 +4,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cry999/atcoder-daily-training/internal/layout"
+	"github.com/cry999/atcoder-daily-training/internal/mode"
 	"github.com/cry999/atcoder-daily-training/internal/solvestat"
 )
 
 // :record edit のロードフックは既存記録を Stat として返す (要件 066)。
 func TestChatRecordEditLoad(t *testing.T) {
 	chatRecordEnv(t)
-	rec := chatRecordFunc(chatRecContest, chatRecTask, layout.ABC{})
+	rec := chatRecordFunc(chatRecContest, chatRecTask, mode.Contest{})
 	if _, err := rec([]string{"start"}); err != nil {
 		t.Fatal(err)
 	}
@@ -19,7 +19,7 @@ func TestChatRecordEditLoad(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	load := chatRecordEditLoadFunc(chatRecContest, chatRecTask, layout.ABC{})
+	load := chatRecordEditLoadFunc(chatRecContest, chatRecTask, mode.Contest{})
 	st, _, found, err := load()
 	if err != nil || !found {
 		t.Fatalf("load: found=%v err=%v", found, err)
@@ -35,7 +35,7 @@ func TestChatRecordEditLoad(t *testing.T) {
 // 記録が無ければ found=false (フォームは開かず案内する)。
 func TestChatRecordEditLoad_Missing(t *testing.T) {
 	chatRecordEnv(t)
-	load := chatRecordEditLoadFunc(chatRecContest, chatRecTask, layout.ABC{})
+	load := chatRecordEditLoadFunc(chatRecContest, chatRecTask, mode.Contest{})
 	_, _, found, err := load()
 	if err != nil {
 		t.Fatalf("err=%v", err)
@@ -48,7 +48,7 @@ func TestChatRecordEditLoad_Missing(t *testing.T) {
 // セーブフックは編集後 Stat を全置換保存し、クリアしたキーを落とす。
 func TestChatRecordEditSave(t *testing.T) {
 	chatRecordEnv(t)
-	rec := chatRecordFunc(chatRecContest, chatRecTask, layout.ABC{})
+	rec := chatRecordFunc(chatRecContest, chatRecTask, mode.Contest{})
 	if _, err := rec([]string{"start"}); err != nil {
 		t.Fatal(err)
 	}
@@ -56,14 +56,14 @@ func TestChatRecordEditSave(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	load := chatRecordEditLoadFunc(chatRecContest, chatRecTask, layout.ABC{})
+	load := chatRecordEditLoadFunc(chatRecContest, chatRecTask, mode.Contest{})
 	st, _, _, _ := load()
 	// ac を未記録へ、editorial を true へ、knowledge を 0 へ。
 	st.AC = nil
 	st.Editorial = solvestat.BoolPtr(true)
 	st.Score.Knowledge = 0
 
-	save := chatRecordEditSaveFunc(chatRecContest, chatRecTask, layout.ABC{})
+	save := chatRecordEditSaveFunc(chatRecContest, chatRecTask, mode.Contest{})
 	lines, err := save(st)
 	if err != nil {
 		t.Fatal(err)
@@ -94,7 +94,7 @@ func TestChatRecordEditSave(t *testing.T) {
 // CLI record edit: 記録が無ければ exit 1 で案内する。
 func TestRecordEdit_NoRecord(t *testing.T) {
 	chatRecordEnv(t)
-	code, err := recordEdit([]string{chatRecContest, "--task", "d", "--layout", "abc"})
+	code, err := recordEdit([]string{chatRecContest, "--task", "d", "--mode", "contest"})
 	if code != 1 || err == nil {
 		t.Fatalf("code=%d err=%v", code, err)
 	}
@@ -106,11 +106,11 @@ func TestRecordEdit_NoRecord(t *testing.T) {
 // CLI record edit: 記録はあるが非対話端末なのでフラグ経路を案内する (テストは非 TTY)。
 func TestRecordEdit_NonInteractive(t *testing.T) {
 	chatRecordEnv(t)
-	rec := chatRecordFunc(chatRecContest, chatRecTask, layout.ABC{})
+	rec := chatRecordFunc(chatRecContest, chatRecTask, mode.Contest{})
 	if _, err := rec([]string{"start"}); err != nil {
 		t.Fatal(err)
 	}
-	code, err := recordEdit([]string{chatRecContest, "--task", "d", "--layout", "abc"})
+	code, err := recordEdit([]string{chatRecContest, "--task", "d", "--mode", "contest"})
 	if code != 1 || err == nil {
 		t.Fatalf("code=%d err=%v", code, err)
 	}

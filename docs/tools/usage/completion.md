@@ -46,22 +46,22 @@ atcoder completion fish > ~/.config/fish/completions/atcoder.fish
 | 位置 | 補完内容 | ソース |
 |---|---|---|
 | サブコマンド | `new test stats review config commit completion update version` | 静的 |
-| フラグ (`-` 始まり) | そのサブコマンドのフラグ (`--task`, `--layout`, `--watch` …) | 静的 (実フラグと手動同期) |
+| フラグ (`-` 始まり) | そのサブコマンドのフラグ (`--task`, `--mode`, `--watch` …) | 静的 (実フラグと手動同期) |
 | `<contest>` | `abc457` 等の contest_id | 手元の `abc/`・`arc/`・`awc/` ディレクトリ + fetch 済みキャッシュ |
 | `--task <値>` | letter (`a`〜`g` 等) | 既存解答ファイル + `contest.toml` の tasks。無ければ既定の `a`〜`g` |
-| `--layout <値>` | `auto abc exercise` | 静的 |
+| `--mode <値>` | `contest exercise` | 静的 |
 
 ```sh
 $ atcoder te<Tab>                 # → test
 $ atcoder test ab<Tab>            # → abc453 abc457 abc461 …
 $ atcoder test abc457 --ta<Tab>   # → --task
 $ atcoder test abc457 --task <Tab># → a b c d e f g
-$ atcoder new <Tab>               # → abc
+$ atcoder new <Tab>               # → abc457 abc461 arc212 …
 ```
 
 ### 候補の説明 (zsh / fish)
 
-サブコマンド・フラグ・`--layout` の値・シェル・`config` の sub-subcommand といった**静的候補には一言説明が付く**。fzf-tab を入れた zsh や fish では、候補の隣に説明が並ぶ。
+サブコマンド・フラグ・`--mode` の値・シェル・`config` の sub-subcommand といった**静的候補には一言説明が付く**。fzf-tab を入れた zsh や fish では、候補の隣に説明が並ぶ。
 
 ```
 $ atcoder <Tab>          # zsh + fzf-tab

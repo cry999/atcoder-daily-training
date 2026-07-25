@@ -16,7 +16,7 @@ import "strings"
 // cmd/atcoder/*.go の flag 定義 (flags.String/Int/Float64/Duration 等) と一致させること。
 // bool フラグ (--refresh, -s, --watch 等) は値を取らないので含めない。
 var valueFlags = map[string]bool{
-	"--task": true, "--tasks": true, "--layout": true, "--timeout": true,
+	"--task": true, "--tasks": true, "--mode": true, "--timeout": true,
 	"--case": true, "-c": true, "--in": true, "-i": true,
 	"--out": true, "-o": true, "--jobs": true, "-j": true,
 	"--tolerance": true, "--last": true, "-l": true,

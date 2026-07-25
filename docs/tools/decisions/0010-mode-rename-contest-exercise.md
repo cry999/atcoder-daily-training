@@ -3,7 +3,7 @@
 - ステータス: Accepted
 - 日付: 2026-07-06
 - 実装: 設計のみ ([requirements/070-contest-exercise-mode.md](../requirements/070-contest-exercise-mode.md))
-- Supersedes: [ADR (相当) の 002](../requirements/002-exercise-abc-layout.md) / [017](../requirements/017-config-layout-default.md) のレイアウト概念
+- Supersedes: [ADR (相当) の 002](../requirements/002-exercise-abc-mode.md) / [017](../requirements/017-config-layout-default.md) のレイアウト概念
 - 関連: [ADR 0002 追補](0002-stats-readonly-exercise-tree.md) (stats 母体の拡張) / [ADR 0003](0003-user-config-xdg-toml.md) (config)
 
 ## コンテキスト
@@ -11,7 +11,7 @@
 解答ファイルの配置は `--layout {auto,abc,exercise}` (要件 002/017) で選んでいた。運用してみると:
 
 - 値 `abc` が「ABC のディレクトリ配置」という**特定 prefix と癒着**しており、配置規約なのか
-  コンテスト種別なのか曖昧。実装 (`internal/layout` の `ABC`) は `abc<NNN>` 以外を弾くので、
+  コンテスト種別なのか曖昧。実装 (`internal/mode` の `ABC`) は `abc<NNN>` 以外を弾くので、
   同形の `arc/<num>/<letter>.py` すら contest 配置に載せられなかった。
 - `auto` は contest ID の prefix でレイアウトを推測するが、練習も本番も**同じ contest ID** を
   入力にするため prefix はモードの手掛かりにならない (同じ `abc457` が両配置の正当な入力)。

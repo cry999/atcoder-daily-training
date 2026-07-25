@@ -8,7 +8,7 @@ import (
 
 	"github.com/cry999/atcoder-daily-training/internal/cachepath"
 	"github.com/cry999/atcoder-daily-training/internal/chatlog"
-	"github.com/cry999/atcoder-daily-training/internal/layout"
+	"github.com/cry999/atcoder-daily-training/internal/mode"
 	"github.com/cry999/atcoder-daily-training/internal/runexec"
 	"github.com/cry999/atcoder-daily-training/internal/runner"
 	"github.com/cry999/atcoder-daily-training/internal/testexec"
@@ -22,8 +22,8 @@ import (
 // 旧 `atcoder run` サブコマンドの中身を移設したもの。対話モードは親 stdin に直結し
 // 出力もキャプチャしないため、judge (--out) ともファイル入力 (--in <path>) とも
 // 併用できない (引数エラー = exit 2)。
-func runAdHoc(contest, task string, lay layout.Layout, inFile, outFile string,
-	interactive, autoRestart, verbose, pp bool, timeout time.Duration, tolerance float64, editorOverride, nvimRemote string) (int, error) {
+func runAdHoc(contest, task string, lay mode.Mode, inFile, outFile string,
+	interactive, autoRestart, debug, verbose, pp bool, timeout time.Duration, tolerance float64, editorOverride, nvimRemote string) (int, error) {
 	if interactive {
 		if outFile != "" {
 			return 2, errors.New("--interactive cannot be combined with --out (judging needs batch-captured output)")
@@ -36,7 +36,7 @@ func runAdHoc(contest, task string, lay layout.Layout, inFile, outFile string,
 	return runexec.Run(runexec.Options{
 		Contest:     contest,
 		Task:        task,
-		Layout:      lay,
+		Mode:        lay,
 		InFile:      inFile,
 		OutFile:     outFile,
 		Interactive: interactive,
@@ -54,7 +54,7 @@ func runAdHoc(contest, task string, lay layout.Layout, inFile, outFile string,
 // makeChatRunner は ChatRunner クロージャを作る。chat に Ctrl+S の提出準備フックや
 // ケース保存先 (tests-extra) を注入するため、contest/task/lay/tolerance を捕捉する
 // (これらは runexec.ChatHeader には乗らない)。
-func makeChatRunner(contest, task string, lay layout.Layout, tolerance float64, editorOverride, nvimRemote string) func(runexec.ChatSpawner, runexec.ChatHeader) (*runner.ProcessResult, error) {
+func makeChatRunner(contest, task string, lay mode.Mode, tolerance float64, editorOverride, nvimRemote string) func(runexec.ChatSpawner, runexec.ChatHeader) (*runner.ProcessResult, error) {
 	return func(spawn runexec.ChatSpawner, header runexec.ChatHeader) (*runner.ProcessResult, error) {
 		// :replay (要件 039): 同じ問題の前回入力を先読みし、今回の入力を session ごとに記録する。
 		sid := chatlog.NewSessionID()
@@ -88,7 +88,7 @@ func makeChatRunner(contest, task string, lay layout.Layout, tolerance float64, 
 
 // chatSubmitFunc は chat の Ctrl+S で呼ばれる提出準備フック。submitPrepCore (印字なし) を
 // 呼んで結果文を組む。chat は常にブラウザを開く (noOpen=false)。
-func chatSubmitFunc(contest, task string, lay layout.Layout) ui.SubmitFunc {
+func chatSubmitFunc(contest, task string, lay mode.Mode) ui.SubmitFunc {
 	return func() ui.SubmitResult {
 		// chat は常に [DEBUG] 出力行をコメントアウトしてコピーする (keepDebug=false)。
 		src, err := buildSubmitSource(contest, task, lay, false)
@@ -117,7 +117,7 @@ func chatSubmitFunc(contest, task string, lay layout.Layout) ui.SubmitFunc {
 // 書き出し、それをサンプル判定の実行対象にして SummaryReporter (stdout 非汚染) で 1 度実行し、
 // 提出ゲート (全通過・実行可否・DEBUG 検出) を評価して SubmitCheck を返す。TUI を汚さないよう
 // 表示はせず、結果だけ返す (chat 側が行に整形する)。
-func chatSubmitCheckFunc(contest, task string, lay layout.Layout, tolerance float64) ui.SubmitCheckFunc {
+func chatSubmitCheckFunc(contest, task string, lay mode.Mode, tolerance float64) ui.SubmitCheckFunc {
 	return func() ui.SubmitCheck {
 		// 提出される中身 (コメントアウト後ソース) を構築し、それを実行対象にして判定する。
 		src, err := buildSubmitSource(contest, task, lay, false)
@@ -134,7 +134,7 @@ func chatSubmitCheckFunc(contest, task string, lay layout.Layout, tolerance floa
 		code, runErr := testexec.Run(testexec.Options{
 			Contest:              contest,
 			Task:                 task,
-			Layout:               lay,
+			Mode:                 lay,
 			Tolerance:            tolerance,
 			Debug:                true,
 			ExecutorFor:          selectExecutor,

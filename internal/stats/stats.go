@@ -1,10 +1,10 @@
-// Package stats は日々の練習ツリー (exercise/YYYY/MM/DD/*.py) を集計して、
+// Package stats は日々の練習ツリー (exercise/YYYY/MM/DD/*.py) と、
+// solve-stat を持つ contest ツリー (<prefix>/<num>/<letter>.py) を集計して、
 // 解答数・アクティブ日数・ストリーク・カテゴリ別内訳・時系列を求める。
 //
 // I/O (Scan) と集計ロジック (Compute) を分離し、Compute は純粋関数にして
 // ある。Now を注入できるので「今週/今月/今年」の暦窓も「今日から N 単位分」の
-// ローリング窓も決定的にテストできる (internal/layout の Detect / Letter と
-// 同じ流儀)。
+// ローリング窓も決定的にテストできる。
 //
 // 要件詳細: docs/tools/requirements/005-exercise-stats.md (基本),
 // docs/tools/requirements/010-stats-rolling-window.md (ローリング期間)。
@@ -264,6 +264,87 @@ func Scan(root string) ([]Solve, error) {
 		solves = append(solves, s)
 	}
 	return solves, nil
+}
+
+// ScanAll は repoRoot 配下の exercise ツリーと contest ツリーを列挙して Solve にする。
+// exercise ツリーは従来どおりファイル存在で数え、contest ツリーは solve-stat 保有
+// ファイルだけを数える。contest ツリーの日付は solved_at、無ければ started_at を使う。
+func ScanAll(repoRoot string) ([]Solve, error) {
+	ex, err := Scan(filepath.Join(repoRoot, "exercise"))
+	if err != nil {
+		return nil, err
+	}
+	cs, err := scanContestTrees(repoRoot)
+	if err != nil {
+		return nil, err
+	}
+	return append(ex, cs...), nil
+}
+
+func scanContestTrees(root string) ([]Solve, error) {
+	matches, err := filepath.Glob(filepath.Join(root, "*", "*", "*.py"))
+	if err != nil {
+		return nil, err
+	}
+	var solves []Solve
+	for _, m := range matches {
+		rel, err := filepath.Rel(root, m)
+		if err != nil {
+			continue
+		}
+		parts := strings.Split(rel, string(filepath.Separator))
+		if len(parts) != 3 || !allAlpha(parts[0]) || !allDigits(parts[1]) {
+			continue
+		}
+		st, found, serr := solvestat.ReadFile(m)
+		if serr != nil || !found {
+			continue
+		}
+		date := st.SolvedAt
+		if date.IsZero() {
+			date = st.StartedAt
+		}
+		if date.IsZero() {
+			continue
+		}
+		prefix := strings.ToLower(parts[0])
+		num := parts[1]
+		letter := strings.ToLower(strings.TrimSuffix(parts[2], filepath.Ext(parts[2])))
+		solves = append(solves, Solve{
+			Date:     dayOf(date),
+			File:     prefix + num + "_" + letter + ".py",
+			Category: prefix,
+			Contest:  prefix + num,
+			Letter:   letter,
+			HasStat:  true,
+			Stat:     st,
+		})
+	}
+	return solves, nil
+}
+
+func allAlpha(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		if (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') {
+			return false
+		}
+	}
+	return true
+}
+
+func allDigits(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 // parseDate は YYYY/MM/DD の各文字列を検証してローカル 0 時の time に変換する。

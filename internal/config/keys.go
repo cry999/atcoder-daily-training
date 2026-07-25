@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/cry999/atcoder-daily-training/internal/layout"
+	"github.com/cry999/atcoder-daily-training/internal/mode"
 	"github.com/cry999/atcoder-daily-training/internal/reviewrule"
 )
 
@@ -89,24 +89,24 @@ type field struct {
 // fields は既知設定キーの登録簿 (単一情報源)。
 var fields = []field{
 	{
-		// layout は test/run/submit 横断の既定レイアウト (トップレベルキー)。
-		// 解決順 flag > env > config > auto は layout.Resolve に集約され、ここでは
-		// config 層の値だけを読み書きする。未設定 ("") の repr は auto を返す。
-		key:   "layout",
+		// mode は test/start/record 横断の既定配置 (トップレベルキー)。
+		// 解決順 flag > env > config > exercise は mode.Resolve に集約され、ここでは
+		// config 層の値だけを読み書きする。未設定 ("") の repr は exercise を返す。
+		key:   "mode",
 		kind:  "enum",
-		cands: layout.Names(),
+		cands: mode.Names(),
 		repr: func(c *Config) string {
-			if c.Layout == "" {
-				return "auto"
+			if c.Mode == "" {
+				return "exercise"
 			}
-			return c.Layout
+			return c.Mode
 		},
 		set: func(m map[string]any, raw string) error {
 			v := strings.TrimSpace(raw)
-			if !layout.Known(v) {
-				return fmt.Errorf("%w: %q (layout は %s)", ErrInvalidValue, raw, strings.Join(layout.Names(), "/"))
+			if !mode.Known(v) {
+				return fmt.Errorf("%w: %q (mode は %s)", ErrInvalidValue, raw, strings.Join(mode.Names(), "/"))
 			}
-			setNested(m, []string{"layout"}, v)
+			setNested(m, []string{"mode"}, v)
 			return nil
 		},
 	},

@@ -20,7 +20,7 @@ func TestBuildTargetWiresSubmitCheck(t *testing.T) {
 		t.Fatalf("chdir: %v", err)
 	}
 
-	c := &startConfig{layoutFlag: "abc"}
+	c := &startConfig{modeFlag: "contest"}
 	target, _, code, err := c.buildTarget("abc999", "abc999_a", false)
 	if err != nil {
 		t.Fatalf("buildTarget: code=%d err=%v", code, err)
