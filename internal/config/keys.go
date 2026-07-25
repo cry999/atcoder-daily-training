@@ -13,6 +13,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/cry999/atcoder-daily-training/internal/layout"
+	"github.com/cry999/atcoder-daily-training/internal/reviewrule"
 )
 
 // aliasPrefix は config 上の alias キーの接頭辞 (例 "alias.upd-lo")。
@@ -158,6 +159,43 @@ var fields = []field{
 				return fmt.Errorf("%w: %q (test.side_by_side は true/false)", ErrInvalidValue, raw)
 			}
 			setNested(m, []string{"test", "side_by_side"}, b)
+			return nil
+		},
+	},
+	{
+		key:   "review.missed.mode",
+		kind:  "enum",
+		cands: []string{string(reviewrule.ModeAny), string(reviewrule.ModeAll)},
+		repr: func(c *Config) string {
+			if c.Review.Missed.Mode == "" {
+				return string(reviewrule.ModeAny)
+			}
+			return c.Review.Missed.Mode
+		},
+		set: func(m map[string]any, raw string) error {
+			v := strings.TrimSpace(raw)
+			if _, err := reviewrule.Parse(v, reviewrule.DefaultConditions); err != nil {
+				return fmt.Errorf("%w: %q (review.missed.mode は any/all)", ErrInvalidValue, raw)
+			}
+			setNested(m, []string{"review", "missed", "mode"}, v)
+			return nil
+		},
+	},
+	{
+		key:  "review.missed.conditions",
+		kind: "string",
+		repr: func(c *Config) string {
+			if len(c.Review.Missed.Conditions) == 0 {
+				return reviewrule.FormatList(reviewrule.DefaultConditions)
+			}
+			return reviewrule.FormatList(c.Review.Missed.Conditions)
+		},
+		set: func(m map[string]any, raw string) error {
+			conds := reviewrule.ParseList(raw)
+			if _, err := reviewrule.Parse(string(reviewrule.ModeAny), conds); err != nil {
+				return fmt.Errorf("%w: %q (%v)", ErrInvalidValue, raw, err)
+			}
+			setNested(m, []string{"review", "missed", "conditions"}, conds)
 			return nil
 		},
 	},

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cry999/atcoder-daily-training/internal/reviewrule"
 	"github.com/cry999/atcoder-daily-training/internal/solvestat"
 	"github.com/cry999/atcoder-daily-training/internal/stats"
 )
@@ -40,6 +41,25 @@ func TestBuildMissedIncludesACFalseAndEditorialTrue(t *testing.T) {
 	want := []string{"abc100_d", "abc101_d"}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("missed ids = %v, want %v", got, want)
+	}
+}
+
+func TestBuildMissedWithRuleUsesConfiguredConditions(t *testing.T) {
+	target := d(2026, 7, 22)
+	truep := solvestat.BoolPtr(true)
+	selfAC := missedSolve(target, "abc102_d.py", truep, solvestat.BoolPtr(false))
+	selfAC.Stat.Score.Impl = 1
+	highImpl := missedSolve(target, "abc103_d.py", truep, solvestat.BoolPtr(false))
+	highImpl.Stat.Score.Impl = 3
+	rule, err := reviewrule.Parse("any", []string{"score.impl<=1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rep := BuildMissedWithRule([]stats.Solve{selfAC, highImpl}, target, rule)
+	got := ids(rep.Items)
+	want := []string{"abc102_d"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("configured missed ids = %v, want %v", got, want)
 	}
 }
 

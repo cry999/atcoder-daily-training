@@ -159,7 +159,7 @@ func usage() {
   atcoder record stop  <contest> --task <task> [--ac|--no-ac] [--time <dur>]   # 計測終端
   atcoder record edit  <contest> --task <task>   # 既存記録を全画面フォームで訂正 (対話端末が必要)
   atcoder config <show | get <key> | set <key> <value> | unset <key> | path>
-                 # 目標実装時間: set target.<category>.<letter> <dur> (例 target.abc.d 35m)
+                 # 目標実装時間: set target.<category>.<letter> <dur> / 復習条件: set review.missed.conditions <conds>
   atcoder completion <bash|zsh|fish>
   atcoder commit
   atcoder login  [--session-cookie <value>] [--status [--check]]   # ブラウザの REVEL_SESSION cookie を取り込み認証

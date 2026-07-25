@@ -2,9 +2,9 @@
 
 `exercise/` で練習したコンテストを **カテゴリ単位で一覧**する。`atcoder review abc` で、これまで取り組んだ ABC を **contest × letter のテーブル**に並べ、各回を最後に解いた日付を添える。`stats` が集計値 (総数・ストリーク・草) を出すのに対し、`review` は個々のコンテストの**列挙**を担う。
 
-`atcoder review missed` では、前日に解けなかった問題 (`ac=false`) と解説を見た問題 (`editorial=true`) を復習キューとして一覧し、`--check` で復習済みを記録できる。
+`atcoder review missed` では、前日に解けなかった問題 (`ac=false`) と解説を見た問題 (`editorial=true`) を復習キューとして一覧し、`--check` で復習済みを記録できる。復習対象の条件は config で変更できる。
 
-> 要件詳細: `docs/tools/requirements/014-exercise-review.md` / `docs/tools/requirements/074-review-missed-practice.md`
+> 要件詳細: `docs/tools/requirements/014-exercise-review.md` / `docs/tools/requirements/074-review-missed-practice.md` / `docs/tools/requirements/075-review-missed-config.md`
 
 ## コマンド
 
@@ -26,7 +26,7 @@ atcoder review missed [--date YYYY-MM-DD] [--check <id>]
 
 ## 前日の未達問題を復習する (`review missed`)
 
-`review missed` は `exercise/<YYYY>/<MM>/<DD>/*.py` の 1 日ぶんを見て、solve-stat に次のどちらかが記録された問題を一覧する:
+`review missed` は `exercise/<YYYY>/<MM>/<DD>/*.py` の 1 日ぶんを見て、solve-stat に復習対象条件が記録された問題を一覧する。既定条件は次のどちらか:
 
 | 条件 | 意味 |
 |---|---|
@@ -53,6 +53,14 @@ reviewed abc357_d (exercise/2026/07/22/abc357_d.py)
 ```
 
 `--check` なしの `review missed` と既存の `review <category>` は読み取り専用。`--check` だけが対象解答ファイルの solve-stat を部分更新する。
+
+復習対象条件は config で変えられる。たとえば「AC 済みでも実装スコアが 1 以下なら復習する」を足す:
+
+```
+$ atcoder config set review.missed.conditions "ac=false,editorial=true,score.impl<=1"
+```
+
+`review.missed.mode` は `any` (OR) / `all` (AND) を指定でき、既定は `any`。条件文法は [`config.md`](config.md) の「`review missed` の復習条件」を参照。
 
 ## 集計対象
 
@@ -123,7 +131,7 @@ exercise abc review — this month (2026-06)
 |---|---|
 | `0` | 一覧表示成功 (0 件でも成功扱い) |
 | `1` | `exercise/` または `<category>/` ツリーの読み取り I/O エラー、`review missed --check` の対象不一致 / solve-stat 書き込み失敗 |
-| `2` | 引数誤り (`<category>` 省略、未知フラグ、期間フラグの重複指定、不正な `--last` / `--date` 値) |
+| `2` | 引数誤り (`<category>` 省略、未知フラグ、期間フラグの重複指定、不正な `--last` / `--date` 値)、`review.missed.*` config の不正値 |
 
 ## 注意
 
@@ -136,4 +144,6 @@ exercise abc review — this month (2026-06)
 - `docs/tools/usage/stats.md` (`stats` 集計コマンド・データ層と期間フラグの定義元)
 - `docs/tools/requirements/014-exercise-review.md` (カテゴリ一覧の要件定義)
 - `docs/tools/requirements/074-review-missed-practice.md` (復習キューの要件定義)
+- `docs/tools/requirements/075-review-missed-config.md` (復習条件 config の要件定義)
 - `docs/tools/usage/record.md` (`ac` / `editorial` / solve-stat の記録)
+- `docs/tools/usage/config.md` (`review.missed.conditions` / `review.missed.mode`)

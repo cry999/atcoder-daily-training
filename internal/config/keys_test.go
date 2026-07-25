@@ -111,6 +111,76 @@ func TestValueCandidates(t *testing.T) {
 	}
 }
 
+func TestReviewMissedDefaults(t *testing.T) {
+	writeConfig(t, "")
+	mode, err := Get("review.missed.mode")
+	if err != nil {
+		t.Fatalf("Get review.missed.mode failed: %v", err)
+	}
+	if mode != "any" {
+		t.Fatalf("review.missed.mode default = %q, want any", mode)
+	}
+	conds, err := Get("review.missed.conditions")
+	if err != nil {
+		t.Fatalf("Get review.missed.conditions failed: %v", err)
+	}
+	if conds != "ac=false,editorial=true" {
+		t.Fatalf("review.missed.conditions default = %q", conds)
+	}
+}
+
+func TestReviewMissedSetThenGet(t *testing.T) {
+	writeConfig(t, "")
+	if err := Set("review.missed.mode", "all"); err != nil {
+		t.Fatalf("Set review.missed.mode failed: %v", err)
+	}
+	if err := Set("review.missed.conditions", "ac=false, score.impl<=1"); err != nil {
+		t.Fatalf("Set review.missed.conditions failed: %v", err)
+	}
+	mode, _ := Get("review.missed.mode")
+	conds, _ := Get("review.missed.conditions")
+	if mode != "all" {
+		t.Fatalf("mode = %q, want all", mode)
+	}
+	if conds != "ac=false,score.impl<=1" {
+		t.Fatalf("conditions = %q, want ac=false,score.impl<=1", conds)
+	}
+	raw, err := os.ReadFile(Path())
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(raw)
+	if !strings.Contains(s, "[review.missed]") || !strings.Contains(s, "conditions = [") {
+		t.Fatalf("review.missed should be written as a TOML table/list, got:\n%s", s)
+	}
+}
+
+func TestReviewMissedInvalidValues(t *testing.T) {
+	writeConfig(t, "")
+	if err := Set("review.missed.mode", "some"); !errors.Is(err, ErrInvalidValue) {
+		t.Fatalf("Set invalid mode err = %v, want ErrInvalidValue", err)
+	}
+	if err := Set("review.missed.conditions", "score.bad<=1"); !errors.Is(err, ErrInvalidValue) {
+		t.Fatalf("Set invalid condition err = %v, want ErrInvalidValue", err)
+	}
+}
+
+func TestReviewMissedValueCandidates(t *testing.T) {
+	got := ValueCandidates("review.missed.mode")
+	want := []string{"all", "any"}
+	if len(got) != len(want) {
+		t.Fatalf("ValueCandidates(review.missed.mode) = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("ValueCandidates(review.missed.mode) = %v, want %v", got, want)
+		}
+	}
+	if ValueCandidates("review.missed.conditions") != nil {
+		t.Fatal("review.missed.conditions should not have finite value candidates")
+	}
+}
+
 // layout キーは set → get で round-trip し、config.toml に書かれる。
 func TestLayoutSetThenGet(t *testing.T) {
 	writeConfig(t, "")

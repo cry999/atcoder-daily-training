@@ -2,7 +2,7 @@
 
 `atcoder` のユーザ設定ファイル `config.toml` を CLI から閲覧・編集する。サブコマンド既定値 (例 `layout` / `test.side_by_side`) と、**git 風のコマンド alias** (`[alias]`) を管理する。設定は XDG Base Directory に従い `$XDG_CONFIG_HOME/atcoder-daily-training/config.toml` (未設定なら `~/.config/...`) に置かれる。手で開いて編集してもよいが、`atcoder config set` を使えば既知キーの型チェックと、未知キー・他セクションの保全が効く。
 
-> 要件詳細: `docs/tools/requirements/007-atcoder-config.md` (設定ファイルの基盤) / `docs/tools/requirements/009-atcoder-config-subcommand.md` (サブコマンド) / `docs/tools/requirements/017-config-layout-default.md` (`layout` キー) / `docs/tools/requirements/016-config-alias.md` (alias)
+> 要件詳細: `docs/tools/requirements/007-atcoder-config.md` (設定ファイルの基盤) / `docs/tools/requirements/009-atcoder-config-subcommand.md` (サブコマンド) / `docs/tools/requirements/017-config-layout-default.md` (`layout` キー) / `docs/tools/requirements/016-config-alias.md` (alias) / `docs/tools/requirements/075-review-missed-config.md` (`review missed` 条件)
 
 ## コマンド
 
@@ -32,6 +32,8 @@ exit code: 引数誤り / 未知キー / 型・値の不一致 / 不正な alias
 | `editor` | string | `(unset)` | `atcoder start` / `test --interactive` の `Ctrl+E` で**nvim 外**のとき使うエディタコマンド (空白区切りで argv 展開、例 `nvim -p` / `code -w`)。未設定は `$EDITOR` → `nvim`。nvim の `:terminal` 内 (`$NVIM` 在り) は親 nvim へ送るのでこのキーは効かない ([要件 038](../requirements/038-start-edit-in-editor.md)) |
 | `editor_nvim_remote` | enum (`current` / `tab`) | `current` | nvim の `:terminal` 内 (`$NVIM` 在り) で `Ctrl+E` したときの remote ターゲット。`current`=現在のウィンドウで開く (`--remote`、タブを再利用)、`tab`=新規タブ (`--remote-tab`、問題ごとにタブが増える)。nvim 外には効かない ([要件 041](../requirements/041-edit-nvim-remote-reuse.md)) |
 | `test.side_by_side` | bool | `false` | `atcoder test` の FAIL 時 diff を左右 2 カラムで表示する既定値 (`-s` 相当) |
+| `review.missed.mode` | enum (`any` / `all`) | `any` | `review missed` の復習条件を OR (`any`) / AND (`all`) のどちらで評価するか |
+| `review.missed.conditions` | condition list | `ac=false,editorial=true` | `review missed` の復習対象条件。`config set` ではカンマ区切り、TOML では配列で保存 |
 
 ```toml
 # $XDG_CONFIG_HOME/atcoder-daily-training/config.toml
@@ -39,6 +41,10 @@ layout = "abc"
 
 [test]
 side_by_side = true
+
+[review.missed]
+mode = "any"
+conditions = ["ac=false", "editorial=true", "score.impl<=1"]
 
 [alias]
 upd-lo = "update --local"
@@ -101,6 +107,30 @@ format = "[](fg:peach)[ $symbol](fg:mantle bg:peach)[](fg:peach bg:surface
 
 > `atcoder` が PATH に無いと custom module は何も出さない (command 失敗で自動的に隠れる)。
 
+## `review missed` の復習条件
+
+`atcoder review missed` は既定で `ac=false OR editorial=true` を復習対象にする。ここに「実装スコアが低い」「目標時間を超えた」などを足したい場合は、`review.missed.conditions` を設定する。
+
+```
+$ atcoder config set review.missed.conditions "ac=false,editorial=true,score.impl<=1,duration>target"
+set review.missed.conditions = ac=false,editorial=true,score.impl<=1,duration>target  (...)
+
+$ atcoder config set review.missed.mode all
+set review.missed.mode = all  (...)
+```
+
+条件文法:
+
+| 形式 | 例 |
+|---|---|
+| `ac=<bool>` / `ac!=<bool>` | `ac=false` |
+| `editorial=<bool>` / `editorial!=<bool>` | `editorial=true` |
+| `score.<axis><op><n>` | `score.impl<=1` |
+| `duration<op><duration>` | `duration>=30m` |
+| `duration<op>target` | `duration>target` |
+
+`<axis>` は `knowledge` / `translation` / `complexity` / `impl` / `verify`。`<op>` は `=`, `!=`, `<`, `<=`, `>`, `>=`。未記録の値は条件に一致しない。
+
 ## alias (git 風コマンド別名)
 
 よく打つ長いコマンドに短い名前を付けられる。`config.toml` の `[alias]` セクションに `名前 = "コマンド列"` を置くと、`atcoder <名前> [追加引数]` がそのコマンド列に展開されて実行される (git の `[alias]` と同じ)。
@@ -135,7 +165,7 @@ unset alias.upd-lo  (...)
 
 ## 補完
 
-`atcoder config <TAB>` は sub-subcommand (`show`/`get`/`set`/`unset`/`path`) を、`config get|set|unset <TAB>` は既知キー + 既存 `alias.<name>` を、`config set <key> <TAB>` は値候補 (`layout` なら `abc auto exercise`、bool キーなら `true false`) を補完する。`atcoder <TAB>` のサブコマンド位置には組み込みに加え `[alias]` の名前も出る (説明は展開先)。詳細は [`docs/tools/usage/completion.md`](completion.md)。
+`atcoder config <TAB>` は sub-subcommand (`show`/`get`/`set`/`unset`/`path`) を、`config get|set|unset <TAB>` は既知キー + 既存 `alias.<name>` を、`config set <key> <TAB>` は値候補 (`layout` なら `abc auto exercise`、bool キーなら `true false`、`review.missed.mode` なら `all any`) を補完する。`atcoder <TAB>` のサブコマンド位置には組み込みに加え `[alias]` の名前も出る (説明は展開先)。詳細は [`docs/tools/usage/completion.md`](completion.md)。
 
 ## 注意
 
@@ -148,3 +178,4 @@ unset alias.upd-lo  (...)
 - サブコマンドのキーレジストリ: 要件 009
 - 既定レイアウト: 要件 017 / [`docs/tools/usage/test.md`](test.md)
 - alias: 要件 016 / [`docs/tools/usage/completion.md`](completion.md)
+- review missed 条件: 要件 075 / [`docs/tools/usage/review.md`](review.md)

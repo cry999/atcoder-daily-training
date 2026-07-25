@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"github.com/cry999/atcoder-daily-training/internal/cliargs"
+	"github.com/cry999/atcoder-daily-training/internal/config"
 	"github.com/cry999/atcoder-daily-training/internal/review"
+	"github.com/cry999/atcoder-daily-training/internal/reviewrule"
 	"github.com/cry999/atcoder-daily-training/internal/solvestat"
 	"github.com/cry999/atcoder-daily-training/internal/stats"
 	"golang.org/x/term"
@@ -107,11 +109,20 @@ func cmdReviewMissed(flagArgs []string) (int, error) {
 		target = d
 	}
 
+	cfg, err := config.Load()
+	if err != nil {
+		return 2, err
+	}
+	rule, err := reviewrule.Parse(cfg.Review.Missed.Mode, cfg.Review.Missed.Conditions)
+	if err != nil {
+		return 2, err
+	}
+
 	solves, err := stats.Scan("exercise")
 	if err != nil {
 		return 1, err
 	}
-	rep := review.BuildMissed(solves, target)
+	rep := review.BuildMissedWithRule(solves, target, rule)
 	if strings.TrimSpace(check) != "" {
 		item, err := rep.FindMissed(check)
 		if err != nil {

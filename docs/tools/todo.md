@@ -24,11 +24,12 @@ ABC 本番対応に限定されない、`atcoder` ツール全般の改善 TODO�
 
 ## BC. 前日の未達問題を復習キューとして一覧・チェック ✅ DONE
 
-> 要件詳細は [`requirements/074-review-missed-practice.md`](requirements/074-review-missed-practice.md)。利用手引は [`usage/review.md`](usage/review.md) の「前日の未達問題を復習する (`review missed`)」節。
+> 要件詳細は [`requirements/074-review-missed-practice.md`](requirements/074-review-missed-practice.md) / 条件 config 化 [`requirements/075-review-missed-config.md`](requirements/075-review-missed-config.md)。利用手引は [`usage/review.md`](usage/review.md) の「前日の未達問題を復習する (`review missed`)」節。
 
 - `atcoder review missed [--date YYYY-MM-DD]` で、対象日の `exercise/` 解答のうち `ac=false` または `editorial=true` の solve-stat を持つ問題を一覧する。
 - `--check <id>` で復習済みを記録し、solve-stat に `reviewed_at` を保存する。`id` は `abc357_d` または `abc357/d` を受ける。
 - 一覧では `[ ]` / `[x]` と件数フッタで、未復習・復習済みを見分けられる。
+- `review.missed.mode` / `review.missed.conditions` config により、`score.impl<=1` や `duration>target` などの固定述語で復習対象条件を変更できる。
 
 ## BA. start 画面の AOJ v2.0 風レイアウト刷新 (判定一覧 + ケース詳細の横 2 カラム) — 優先度: 中
 

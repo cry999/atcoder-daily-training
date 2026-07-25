@@ -487,6 +487,7 @@ cat > "$MISSED_DIR/abc802_f.py" <<'PY'
 # >>> atcoder-stat >>>
 # ac          = true
 # editorial   = false
+# impl        = 1
 # <<< atcoder-stat <<<
 print(1)
 PY
@@ -500,6 +501,11 @@ check_output "review missed shows checked item"      0 has "\\[x\\] abc800_d" --
 run_case "review missed --date invalid (reject)"     2 review missed --date 2026/07/22
 run_case "review missed --check missing (exit 1)"    1 review missed --date 2026-07-22 --check abc999_z
 run_case "review missed extra positional (reject)"   2 review missed extra --date 2026-07-22
+MISSEDCFG="$(mktemp -d)"
+XDG_CONFIG_HOME="$MISSEDCFG" run_case "config set review missed condition" 0 config set review.missed.conditions "score.impl<=1"
+XDG_CONFIG_HOME="$MISSEDCFG" check_output "review missed uses configured condition" 0 has "abc802_f" -- review missed --date 2026-07-22
+XDG_CONFIG_HOME="$MISSEDCFG" run_case "config set review missed invalid condition" 2 config set review.missed.conditions "score.bad<=1"
+rm -rf "$MISSEDCFG"
 
 # `atcoder completion` smoke: 各シェルのスクリプト出力と、隠し __complete ヘルパ。
 # completion の引数エラーは exit 2。__complete は常に exit 0 で候補を吐く。

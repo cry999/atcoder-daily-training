@@ -45,6 +45,7 @@ type Config struct {
 	Editor           string            `toml:"editor,omitempty"`             // start の Ctrl+E (nvim 外) で使うエディタコマンド (要件 038)
 	EditorNvimRemote string            `toml:"editor_nvim_remote,omitempty"` // start の Ctrl+E (nvim 内 remote) のターゲット current/tab (要件 041)
 	Test             TestConfig        `toml:"test"`
+	Review           ReviewConfig      `toml:"review"`
 	Alias            map[string]string `toml:"alias"` // [alias] 名前→コマンド列 (git 風 alias)
 	// Target は [target.<category>] テーブル: category (abc/arc/…) × letter (a/b/…) →
 	// 目標実装時間の duration 文字列 ("35m")。record/start が (category,letter) から引く (要件 061)。
@@ -76,6 +77,17 @@ func (c *Config) TargetDuration(category, letter string) (time.Duration, bool) {
 type TestConfig struct {
 	// SideBySide は FAIL 時の diff を side-by-side でレンダリングする既定値 (-s 相当)。
 	SideBySide bool `toml:"side_by_side"`
+}
+
+// ReviewConfig は [review] セクション。review コマンドの既定値。
+type ReviewConfig struct {
+	Missed MissedReviewConfig `toml:"missed"`
+}
+
+// MissedReviewConfig は [review.missed] セクション。
+type MissedReviewConfig struct {
+	Mode       string   `toml:"mode"`
+	Conditions []string `toml:"conditions"`
 }
 
 // Base は設定の base directory ($XDG_CONFIG_HOME or fallback) を返す。

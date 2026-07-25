@@ -10,7 +10,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/cry999/atcoder-daily-training/internal/solvestat"
+	"github.com/cry999/atcoder-daily-training/internal/reviewrule"
 	"github.com/cry999/atcoder-daily-training/internal/stats"
 )
 
@@ -31,15 +31,22 @@ type MissedReport struct {
 	Items []MissedItem
 }
 
-// BuildMissed は target の練習問題から ac=false または editorial=true のものを抽出する。
+// BuildMissed は target の練習問題から既定条件 (ac=false or editorial=true) に
+// 合うものを抽出する。
 func BuildMissed(solves []stats.Solve, target time.Time) MissedReport {
+	rule, _ := reviewrule.Parse("", nil)
+	return BuildMissedWithRule(solves, target, rule)
+}
+
+// BuildMissedWithRule は target の練習問題から rule に合うものを抽出する。
+func BuildMissedWithRule(solves []stats.Solve, target time.Time, rule reviewrule.Rule) MissedReport {
 	target = dayOf(target)
 	rep := MissedReport{Date: target}
 	for _, s := range solves {
 		if !dayOf(s.Date).Equal(target) || !s.HasStat {
 			continue
 		}
-		if !isMissed(s.Stat) {
+		if !rule.Match(s.Stat) {
 			continue
 		}
 		rep.Items = append(rep.Items, MissedItem{
@@ -54,13 +61,6 @@ func BuildMissed(solves []stats.Solve, target time.Time) MissedReport {
 	}
 	sort.Slice(rep.Items, func(i, j int) bool { return rep.Items[i].ID < rep.Items[j].ID })
 	return rep
-}
-
-func isMissed(st solvestat.Stat) bool {
-	if st.AC != nil && !*st.AC {
-		return true
-	}
-	return st.Editorial != nil && *st.Editorial
 }
 
 // FindMissed は check ID に一致する復習対象を 1 件だけ返す。
