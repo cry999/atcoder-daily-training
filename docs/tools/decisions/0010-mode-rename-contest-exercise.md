@@ -2,7 +2,7 @@
 
 - ステータス: Accepted
 - 日付: 2026-07-06
-- 実装: 設計のみ ([requirements/070-contest-exercise-mode.md](../requirements/070-contest-exercise-mode.md))
+- 実装: 完了 (63219c5, [requirements/070-contest-exercise-mode.md](../requirements/070-contest-exercise-mode.md))
 - Supersedes: [ADR (相当) の 002](../requirements/002-exercise-abc-mode.md) / [017](../requirements/017-config-layout-default.md) のレイアウト概念
 - 関連: [ADR 0002 追補](0002-stats-readonly-exercise-tree.md) (stats 母体の拡張) / [ADR 0003](0003-user-config-xdg-toml.md) (config)
 

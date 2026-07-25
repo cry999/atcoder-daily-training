@@ -48,9 +48,9 @@ ABC 本番対応に限定されない、`atcoder` ツール全般の改善 TODO�
 - URL は `meta.toml.url` を優先し、未取得なら標準の `/contests/<contest>/tasks/<task>` を使う。ブラウザ起動に失敗しても chat は継続し、手動で開ける URL を表示する。
 - `:cheat` と Tab 補完にも `open` を追加した。
 
-## AZ. 配置規約を `mode {contest,exercise}` に再設計 (`layout` 廃止) — 優先度: 高
+## AZ. 配置規約を `mode {contest,exercise}` に再設計 (`layout` 廃止) ✅ DONE (63219c5)
 
-> 設計完了。実装は feature へ。要件 [070](requirements/070-contest-exercise-mode.md) / [ADR 0010](decisions/0010-mode-rename-contest-exercise.md)。
+> 実装済み。要件 [070](requirements/070-contest-exercise-mode.md) / [ADR 0010](decisions/0010-mode-rename-contest-exercise.md)。
 
 - `--layout {auto,abc,exercise}` を `--mode {contest,exercise}` に clean rename。contest モードは prefix 汎用化 (`abc457`→`abc/457/d.py`, `arc212`→`arc/212/c.py`)。`auto` 廃止、既定は config `mode` → `exercise`。
 - `ATCODER_LAYOUT`→`ATCODER_MODE`、config `layout`→`mode`、`new abc <contest>`→`new <contest>`、`internal/layout`→`internal/mode`。
