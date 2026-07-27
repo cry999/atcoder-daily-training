@@ -10,7 +10,7 @@
 
 ```
 atcoder review <category> [-w | --week | -m | --month | -y | --year | -l | --last <dur>]
-atcoder review missed [--date YYYY-MM-DD] [--check <id>]
+atcoder review missed [--date YYYY-MM-DD | --from YYYY-MM-DD --to YYYY-MM-DD] [--check <id>]
 ```
 
 | 引数 / フラグ | 説明 |
@@ -26,14 +26,26 @@ atcoder review missed [--date YYYY-MM-DD] [--check <id>]
 
 ## 前日の未達問題を復習する (`review missed`)
 
-`review missed` は `exercise/<YYYY>/<MM>/<DD>/*.py` の 1 日ぶんを見て、solve-stat に復習対象条件が記録された問題を一覧する。既定条件は次のどちらか:
+`review missed` は `exercise/<YYYY>/<MM>/<DD>/*.py` の 1 日ぶん、または指定範囲を見て、solve-stat に復習対象条件が記録された問題を一覧する。既定条件は次のどちらか:
 
 | 条件 | 意味 |
 |---|---|
 | `ac=false` | AC できなかった |
 | `editorial=true` | AC 済みでも解説を見たので復習対象 |
 
-`--date` を省略すると実行日の前日を使う。復習済みかどうかは solve-stat の `reviewed_at` で管理し、一覧では `[ ]` / `[x]` で表示する。
+`--date` を省略すると実行日の前日を使う。複数日をまとめるには、開始日・終了日を含む `--from` と `--to` を対で指定する。範囲表示では各行にも練習日が付く。
+
+```
+$ atcoder review missed --from 2026-07-20 --to 2026-07-22
+missed practice — 2026-07-20 through 2026-07-22
+
+  [ ] 2026-07-20  abc357_d     ac=false  editorial=true   exercise/2026/07/20/abc357_d.py
+  [ ] 2026-07-22  abc358_e     ac=true   editorial=true   exercise/2026/07/22/abc358_e.py
+
+  2 missed, 0 reviewed
+```
+
+`--date` と `--from` / `--to` は併用できず、範囲指定は両方を必要とする。終了日より後の開始日も指定できない。復習済みかどうかは solve-stat の `reviewed_at` で管理し、一覧では `[ ]` / `[x]` で表示する。
 
 ```
 $ atcoder review missed
@@ -45,7 +57,7 @@ missed practice — 2026-07-22
   2 missed, 1 reviewed
 ```
 
-復習したら `--check` で `reviewed_at` を現在時刻に更新する。`<id>` はファイル stem (`abc357_d`) または `contest/letter` (`abc357/d`) を指定できる。
+復習したら `--check` で `reviewed_at` を現在時刻に更新する。`<id>` はファイル stem (`abc357_d`) または `contest/letter` (`abc357/d`) を指定できる。範囲内に同じ ID が複数ある場合は、誤ったファイルを更新しないよう曖昧エラーになる。
 
 ```
 $ atcoder review missed --check abc357_d
@@ -131,7 +143,7 @@ exercise abc review — this month (2026-06)
 |---|---|
 | `0` | 一覧表示成功 (0 件でも成功扱い) |
 | `1` | `exercise/` または `<category>/` ツリーの読み取り I/O エラー、`review missed --check` の対象不一致 / solve-stat 書き込み失敗 |
-| `2` | 引数誤り (`<category>` 省略、未知フラグ、期間フラグの重複指定、不正な `--last` / `--date` 値)、`review.missed.*` config の不正値 |
+| `2` | 引数誤り (`<category>` 省略、未知フラグ、期間フラグの重複指定、不正な `--last` / `--date` / `--from` / `--to` 値、`--date` と範囲の併用、範囲の片側指定・逆順)、`review.missed.*` config の不正値 |
 
 ## 注意
 
@@ -145,5 +157,6 @@ exercise abc review — this month (2026-06)
 - `docs/tools/requirements/014-exercise-review.md` (カテゴリ一覧の要件定義)
 - `docs/tools/requirements/074-review-missed-practice.md` (復習キューの要件定義)
 - `docs/tools/requirements/075-review-missed-config.md` (復習条件 config の要件定義)
+- `docs/tools/requirements/077-review-missed-date-range.md` (日付範囲指定の要件定義)
 - `docs/tools/usage/record.md` (`ac` / `editorial` / solve-stat の記録)
 - `docs/tools/usage/config.md` (`review.missed.conditions` / `review.missed.mode`)

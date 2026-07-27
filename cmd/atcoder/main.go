@@ -152,7 +152,7 @@ func usage() {
   atcoder stats  [-w|--week | -m|--month | -y|--year | -l|--last <dur>] [-g|--graph] [-t|--table]
   atcoder usage  [--flags] [--json]   # ローカルに記録した CLI 利用頻度・所要時間の集計
   atcoder review <category> [-w|--week | -m|--month | -y|--year | -l|--last <dur>]
-  atcoder review missed [--date YYYY-MM-DD] [--check <id>]
+  atcoder review missed [--date YYYY-MM-DD | --from YYYY-MM-DD --to YYYY-MM-DD] [--check <id>]
   atcoder record <contest> --task <task>   # 実装時間・正答状況・5 軸スコアを solve-stat に記録
                  [--ac|--no-ac] [--editorial|--no-editorial] [--score <k,t,c,i,v>] [--time <dur>]
   atcoder record start <contest> --task <task> [--restart]   # 計測開始 (着手 UI なし)

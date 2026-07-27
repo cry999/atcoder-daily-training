@@ -61,6 +61,12 @@ func TestSplit(t *testing.T) {
 			posArgs: []string{"abc457"},
 		},
 		{
+			name:    "review missed の範囲フラグは値を取る",
+			args:    []string{"missed", "--from", "2026-07-20", "--to", "2026-07-22"},
+			flags:   []string{"--from", "2026-07-20", "--to", "2026-07-22"},
+			posArgs: []string{"missed"},
+		},
+		{
 			name:    "未知フラグは bool 扱い (次を消費しない)",
 			args:    []string{"--bogus", "abc457"},
 			flags:   []string{"--bogus"},
@@ -99,7 +105,7 @@ func TestSplit(t *testing.T) {
 }
 
 func TestTakesValue(t *testing.T) {
-	for _, f := range []string{"--task", "-c", "--timeout", "--tolerance", "-l"} {
+	for _, f := range []string{"--task", "-c", "--timeout", "--tolerance", "-l", "--from", "--to"} {
 		if !TakesValue(f) {
 			t.Errorf("TakesValue(%q) = false, want true", f)
 		}

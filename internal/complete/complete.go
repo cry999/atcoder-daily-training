@@ -178,6 +178,8 @@ var subFlags = map[string][]Candidate{
 		{"--last", "rolling window from today (e.g. 7d, 1m)"},
 		{"-l", "rolling window from today (e.g. 7d, 1m)"},
 		{"--date", "with missed: practice date (YYYY-MM-DD)"},
+		{"--from", "with missed: first practice date (YYYY-MM-DD; requires --to)"},
+		{"--to", "with missed: last practice date (YYYY-MM-DD; requires --from)"},
 		{"--check", "with missed: mark an item as reviewed"},
 	},
 	"update": {

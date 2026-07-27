@@ -88,8 +88,10 @@ func cmdReview(args []string) (int, error) {
 
 func cmdReviewMissed(flagArgs []string) (int, error) {
 	flags := flag.NewFlagSet("review missed", flag.ContinueOnError)
-	var dateText, check string
+	var dateText, fromText, toText, check string
 	flags.StringVar(&dateText, "date", "", "Practice date to review (YYYY-MM-DD); default is yesterday")
+	flags.StringVar(&fromText, "from", "", "First practice date to review (YYYY-MM-DD; requires --to)")
+	flags.StringVar(&toText, "to", "", "Last practice date to review (YYYY-MM-DD; requires --from)")
 	flags.StringVar(&check, "check", "", "Mark one missed item as reviewed (e.g. abc357_d or abc357/d)")
 	flags.SetOutput(os.Stderr)
 	if err := flags.Parse(flagArgs); err != nil {
@@ -100,13 +102,34 @@ func cmdReviewMissed(flagArgs []string) (int, error) {
 	}
 
 	now := time.Now().Local()
-	target := dayOnly(now.AddDate(0, 0, -1))
-	if strings.TrimSpace(dateText) != "" {
-		d, err := time.ParseInLocation("2006-01-02", dateText, time.Local)
+	start, end := dayOnly(now.AddDate(0, 0, -1)), dayOnly(now.AddDate(0, 0, -1))
+	dateText, fromText, toText = strings.TrimSpace(dateText), strings.TrimSpace(fromText), strings.TrimSpace(toText)
+	if dateText != "" && (fromText != "" || toText != "") {
+		return 2, errors.New("--date cannot be used with --from or --to")
+	}
+	if (fromText == "") != (toText == "") {
+		return 2, errors.New("--from and --to must be used together")
+	}
+	if dateText != "" {
+		d, err := parseReviewDate("--date", dateText)
 		if err != nil {
-			return 2, errors.New("--date must be YYYY-MM-DD")
+			return 2, err
 		}
-		target = d
+		start, end = d, d
+	}
+	if fromText != "" {
+		var err error
+		start, err = parseReviewDate("--from", fromText)
+		if err != nil {
+			return 2, err
+		}
+		end, err = parseReviewDate("--to", toText)
+		if err != nil {
+			return 2, err
+		}
+		if start.After(end) {
+			return 2, errors.New("--from must not be after --to")
+		}
 	}
 
 	cfg, err := config.Load()
@@ -122,7 +145,7 @@ func cmdReviewMissed(flagArgs []string) (int, error) {
 	if err != nil {
 		return 1, err
 	}
-	rep := review.BuildMissedWithRule(solves, target, rule)
+	rep := review.BuildMissedInRangeWithRule(solves, start, end, rule)
 	if strings.TrimSpace(check) != "" {
 		item, err := rep.FindMissed(check)
 		if err != nil {
@@ -140,6 +163,14 @@ func cmdReviewMissed(flagArgs []string) (int, error) {
 		return 1, err
 	}
 	return 0, nil
+}
+
+func parseReviewDate(flagName, text string) (time.Time, error) {
+	d, err := time.ParseInLocation("2006-01-02", text, time.Local)
+	if err != nil {
+		return time.Time{}, errors.New(flagName + " must be YYYY-MM-DD")
+	}
+	return d, nil
 }
 
 func dayOnly(t time.Time) time.Time {

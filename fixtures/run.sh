@@ -478,8 +478,18 @@ check_output "review undated row shows dash"   0 has "—"      -- review abc
 # 期間フィルタ (--year) では日付なしの abc/999 は必ず落ちる (時刻に依存しない不変則)。
 check_output "review --year drops undated abc999" 0 hasnot "abc999" -- review abc --year
 
-# `atcoder review missed` (要件 074): 指定日の ac=false / editorial=true を復習キューに出し、
-# --check で solve-stat に reviewed_at を刻む。日付を明示して現在日への依存を避ける。
+# `atcoder review missed` (要件 074 / 077): 指定日または日付範囲の ac=false /
+# editorial=true を復習キューに出し、--check で solve-stat に reviewed_at を刻む。
+# 日付を明示して現在日への依存を避ける。
+MISSED_RANGE_DIR="$STAGE/exercise/2026/07/21"
+mkdir -p "$MISSED_RANGE_DIR"
+cat > "$MISSED_RANGE_DIR/abc799_c.py" <<'PY'
+# >>> atcoder-stat >>>
+# ac          = false
+# editorial   = false
+# <<< atcoder-stat <<<
+print(1)
+PY
 MISSED_DIR="$STAGE/exercise/2026/07/22"
 mkdir -p "$MISSED_DIR"
 cat > "$MISSED_DIR/abc800_d.py" <<'PY'
@@ -507,11 +517,16 @@ PY
 check_output "review missed includes ac=false"      0 has "abc800_d" -- review missed --date 2026-07-22
 check_output "review missed includes editorial=true" 0 has "abc801_e" -- review missed --date 2026-07-22
 check_output "review missed excludes self AC"       0 hasnot "abc802_f" -- review missed --date 2026-07-22
+check_output "review missed range includes first day" 0 has "abc799_c" -- review missed --from 2026-07-21 --to 2026-07-22
+check_output "review missed range labels period"      0 has "2026-07-21 through 2026-07-22" -- review missed --from 2026-07-21 --to 2026-07-22
 run_case "review missed --check by stem"            0 review missed --date 2026-07-22 --check abc800_d
 grep -qE "reviewed_at[[:space:]]*=" "$MISSED_DIR/abc800_d.py" \
     || { echo "  ✗ review missed --check did not stamp reviewed_at"; failures=$((failures + 1)); }
 check_output "review missed shows checked item"      0 has "\\[x\\] abc800_d" -- review missed --date 2026-07-22
 run_case "review missed --date invalid (reject)"     2 review missed --date 2026/07/22
+run_case "review missed --from only (reject)"        2 review missed --from 2026-07-21
+run_case "review missed --date with range (reject)"  2 review missed --date 2026-07-22 --from 2026-07-21 --to 2026-07-22
+run_case "review missed reversed range (reject)"     2 review missed --from 2026-07-22 --to 2026-07-21
 run_case "review missed --check missing (exit 1)"    1 review missed --date 2026-07-22 --check abc999_z
 run_case "review missed extra positional (reject)"   2 review missed extra --date 2026-07-22
 MISSEDCFG="$(mktemp -d)"

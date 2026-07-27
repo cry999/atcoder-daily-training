@@ -14,6 +14,13 @@ ABC 本番対応に限定されない、`atcoder` ツール全般の改善 TODO�
 - 列は `date` / `problem` / `duration` / `ac` / `editorial` / `score`。特に `duration` / `ac` / `editorial` は常に見えるようにし、未記録値は `-` で表示する。
 - solve-stat が無い問題も行に残す。並び順は新しい日付が先、同日内はファイル名昇順。
 
+## BF. `review missed` の日付範囲指定 ✅ DONE
+
+> 要件詳細は [`requirements/077-review-missed-date-range.md`](requirements/077-review-missed-date-range.md)。利用手引は [`usage/review.md`](usage/review.md) の「前日の未達問題を復習する (`review missed`)」節。
+
+- `atcoder review missed --from YYYY-MM-DD --to YYYY-MM-DD` で、複数日の未達問題をまとめて一覧・チェックできる。
+- `--date` と範囲フラグは併用できず、範囲指定では `--from` / `--to` の両方が必要。`--check` が複数日に同じ ID を見つけたときは安全に失敗する。
+
 ## BD. Debug 常時 on 化 ✅ DONE
 
 > 要件詳細は [`requirements/075-always-on-debug.md`](requirements/075-always-on-debug.md)。利用手引は [`usage/test.md`](usage/test.md) / [`usage/start.md`](usage/start.md)。
