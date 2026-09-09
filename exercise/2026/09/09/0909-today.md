@@ -9,13 +9,18 @@
 - [x] ABC373 E
 - [x] ABC214 E
 
-## 二分探索
+## DP
 
-- [ ] ABC359 D
-- [ ] ABC310 E
-- [ ] ABC195 E
-- [ ] ABC275 E
-- [ ] ABC327 E
+- [x] ABC359 D
+- [x] ABC310 E
+- [x] ABC195 E
+- [x] ABC275 E
+- [x] ABC327 E
 
 ## 明日の復習
 
+- [ ] ABC214 E
+- [ ] ABC359 D
+- [ ] ABC195 E
+- [ ] ABC327 E
+    - 効率的な計算方法
