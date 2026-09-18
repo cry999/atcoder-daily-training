@@ -13,6 +13,12 @@
 - [x] ABC376 E
 - [x] ABC252 F
 
+## 追加 (LIS・数列 DP)
+
+- [x] ABC006 D
+- [x] ABC134 E
+- [x] ABC339 E
+
 ## 明日やる問題
 
 - [ ] ABC475 E
