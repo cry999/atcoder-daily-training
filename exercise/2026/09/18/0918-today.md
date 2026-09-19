@@ -9,14 +9,16 @@
 ## LIS・数列 DP
 
 - [x] ABC354 F
-- [ ] ABC369 F
+- [x] ABC369 F
 
 ## 全探索・全列挙
 
-- [ ] ABC345 D
-- [ ] ABC326 D
+- [x] ABC345 D
+- [x] ABC326 D
 - [ ] ABC349 E
 - [ ] ABC328 E
 - [ ] ABC271 F
 
 ## 明日やる問題
+
+- [ ] ABC345 D
