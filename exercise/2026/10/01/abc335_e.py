@@ -1,5 +1,14 @@
 # >>> atcoder-stat >>>
 # started_at  = 2026-10-01T10:20:14+09:00
+# solved_at   = 2026-10-01T11:21:07+09:00
+# duration_ms = 3653546
+# ac          = true
+# editorial   = true
+# knowledge   = 3
+# translation = 2
+# complexity  = 3
+# impl        = 1
+# verify      = 3
 # <<< atcoder-stat <<<
 import sys
 from atcoder.dsu import DSU
