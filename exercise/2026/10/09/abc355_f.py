@@ -1,15 +1,31 @@
 # >>> atcoder-stat >>>
 # started_at  = 2026-10-09T09:08:53+09:00
+# solved_at   = 2026-10-09T09:51:26+09:00
+# duration_ms = 2553236
+# ac          = true
+# editorial   = true
+# knowledge   = 3
+# translation = 1
+# complexity  = 3
+# impl        = 1
+# verify      = 3
 # <<< atcoder-stat <<<
-N, Q = map(int, input().split())
-g = [[] for _ in range(N)]
+from atcoder.dsu import DSU
 
+N, Q = map(int, input().split())
+
+# dsu[k] := 辺の重みが k 以下の辺だけで構成される DSU
+dsu = [DSU(N) for _ in range(10)]
+
+ans = 0
 for i in range(N - 1):
     a, b, c = map(int, input().split())
     a -= 1
     b -= 1
-    g[a].append((b, c, i))
-    g[b].append((a, c, i))
+    ans += c
+
+    for k in range(c, 10):
+        dsu[k].merge(a, b)
 
 
 # 考察
@@ -21,62 +37,17 @@ for i in range(N - 1):
 # 4.a. 置き換えるだけ
 # 4.b. ループの中で最も重い辺を削除する。これは LCA を利用する？
 
-# 初期の木に対する LCA と経路上の最大辺をダブリングで求める。
-# 辺を交換した後は、この前処理をそのまま使えないことに注意。
-L = N.bit_length()
-par = [[0] * N for _ in range(L)]
-# mx[k][v]: v から 2**k 個上の祖先までの (最大重み, 辺 ID)
-# 重みは正なので、辺がない場合は (0, -1) とする。
-mx = [[(0, -1)] * N for _ in range(L)]
-dep = [-1] * N
-dep[0] = 0
-stack = [0]
-while stack:
-    v = stack.pop()
-    for u, w, i in g[v]:
-        if dep[u] != -1:
-            continue
-        dep[u] = dep[v] + 1
-        par[0][u] = v
-        mx[0][u] = (w, i)
-        stack.append(u)
-
-for k in range(1, L):
-    for v in range(N):
-        p = par[k - 1][v]
-        par[k][v] = par[k - 1][p]
-        mx[k][v] = max(mx[k - 1][v], mx[k - 1][p])
-
-
-def lca(u, v):
-    # 頂点番号は 0-indexed。
-    if dep[u] < dep[v]:
-        u, v = v, u
-    d = dep[u] - dep[v]
-    for k in range(L):
-        if d >> k & 1:
-            u = par[k][u]
-    if u == v:
-        return u
-    for k in range(L - 1, -1, -1):
-        if par[k][u] != par[k][v]:
-            u = par[k][u]
-            v = par[k][v]
-    return par[0][u]
-
-
-def max_edge(u, v):
-    # 同じ頂点なら (0, -1)。同じ最大重みの辺が複数あれば ID 最大を返す。
-    a = lca(u, v)
-    res = (0, -1)
-    for x in (u, v):
-        d = dep[x] - dep[a]
-        for k in range(L):
-            if d >> k & 1:
-                res = max(res, mx[k][x])
-                x = par[k][x]
-    return res
-
-
-# クエリ (u, v, w) では max_edge(u - 1, v - 1) で交換候補を探せる。
 # TODO: 辺の交換に対応する仕組みと、各クエリの MST 重みの出力。
+for _ in range(Q):
+    u, v, w = map(int, input().split())
+    u -= 1
+    v -= 1
+
+    for k in range(w, 10):
+        if dsu[k].same(u, v):
+            # k 以下の辺だけですでに連結なら、それ以上の重みの辺を利用した場合は当然連結
+            break
+        dsu[k].merge(u, v)
+        ans -= 1
+
+    print(ans)
