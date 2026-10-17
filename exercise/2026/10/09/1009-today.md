@@ -16,6 +16,14 @@
 - [x] ABC343 F
 - [x] ABC322 F
 
+## Functional Graph / Doubling
+
+- [x] ABC167 D
+- [x] ABC241 E
+- [ ] ABC296 E
+- [ ] ABC357 E
+- [ ] ABC258 E
+
 ## 復習
 
 - [ ] ABC355 F
