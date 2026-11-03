@@ -6,8 +6,8 @@
     "annealing_iterations": 3000000
   },
   "baseline_submission": "https://atcoder.jp/contests/ahc074/submissions/80582874",
-  "new_submission": null,
-  "submission_status": "Chrome connection unavailable; local candidate is not submitted",
+  "new_submission": "https://atcoder.jp/contests/ahc074/submissions/80585705",
+  "submission_status": "User reported manual submission on 2026-11-04; source equality, verdict, contest cost, runtime and current rank are unverified (page access failed).",
   "training_seeds_0_99": {
     "old": {
       "cases": 100,
