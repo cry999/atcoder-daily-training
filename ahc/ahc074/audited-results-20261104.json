@@ -7,7 +7,7 @@
   },
   "baseline_submission": "https://atcoder.jp/contests/ahc074/submissions/80582874",
   "new_submission": "https://atcoder.jp/contests/ahc074/submissions/80585705",
-  "submission_status": "User reported manual submission on 2026-11-04; source equality, verdict, contest cost, runtime and current rank are unverified (page access failed).",
+  "submission_status": "Submitted manually by user; verdict, cost, runtime and rank confirmed from user-provided screenshots. Source equality remains unverified.",
   "training_seeds_0_99": {
     "old": {
       "cases": 100,
@@ -4953,5 +4953,22 @@
       1,
       2
     ]
+  },
+  "submission_result": {
+    "evidence": "User-provided screenshots dated 2026-11-04 07:39:59 and 07:40:50 JST",
+    "submitted_at": "2026-11-04T07:36:00+09:00",
+    "language": "C++23 (GCC 15.2.0)",
+    "verdict": "AC",
+    "accepted_cases": 50,
+    "absolute_cost": 932253,
+    "runtime_ms": 462,
+    "memory_kib": 4356,
+    "code_bytes": 15951,
+    "rank": 220,
+    "relative_score": 25821192046,
+    "rank_observed_at": "2026-11-04T07:40:50+09:00",
+    "saved_moves_vs_previous_submission": 23038,
+    "relative_cost_reduction_vs_previous_submission": 0.02411621170931161,
+    "source_equality_verified": false
   }
 }
