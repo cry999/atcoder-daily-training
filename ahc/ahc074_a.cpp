@@ -1,13 +1,17 @@
-// 商品ペアと取っ手に使う窓を同時に焼きなます。未来の注文は読まない。
+// 商品の可変クラスタと窓の役割を焼きなまし、二色ブロックを頻度順に組み直す。
+// 次注文の期待費用には商品一覧だけを使い、未来の注文は読まない。
 // 設計・比較結果: ahc/ahc074/README.md
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <functional>
 #include <iostream>
 #include <numeric>
 #include <random>
+#include <set>
+#include <string>
 #include <tuple>
 #include <vector>
 using namespace std;
@@ -27,7 +31,7 @@ int main(int argc, char **argv) {
       if (strings[a][j] == '1')
         codes[a] |= U(1) << j;
   }
-  int h = 14, steps = argc > 2 ? atoi(argv[2]) : 10000000;
+  int h = 16, steps = argc > 2 ? atoi(argv[2]) : 3000000;
   if (argc > 1 && atoi(argv[1]) >= 4)
     h = atoi(argv[1]);
   int bn = n - h, c = k - bn;
@@ -98,14 +102,30 @@ int main(int argc, char **argv) {
   iota(handles.begin(), handles.end(), 0);
   for (int j = h; j < n; j++)
     content.push_back(j);
+  int maxsize = argc > 3 ? atoi(argv[3]) : 4;
+  auto common = [&](const vector<int> &v) {
+    U yes = ~U(0), no = 0;
+    for (int a : v) {
+      yes &= codes[a];
+      no |= codes[a];
+    }
+    return yes | ~no;
+  };
+  auto clcost = [&](const vector<int> &v) {
+    U base = ~U(0);
+    int sum = 0;
+    for (int a : v) {
+      base &= codes[a];
+      sum += pc(codes[a] & cm);
+    }
+    return sum - int(v.size()) * pc(base & cm);
+  };
   int score = 0;
-  for (auto v : cl)
-    if (v.size() == 2)
-      score += distance(v[0], v[1]);
+  for (auto &v : cl)
+    score += clcost(v);
   int bestscore = score;
   auto bestcl = cl;
   U bestcm = cm, besthm = hm;
-  // ペア交換だけでなく、取っ手と本体の窓も交換する。
   for (int t = 0; t < steps; t++) {
     double progress = double(t) / steps;
     if (t % 25 == 0) {
@@ -113,15 +133,21 @@ int main(int argc, char **argv) {
       int delta = 0;
       U nhm = hm ^ (U(1) << x) ^ (U(1) << y);
       bool valid = true;
-      for (auto &v : cl)
-        if (v.size() == 2) {
-          U diff = codes[v[0]] ^ codes[v[1]];
-          delta += int(diff >> x & 1) - int(diff >> y & 1);
-          if (!(~diff & nhm)) {
-            valid = false;
-            break;
-          }
+      for (auto &v : cl) {
+        U base = ~U(0);
+        int nx = 0, ny = 0;
+        for (int a : v) {
+          base &= codes[a];
+          nx += codes[a] >> x & 1;
+          ny += codes[a] >> y & 1;
         }
+        delta += nx - int(v.size()) * int(base >> x & 1) - ny +
+                 int(v.size()) * int(base >> y & 1);
+        if (!(common(v) & nhm)) {
+          valid = false;
+          break;
+        }
+      }
       double temp = 8 * pow(0.3 / 8, progress);
       if (valid && (delta <= 0 || real() < exp(-delta / temp))) {
         hm = nhm;
@@ -133,29 +159,26 @@ int main(int argc, char **argv) {
       int i = rng() % c, j = rng() % c;
       if (i == j)
         continue;
-      if (cl[i].size() == 1)
-        swap(i, j);
-      if (cl[i].size() == 1)
-        continue;
-      int a = cl[i][0], b = cl[i][1], x = cl[j][0], y = -1,
-          old = distance(a, b), nv;
-      if (cl[j].size() == 2) {
-        y = cl[j][1];
-        if (rng() % 2)
-          swap(x, y);
-        old += distance(x, y);
-        nv = distance(a, x) + distance(b, y);
+      auto oldi = cl[i], oldj = cl[j];
+      int old = clcost(oldi) + clcost(oldj);
+      if (rng() % 2) {
+        int x = rng() % cl[i].size(), y = rng() % cl[j].size();
+        swap(cl[i][x], cl[j][y]);
       } else {
-        if (rng() % 2)
-          swap(a, b);
-        nv = distance(a, x);
+        if (cl[i].size() < 2 || int(cl[j].size()) >= maxsize)
+          continue;
+        int x = rng() % cl[i].size();
+        cl[j].push_back(cl[i][x]);
+        cl[i].erase(cl[i].begin() + x);
       }
-      int delta = nv - old;
+      int nv = clcost(cl[i]) + clcost(cl[j]), delta = nv - old;
       double temp = 1.5 * pow(0.03 / 1.5, progress);
-      if (delta <= 0 || real() < exp(-delta / temp)) {
-        cl[i] = {a, x};
-        cl[j] = y < 0 ? vector<int>{b} : vector<int>{b, y};
+      if ((common(cl[i]) & hm) && (common(cl[j]) & hm) &&
+          (delta <= 0 || real() < exp(-delta / temp)))
         score += delta;
+      else {
+        cl[i] = oldi;
+        cl[j] = oldj;
       }
     }
     if (score < bestscore) {
@@ -172,7 +195,7 @@ int main(int argc, char **argv) {
   content.clear();
   for (int j = 0; j < n; j++)
     ((hm >> j & 1) ? handles : content).push_back(j);
-  // 各取っ手の白黒を交互に並べ、必ず 1 操作で反転できるようにする。
+  // 初期状態は白黒交互。その後は隣り合う 2 枚を常に異色に保つ。
   vector<int> sizes(h, c / (2 * h) * 2);
   int remainder = (c - accumulate(sizes.begin(), sizes.end(), 0)) / 2;
   for (int g = 0; g < remainder; g++)
@@ -257,7 +280,23 @@ int main(int argc, char **argv) {
     cout << s << '\n';
   }
   cout.flush();
-  vector<int> order(k), tops(h);
+  vector<int> weight(k);
+  for (int item : member)
+    weight[item]++;
+  vector<U> need(p);
+  vector<double> priority(bn);
+  for (int a = 0; a < p; a++)
+    need[a] = codes[a] & cm & ~blacks[member[a]];
+  for (int item = 0; item < bn; item++) {
+    int needed = 0, forbidden = 0;
+    U bit = U(1) << content[item];
+    for (int a = 0; a < p; a++) {
+      needed += bool(need[a] & bit);
+      forbidden += !(codes[a] & bit);
+    }
+    priority[item] = double(needed) / max(1, forbidden);
+  }
+  vector<int> order(k);
   iota(order.begin(), order.end(), 0);
   int current = -1;
   for (int turn = 0; turn < r; turn++) {
@@ -273,21 +312,90 @@ int main(int argc, char **argv) {
       order.insert(order.begin() + d, item);
       ans.emplace_back(item, d);
     };
-    auto retire = [&](int group) {
-      move(groups[group][tops[group]], k - 1);
-      tops[group] = (tops[group] + 1) % groups[group].size();
+    // 先頭の色を反転する 1 移動を、重いページを手前へ残す配置変更と兼用する。
+    auto flipgroup = [&](int group) {
+      auto &v = groups[group];
+      int item = v[0], at = 1, bestvalue = 100000;
+      for (int t = 1; t < int(v.size()); t++) {
+        auto next = v;
+        rotate(next.begin(), next.begin() + 1, next.begin() + t + 1);
+        bool valid = true;
+        int value = 0;
+        for (int ix = 0; ix < int(next.size()); ix++) {
+          value += weight[next[ix]] * ix;
+          if (ix % 2 == 1 &&
+              !((blacks[next[ix]] ^ blacks[next[ix - 1]]) >> handles[group] &
+                1))
+            valid = false;
+        }
+        if (valid && value < bestvalue) {
+          bestvalue = value;
+          at = t;
+        }
+      }
+      int d = find(order.begin(), order.end(), v[at]) - order.begin();
+      move(item, d);
+      rotate(v.begin(), v.begin() + 1, v.begin() + at + 1);
     };
     if (current >= 0) {
       int oldg = loc[current];
-      if ((oldg != g &&
-           ((blacks[current] ^ target) >> handles[oldg] & 1) == 0) ||
-          current == page)
+      if (oldg != g) {
+        if ((blacks[current] ^ target) >> handles[oldg] & 1)
+          flipgroup(oldg);
+        else
+          move(current, bn);
+      } else if (current == page)
         move(current, bn);
-      else
-        retire(oldg);
     }
-    while (groups[g][tops[g]] != page)
-      retire(g);
+    // 取り出す途中の紙を、追加移動なしで頻度順の二色ブロックに組み直す。
+    int rank =
+        find(groups[g].begin(), groups[g].end(), page) - groups[g].begin();
+    int end = (rank / 2 + 1) * 2;
+    vector<int> colors[2];
+    int pagecolor = blacks[page] >> handles[g] & 1;
+    for (int ix = 0; ix < end; ix++)
+      if (groups[g][ix] != page) {
+        int item = groups[g][ix];
+        colors[blacks[item] >> handles[g] & 1].push_back(item);
+      }
+    for (auto &v : colors)
+      stable_sort(v.begin(), v.end(),
+                  [&](int a, int b) { return weight[a] > weight[b]; });
+    vector<int> desired{page, colors[1 - pagecolor][0]};
+    colors[1 - pagecolor].erase(colors[1 - pagecolor].begin());
+    vector<pair<int, int>> pairs;
+    for (int ix = 0; ix < int(colors[0].size()); ix++) {
+      int x = colors[0][ix], y = colors[1][ix];
+      if (weight[x] < weight[y])
+        swap(x, y);
+      pairs.emplace_back(x, y);
+    }
+    stable_sort(pairs.begin(), pairs.end(), [&](auto a, auto b) {
+      return weight[a.first] + weight[a.second] >
+             weight[b.first] + weight[b.second];
+    });
+    for (auto [x, y] : pairs) {
+      desired.push_back(x);
+      desired.push_back(y);
+    }
+    bool placed[192] = {};
+    placed[page] = true;
+    if (rank % 2 == 0)
+      placed[groups[g][rank + 1]] = true;
+    vector<int> movable(groups[g].begin(), groups[g].begin() + rank);
+    for (int item : movable) {
+      int ix = find(desired.begin(), desired.end(), item) - desired.begin(),
+          anchor = -1;
+      for (int z = ix - 1; z >= 0; z--)
+        if (placed[desired[z]]) {
+          anchor = desired[z];
+          break;
+        }
+      int d = find(order.begin(), order.end(), anchor) - order.begin();
+      move(item, d);
+      placed[item] = true;
+    }
+    copy(desired.begin(), desired.end(), groups[g].begin());
     // 必要紙を上げる費用と不要紙を下げる費用が最小になる位置へ挿す。
     U patches = target & cm & ~blacks[page];
     vector<int> bank(order.begin(), order.begin() + bn);
@@ -303,23 +411,89 @@ int main(int argc, char **argv) {
         cut = t + 1;
       }
     }
+    // 現在の手数が同じ候補だけで、次の未知注文に対する条件付き期待費用を比較。
+    vector<int> bestup, bestdown;
+    long long bestfuture = 1LL << 60;
+    set<vector<int>> evaluated;
+    int current_product = a;
+    int value = pc(patches);
+    auto futurecost = [&](const vector<int> &next) {
+      long long total = 0;
+      for (int a = 0; a < p; a++) {
+        if (a == current_product)
+          continue;
+        int score = pc(need[a]), best = score;
+        for (int item : next) {
+          U bit = U(1) << content[item];
+          if (need[a] & bit)
+            score--;
+          else if (!(codes[a] & bit))
+            score++;
+          best = min(best, score);
+        }
+        total += best;
+      }
+      return total;
+    };
+    for (int t = 0; t <= bn; t++) {
+      if (value == best) {
+        vector<int> up, down, middle;
+        for (int ix = 0; ix < bn; ix++) {
+          int item = bank[ix];
+          U bit = U(1) << content[item];
+          if (ix >= t && (patches & bit))
+            up.push_back(item);
+          else if (ix < t && !(target & bit))
+            down.push_back(item);
+          else
+            middle.push_back(item);
+        }
+        for (int sorted = 0; sorted < 2; sorted++) {
+          if (sorted) {
+            stable_sort(up.begin(), up.end(), [&](int a, int b) {
+              return priority[a] < priority[b];
+            });
+            stable_sort(down.begin(), down.end(), [&](int a, int b) {
+              return priority[a] > priority[b];
+            });
+          }
+          vector<int> next(up.rbegin(), up.rend());
+          next.insert(next.end(), middle.begin(), middle.end());
+          next.insert(next.end(), down.begin(), down.end());
+          if (!evaluated.insert(next).second)
+            continue;
+          long long estimate = futurecost(next);
+          if (estimate < bestfuture) {
+            bestfuture = estimate;
+            cut = t;
+            bestup = up;
+            bestdown = down;
+          }
+        }
+      }
+      if (t < bn) {
+        U bit = U(1) << content[bank[t]];
+        if (patches & bit)
+          value--;
+        else if (!(target & bit))
+          value++;
+      }
+    }
     int count = cut;
-    for (int t = cut; t < bn; t++)
-      if (patches >> content[bank[t]] & 1) {
-        move(bank[t], 0);
-        count++;
-      }
-    for (int t = 0; t < cut; t++)
-      if (!(target >> content[bank[t]] & 1)) {
-        move(bank[t], bn - 1);
-        count--;
-      }
+    for (int item : bestup) {
+      move(item, 0);
+      count++;
+    }
+    for (int item : bestdown) {
+      move(item, bn - 1);
+      count--;
+    }
     move(page, count);
     current = page;
     for (int group = 0; group < h; group++)
       if (group != g &&
-          ((blacks[groups[group][tops[group]]] ^ target) >> handles[group] & 1))
-        retire(group);
+          ((blacks[groups[group][0]] ^ target) >> handles[group] & 1))
+        flipgroup(group);
     cout << ans.size() << '\n';
     for (auto [x, d] : ans)
       cout << x << ' ' << d << '\n';

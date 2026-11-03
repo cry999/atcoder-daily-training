@@ -17,6 +17,8 @@ def main():
                         default=pathlib.Path(__file__).resolve().parents[1] / "ahc074_a.py")
     parser.add_argument("--executable", type=pathlib.Path,
                         help="コンパイル済みの解答を直接実行する")
+    parser.add_argument("--solver-arg", action="append", default=[],
+                        help="解答に渡す引数（複数回指定可）")
     parser.add_argument("--python", default=sys.executable)
     parser.add_argument("--cases", type=int, default=100)
     parser.add_argument("--jobs", type=int, default=4)
@@ -38,6 +40,8 @@ def main():
     if args.baseline:
         command.append("--baseline")
 
+    command.extend(args.solver_arg)
+
     def run(seed):
         started = time.perf_counter()
         with (tools / "in" / f"{seed:04}.txt").open() as f:
@@ -51,6 +55,8 @@ def main():
             raise RuntimeError(f"seed={seed}: {result.stderr}")
         score = int(match[1])
         lines = result.stdout.splitlines()
+        fallback = k > 2 * n and all(
+            s == "." * n for s in lines[2 * n:k])
         pos, moves, maximum = k, 0, 0
         for _ in range(r):
             count = int(lines[pos])
@@ -62,7 +68,8 @@ def main():
         # 公式採点は 2*K*誤注文数+操作数。等しければ誤注文はゼロ。
         assert score == moves, (seed, "mistakes or invalid output", result.stderr)
         return {"seed": seed, "score": score, "mistakes": 0,
-                "max_moves": maximum, "wall_seconds": elapsed}
+                "max_moves": maximum, "wall_seconds": elapsed,
+                "fallback_design": fallback}
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as pool:
         results = list(pool.map(run, range(args.cases)))
@@ -71,6 +78,7 @@ def main():
                "score_min": min(x["score"] for x in results),
                "score_max": max(x["score"] for x in results),
                "mistakes": 0, "max_moves": max(x["max_moves"] for x in results),
+               "fallback_designs": sum(x["fallback_design"] for x in results),
                "max_wall_seconds": max(x["wall_seconds"] for x in results)}
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     if args.json:
