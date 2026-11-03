@@ -19,11 +19,15 @@ def main():
     parser.add_argument("--cases", type=int, default=100)
     parser.add_argument("--jobs", type=int, default=4)
     parser.add_argument("--baseline", action="store_true")
+    parser.add_argument("--previous", action="store_true",
+                        help="初版の 4 窓方式と比較する")
     parser.add_argument("--json", type=pathlib.Path)
     args = parser.parse_args()
     tools = args.tools.resolve()
     command = [str(tools / "target/release/tester"), args.python,
                str(args.solver.resolve())]
+    if args.baseline or args.previous:
+        command[2] = str(pathlib.Path(__file__).resolve().parent / "baseline.py")
     if args.baseline:
         command.append("--baseline")
 
