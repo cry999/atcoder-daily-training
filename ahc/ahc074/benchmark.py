@@ -15,6 +15,8 @@ def main():
     parser.add_argument("tools", type=pathlib.Path)
     parser.add_argument("--solver", type=pathlib.Path,
                         default=pathlib.Path(__file__).resolve().parents[1] / "ahc074_a.py")
+    parser.add_argument("--executable", type=pathlib.Path,
+                        help="コンパイル済みの解答を直接実行する")
     parser.add_argument("--python", default=sys.executable)
     parser.add_argument("--cases", type=int, default=100)
     parser.add_argument("--jobs", type=int, default=4)
@@ -26,6 +28,11 @@ def main():
     tools = args.tools.resolve()
     command = [str(tools / "target/release/tester"), args.python,
                str(args.solver.resolve())]
+    if args.executable:
+        if args.baseline or args.previous:
+            parser.error("--executable と --baseline/--previous は併用できません")
+        command = [str(tools / "target/release/tester"),
+                   str(args.executable.resolve())]
     if args.baseline or args.previous:
         command[2] = str(pathlib.Path(__file__).resolve().parent / "baseline.py")
     if args.baseline:
