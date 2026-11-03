@@ -1,0 +1,247 @@
+{
+  "date": "2026-11-04",
+  "baseline_commit": "d642b80",
+  "baseline_submission": "https://atcoder.jp/contests/ahc074/submissions/80585705",
+  "submission_status": "New candidate not submitted. Last confirmed submission: AC, cost 932253, runtime 462 ms, rank 220 at 2026-11-04 07:40:50 JST.",
+  "source_sha256": "f287091ba7e38e75db214f3fc6fcfa7d0bf82393af201b6e4d0a3b71c8fbd0bc",
+  "parameters": {
+    "handles": 14,
+    "content_windows": 50,
+    "product_pages": 142,
+    "max_cluster": 4,
+    "max_design_iterations": 6000000,
+    "design_cpu_budget_ms": 1000,
+    "group_assignment_iterations": 400000,
+    "rank_coefficient": 12,
+    "max_group_pages": 24
+  },
+  "training_seeds_0_99_fixed_iterations": {
+    "baseline": {
+      "cases": 100,
+      "score_sum": 1861884,
+      "score_mean": 18618.84,
+      "score_min": 18271,
+      "score_max": 18961,
+      "mistakes": 0,
+      "max_moves": 33,
+      "max_wall_seconds": 1.2175646668765694
+    },
+    "joint_orientation": {
+      "cases": 100,
+      "score_sum": 1848194,
+      "score_mean": 18481.94,
+      "score_min": 18247,
+      "score_max": 18784,
+      "mistakes": 0,
+      "max_moves": 34,
+      "fallback_designs": 0,
+      "max_wall_seconds": 0.6182194591965526
+    },
+    "head_two": {
+      "cases": 100,
+      "score_sum": 1843941,
+      "score_mean": 18439.41,
+      "score_min": 18229,
+      "score_max": 18762,
+      "mistakes": 0,
+      "max_moves": 34,
+      "fallback_designs": 0,
+      "max_wall_seconds": 0.914339000126347
+    },
+    "unbalanced_groups": {
+      "cases": 100,
+      "score_sum": 1839880,
+      "score_mean": 18398.8,
+      "score_min": 18125,
+      "score_max": 18714,
+      "mistakes": 0,
+      "max_moves": 32,
+      "fallback_designs": 0,
+      "max_wall_seconds": 0.8416272080503404
+    },
+    "raw_patch_squared_weight_h16": {
+      "cases": 100,
+      "score_sum": 1815621,
+      "score_mean": 18156.21,
+      "score_min": 17809,
+      "score_max": 18447,
+      "mistakes": 0,
+      "max_moves": 32,
+      "fallback_designs": 0,
+      "max_wall_seconds": 1.2718070410192013
+    },
+    "raw_patch_ideal_rank_h16": {
+      "cases": 100,
+      "score_sum": 1810253,
+      "score_mean": 18102.53,
+      "score_min": 17835,
+      "score_max": 18402,
+      "mistakes": 0,
+      "max_moves": 31,
+      "fallback_designs": 0,
+      "max_wall_seconds": 0.9396155409049243
+    },
+    "raw_patch_squared_weight_h14_b6": {
+      "cases": 100,
+      "score_sum": 1806968,
+      "score_mean": 18069.68,
+      "score_min": 17754,
+      "score_max": 18403,
+      "mistakes": 0,
+      "max_moves": 32,
+      "fallback_designs": 0,
+      "max_wall_seconds": 0.7448713749181479
+    },
+    "expected_patch_squared_weight_h14": {
+      "cases": 100,
+      "score_sum": 1803368,
+      "score_mean": 18033.68,
+      "score_min": 17641,
+      "score_max": 18368,
+      "mistakes": 0,
+      "max_moves": 34,
+      "fallback_designs": 0,
+      "max_wall_seconds": 0.7985216251108795
+    },
+    "expected_patch_ideal_rank_h14_3m": {
+      "cases": 100,
+      "score_sum": 1796858,
+      "score_mean": 17968.58,
+      "score_min": 17768,
+      "score_max": 18282,
+      "mistakes": 0,
+      "max_moves": 33,
+      "fallback_designs": 0,
+      "max_wall_seconds": 0.9555145408958197
+    },
+    "expected_patch_ideal_rank_h14_6m_uncapped": {
+      "cases": 100,
+      "score_sum": 1792489,
+      "score_mean": 17924.89,
+      "score_min": 17711,
+      "score_max": 18250,
+      "mistakes": 0,
+      "max_moves": 33,
+      "fallback_designs": 0,
+      "max_wall_seconds": 1.5220200419425964
+    }
+  },
+  "fresh_seeds_1100_1599": {
+    "old": {
+      "cases": 500,
+      "score_sum": 9310506,
+      "score_mean": 18621.012,
+      "score_min": 18260,
+      "score_max": 18978,
+      "mistakes": 0,
+      "max_moves": 34,
+      "fallback_designs": 0,
+      "max_wall_seconds": 0.8635455418843776
+    },
+    "new": {
+      "cases": 500,
+      "score_sum": 8967850,
+      "score_mean": 17935.7,
+      "score_min": 17595,
+      "score_max": 18265,
+      "mistakes": 0,
+      "max_moves": 34,
+      "fallback_designs": 0,
+      "max_wall_seconds": 1.823498582933098
+    },
+    "improved_cases": 500,
+    "equal_cases": 0,
+    "saved_moves": 342656,
+    "relative_reduction": 0.03680315548907864
+  },
+  "audits": {
+    "head_two_examples": 90112,
+    "random_cut_exact_enumerations": 81,
+    "objective_delta_assertions": "Independent short-run source checked score, histogram, rank cost, complement masks, restored best objective and physical-code XOR orientation."
+  },
+  "custom_cases": [
+    {
+      "name": "forced-fallback",
+      "score": 32,
+      "max_moves": 32,
+      "fallback_design": true,
+      "wall": 1.219813667004928
+    },
+    {
+      "name": "all-products",
+      "score": 18532,
+      "max_moves": 30,
+      "fallback_design": false,
+      "wall": 1.8816722501069307
+    },
+    {
+      "name": "alternating",
+      "score": 16903,
+      "max_moves": 21,
+      "fallback_design": false,
+      "wall": 1.5381457500625402
+    },
+    {
+      "name": "early-cutoff",
+      "score": 18742,
+      "max_moves": 28,
+      "fallback_design": false,
+      "wall": 0.6636352909263223
+    },
+    {
+      "name": "disabled-cpu-cap",
+      "cost": 17890,
+      "max_moves": 29,
+      "mistakes": 0
+    }
+  ],
+  "larger_cluster_20": {
+    "cases": 20,
+    "score_sum": 360249,
+    "score_mean": 18012.45,
+    "score_min": 17870,
+    "score_max": 18204,
+    "mistakes": 0,
+    "max_moves": 32,
+    "fallback_designs": 0,
+    "max_wall_seconds": 0.8653327918145806
+  },
+  "single_process_timing_of_slowest_cases": [
+    {
+      "generator_seed": 1100,
+      "cost": 17749,
+      "timing": "Score = 17749\nreal 1.27\nuser 1.24\nsys 0.02"
+    },
+    {
+      "generator_seed": 1124,
+      "cost": 18058,
+      "timing": "Score = 18058\nreal 1.26\nuser 1.24\nsys 0.01"
+    },
+    {
+      "generator_seed": 1126,
+      "cost": 18004,
+      "timing": "Score = 18004\nreal 1.26\nuser 1.23\nsys 0.02"
+    },
+    {
+      "generator_seed": 1103,
+      "cost": 17761,
+      "timing": "Score = 17761\nreal 1.27\nuser 1.24\nsys 0.02"
+    },
+    {
+      "generator_seed": 1104,
+      "cost": 17864,
+      "timing": "Score = 17864\nreal 1.53\nuser 1.24\nsys 0.02"
+    }
+  ],
+  "uncapped_6m_fresh500_diagnostic": {
+    "cases": 500,
+    "score_sum": 8968516,
+    "score_mean": 17937.032,
+    "score_min": 17541,
+    "score_max": 18323,
+    "mistakes": 0,
+    "max_moves": 34,
+    "fallback_designs": 0,
+    "max_wall_seconds": 2.1302462918683887
+  }
+}
