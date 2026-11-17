@@ -1,4 +1,4 @@
-// 補助紙の期待手数と取得順位で設計し、各群の先頭2枚だけを異色に保つ。
+// 商品の可変クラスタと窓の役割を焼きなまし、二色ブロックを頻度順に組み直す。
 // 次注文の期待費用には商品一覧だけを使い、未来の注文は読まない。
 // 設計・比較結果: ahc/ahc074/README.md
 #include <algorithm>
@@ -6,7 +6,6 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
-#include <ctime>
 #include <functional>
 #include <iostream>
 #include <numeric>
@@ -32,8 +31,7 @@ int main(int argc, char **argv) {
       if (strings[a][j] == '1')
         codes[a] |= U(1) << j;
   }
-  clock_t design_start = clock();
-  int h = 14, steps = argc > 2 ? atoi(argv[2]) : 6000000;
+  int h = 16, steps = argc > 2 ? atoi(argv[2]) : 3000000;
   if (argc > 1 && atoi(argv[1]) >= 4)
     h = atoi(argv[1]);
   int bn = n - h, c = k - bn;
@@ -113,102 +111,50 @@ int main(int argc, char **argv) {
     }
     return yes | ~no;
   };
-  int bias = argc > 5 ? atoi(argv[5]) : 12;
-  // ランダムな補助紙順での最小cut期待値を16倍して丸める。実順序の代理評価。
-  int expected[65][65];
-  for (int u = 0; u <= 64; u++)
-    for (int v = 0; v <= 64; v++) {
-      int lo = min(u, v), hi = max(u, v);
-      double value = lo, prob = 1;
-      for (int z = 0; z < lo; z++) {
-        prob *= double(lo - z) / (hi + z + 1);
-        value -= prob;
-      }
-      expected[u][v] = lround(16 * value);
-    }
   auto clcost = [&](const vector<int> &v) {
     U base = ~U(0);
-    for (int a : v)
-      base &= codes[a];
     int sum = 0;
-    for (int a : v)
-      sum += expected[pc(codes[a] & cm & ~base)][pc(~codes[a] & cm)];
-    return sum;
-  };
-  auto totalcost = [&]() {
-    int cost = 0;
-    for (auto &v : cl)
-      cost += clcost(v);
-    return cost;
+    for (int a : v) {
+      base &= codes[a];
+      sum += pc(codes[a] & cm);
+    }
+    return sum - int(v.size()) * pc(base & cm);
   };
   int score = 0;
   for (auto &v : cl)
     score += clcost(v);
-
-  vector<int> hist(maxsize + 2);
-  for (auto &v : cl)
-    hist[v.size()]++;
-  // 窓・色の制約を無視して重い紙から各群へ配る楽観的な順位費用。
-  auto rankproxy = [&](const vector<int> &counts) {
-    auto sumrank = [&](int t) {
-      int q = t / h, rem = t % h;
-      return h * q * (q - 1) / 2 + q * rem;
-    };
-    int pos = 0, cost = 0;
-    for (int sz = int(counts.size()) - 1; sz >= 1; sz--) {
-      cost += sz * (sumrank(pos + counts[sz]) - sumrank(pos));
-      pos += counts[sz];
-    }
-    return cost;
-  };
-  int rankcost = rankproxy(hist);
-  score += bias * rankcost;
-
   int bestscore = score;
   auto bestcl = cl;
-  U bestcm = cm, besthm = hm, bestflip = flip;
-  // CPU時間を設計に使い切らず、割り当てとオンライン応答の余裕を残す。
-  int budget_ms = argc > 6 ? atoi(argv[6]) : 1000;
+  U bestcm = cm, besthm = hm;
   for (int t = 0; t < steps; t++) {
-    if (budget_ms > 0 && t % 2048 == 0 &&
-        double(clock() - design_start) * 1000 / CLOCKS_PER_SEC >= budget_ms)
-      break;
     double progress = double(t) / steps;
-    if (t % 50 == 0) {
-      int bitindex = content[rng() % bn];
-      U bit = U(1) << bitindex;
-      int old = totalcost();
-      for (U &x : codes)
-        x ^= bit;
-      int delta = totalcost() - old;
-      double temp = 128 * pow(0.3 / 8, progress);
-      if (delta <= 0 || real() < exp(-delta / temp)) {
-        flip ^= bit;
-        score += delta;
-      } else
-        for (U &x : codes)
-          x ^= bit;
-    } else if (t % 25 == 0) {
+    if (t % 25 == 0) {
       int xi = rng() % h, yi = rng() % bn, x = handles[xi], y = content[yi];
-      U change = (U(1) << x) ^ (U(1) << y), nhm = hm ^ change;
+      int delta = 0;
+      U nhm = hm ^ (U(1) << x) ^ (U(1) << y);
       bool valid = true;
-      for (auto &v : cl)
+      for (auto &v : cl) {
+        U base = ~U(0);
+        int nx = 0, ny = 0;
+        for (int a : v) {
+          base &= codes[a];
+          nx += codes[a] >> x & 1;
+          ny += codes[a] >> y & 1;
+        }
+        delta += nx - int(v.size()) * int(base >> x & 1) - ny +
+                 int(v.size()) * int(base >> y & 1);
         if (!(common(v) & nhm)) {
           valid = false;
           break;
         }
-      if (!valid)
-        continue;
-      int old = totalcost();
-      cm ^= change;
-      int delta = totalcost() - old;
-      double temp = 128 * pow(0.3 / 8, progress);
-      if (delta <= 0 || real() < exp(-delta / temp)) {
+      }
+      double temp = 8 * pow(0.3 / 8, progress);
+      if (valid && (delta <= 0 || real() < exp(-delta / temp))) {
         hm = nhm;
+        cm = ~hm;
         swap(handles[xi], content[yi]);
         score += delta;
-      } else
-        cm ^= change;
+      }
     } else {
       int i = rng() % c, j = rng() % c;
       if (i == j)
@@ -226,20 +172,11 @@ int main(int argc, char **argv) {
         cl[i].erase(cl[i].begin() + x);
       }
       int nv = clcost(cl[i]) + clcost(cl[j]), delta = nv - old;
-      auto next_hist = hist;
-      next_hist[oldi.size()]--;
-      next_hist[oldj.size()]--;
-      next_hist[cl[i].size()]++;
-      next_hist[cl[j].size()]++;
-      int next_rank = rankproxy(next_hist);
-      delta += bias * (next_rank - rankcost);
-      double temp = 24 * pow(0.03 / 1.5, progress);
+      double temp = 1.5 * pow(0.03 / 1.5, progress);
       if ((common(cl[i]) & hm) && (common(cl[j]) & hm) &&
-          (delta <= 0 || real() < exp(-delta / temp))) {
+          (delta <= 0 || real() < exp(-delta / temp)))
         score += delta;
-        hist = next_hist;
-        rankcost = next_rank;
-      } else {
+      else {
         cl[i] = oldi;
         cl[j] = oldj;
       }
@@ -249,12 +186,8 @@ int main(int argc, char **argv) {
       bestcl = cl;
       bestcm = cm;
       besthm = hm;
-      bestflip = flip;
     }
   }
-  for (U &x : codes)
-    x ^= flip ^ bestflip;
-  flip = bestflip;
   cl = bestcl;
   cm = bestcm;
   hm = besthm;
@@ -262,7 +195,7 @@ int main(int argc, char **argv) {
   content.clear();
   for (int j = 0; j < n; j++)
     ((hm >> j & 1) ? handles : content).push_back(j);
-  // 最初は白黒同数で割り当てる。後段で群サイズ・白黒枚数を自由にする。
+  // 初期状態は白黒交互。その後は隣り合う 2 枚を常に異色に保つ。
   vector<int> sizes(h, c / (2 * h) * 2);
   int remainder = (c - accumulate(sizes.begin(), sizes.end(), 0)) / 2;
   for (int g = 0; g < remainder; g++)
@@ -317,68 +250,6 @@ int main(int argc, char **argv) {
       return 0;
     }
   }
-
-  // 先頭色が各1/2と仮定し、先頭2枚異色の静的な重み付き順位を評価。
-  auto slotcost = [&](int g) {
-    vector<int> w[2];
-    for (int col = 0; col < 2; col++) {
-      for (int i : slots[g][col])
-        w[col].push_back(cl[i].size());
-      sort(w[col].rbegin(), w[col].rend());
-    }
-    int cost = 0;
-    vector<int> rest;
-    for (int col = 0; col < 2; col++)
-      for (int z = 1; z < int(w[col].size()); z++)
-        rest.push_back(w[col][z]);
-    sort(rest.rbegin(), rest.rend());
-    cost = w[0][0] + w[1][0];
-    for (int z = 0; z < int(rest.size()); z++)
-      cost += 2 * (z + 2) * rest[z];
-    return cost;
-  };
-  vector<int> gcost(h);
-  for (int g = 0; g < h; g++)
-    gcost[g] = slotcost(g);
-  int rounds = argc > 4 ? atoi(argv[4]) : 400000;
-  for (int t = 0; t < rounds; t++) {
-    int g = rng() % h, f = rng() % h, col = rng() % 2;
-    if (g == f || slots[g][col].size() <= 1 ||
-        slots[f][0].size() + slots[f][1].size() >= 24)
-      continue;
-    int ix = rng() % slots[g][col].size(), i = slots[g][col][ix];
-    if (!(common(cl[i]) >> handles[f] & 1))
-      continue;
-    int nc = codes[cl[i][0]] >> handles[f] & 1;
-    slots[g][col].erase(slots[g][col].begin() + ix);
-    slots[f][nc].push_back(i);
-    int cg = slotcost(g), cf = slotcost(f),
-        delta = cg + cf - gcost[g] - gcost[f];
-    double temp = 4 * pow(0.02 / 4, double(t) / rounds);
-    if (delta <= 0 || real() < exp(-delta / temp)) {
-      gcost[g] = cg;
-      gcost[f] = cf;
-    } else {
-      slots[f][nc].pop_back();
-      slots[g][col].insert(slots[g][col].begin() + ix, i);
-    }
-  }
-  vector<vector<int>> layout(h);
-  for (int g = 0; g < h; g++) {
-    for (int col = 0; col < 2; col++)
-      stable_sort(slots[g][col].begin(), slots[g][col].end(),
-                  [&](int a, int b) { return cl[a].size() > cl[b].size(); });
-    for (int col = 0; col < 2; col++)
-      layout[g].push_back(slots[g][col][0]);
-    vector<int> rest;
-    for (int col = 0; col < 2; col++)
-      for (int z = 1; z < int(slots[g][col].size()); z++)
-        rest.push_back(slots[g][col][z]);
-    stable_sort(rest.begin(), rest.end(),
-                [&](int a, int b) { return cl[a].size() > cl[b].size(); });
-    layout[g].insert(layout[g].end(), rest.begin(), rest.end());
-  }
-
   vector<U> masks, blacks;
   for (int j : content) {
     masks.push_back(U(1) << j);
@@ -387,19 +258,20 @@ int main(int argc, char **argv) {
   vector<vector<int>> groups(h);
   vector<int> member(p), loc(k);
   for (int g = 0; g < h; g++)
-    for (int i : layout[g]) {
-      int item = masks.size();
-      U base = ~U(0);
-      for (int a : cl[i]) {
-        base &= codes[a];
-        member[a] = item;
+    for (int t = 0; t < sizes[g] / 2; t++)
+      for (int col = 0; col < 2; col++) {
+        int i = slots[g][col][t], item = masks.size();
+        U base = ~U(0);
+        for (int a : cl[i]) {
+          base &= codes[a];
+          member[a] = item;
+        }
+        U mask = cm | (U(1) << handles[g]);
+        masks.push_back(mask);
+        blacks.push_back(base & mask);
+        groups[g].push_back(item);
+        loc[item] = g;
       }
-      U mask = cm | (U(1) << handles[g]);
-      masks.push_back(mask);
-      blacks.push_back(base & mask);
-      groups[g].push_back(item);
-      loc[item] = g;
-    }
   for (int item = 0; item < k; item++) {
     string s(n, '.');
     for (int j = 0; j < n; j++)
@@ -451,7 +323,7 @@ int main(int argc, char **argv) {
         int value = 0;
         for (int ix = 0; ix < int(next.size()); ix++) {
           value += weight[next[ix]] * ix;
-          if (ix == 1 &&
+          if (ix % 2 == 1 &&
               !((blacks[next[ix]] ^ blacks[next[ix - 1]]) >> handles[group] &
                 1))
             valid = false;
@@ -475,30 +347,41 @@ int main(int argc, char **argv) {
       } else if (current == page)
         move(current, bn);
     }
-    // 追加移動なしで先頭を対象、次を反対色、残りを重み順へ組み直す。
+    // 取り出す途中の紙を、追加移動なしで頻度順の二色ブロックに組み直す。
     int rank =
         find(groups[g].begin(), groups[g].end(), page) - groups[g].begin();
-    int end = rank + 1;
-    vector<int> desired{page}, rest;
-    int partner = -1;
+    int end = (rank / 2 + 1) * 2;
+    vector<int> colors[2];
+    int pagecolor = blacks[page] >> handles[g] & 1;
     for (int ix = 0; ix < end; ix++)
       if (groups[g][ix] != page) {
         int item = groups[g][ix];
-        if (((blacks[item] ^ blacks[page]) >> handles[g] & 1) &&
-            (partner < 0 || weight[item] > weight[partner]))
-          partner = item;
+        colors[blacks[item] >> handles[g] & 1].push_back(item);
       }
-    if (partner >= 0)
-      desired.push_back(partner);
-    for (int ix = 0; ix < end; ix++)
-      if (groups[g][ix] != page && groups[g][ix] != partner)
-        rest.push_back(groups[g][ix]);
-    stable_sort(rest.begin(), rest.end(),
-                [&](int a, int b) { return weight[a] > weight[b]; });
-    desired.insert(desired.end(), rest.begin(), rest.end());
+    for (auto &v : colors)
+      stable_sort(v.begin(), v.end(),
+                  [&](int a, int b) { return weight[a] > weight[b]; });
+    vector<int> desired{page, colors[1 - pagecolor][0]};
+    colors[1 - pagecolor].erase(colors[1 - pagecolor].begin());
+    vector<pair<int, int>> pairs;
+    for (int ix = 0; ix < int(colors[0].size()); ix++) {
+      int x = colors[0][ix], y = colors[1][ix];
+      if (weight[x] < weight[y])
+        swap(x, y);
+      pairs.emplace_back(x, y);
+    }
+    stable_sort(pairs.begin(), pairs.end(), [&](auto a, auto b) {
+      return weight[a.first] + weight[a.second] >
+             weight[b.first] + weight[b.second];
+    });
+    for (auto [x, y] : pairs) {
+      desired.push_back(x);
+      desired.push_back(y);
+    }
     bool placed[192] = {};
     placed[page] = true;
-
+    if (rank % 2 == 0)
+      placed[groups[g][rank + 1]] = true;
     vector<int> movable(groups[g].begin(), groups[g].begin() + rank);
     for (int item : movable) {
       int ix = find(desired.begin(), desired.end(), item) - desired.begin(),
